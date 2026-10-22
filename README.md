@@ -2,7 +2,7 @@
 
 C# / .NET 9 / Raylib-cs 8.0.0 game foundation. One window, one game loop:
 Initial Loading → Splash → Title → Loading → MainMenu or Game → Shutdown. New Game and debug test-level
-startup share the same black, empty scene. Escape / controller B returns to the menu.
+startup share the same block-built dungeon test level. Escape / controller B returns to the menu.
 
 ## Build and launch
 
@@ -33,7 +33,7 @@ dotnet run --project CCM.csproj -- --debug-config test-level-debug.json
 | --- | --- | --- |
 | false | Menu or TestLevel | Main menu, no overlay |
 | true | Menu | Main menu with diagnostics |
-| true | TestLevel | Blank game scene with diagnostics |
+| true | TestLevel | Dungeon test level with diagnostics |
 
 ShowFPS controls the FPS portion of the debug overlay. Debug-off suppresses
 verbose application and native diagnostics while retaining event/error logging.
@@ -47,14 +47,13 @@ do not select controls. All three modes wait at the title, including Test Level
 Debug. Keyboard/mouse wins simultaneous presses, then the lowest controller slot.
 
 The selected device stays fixed for this session and is shown in the debug
-overlay. Menus continue accepting all devices. The blank game's return action
-uses the selected keyboard/mouse or specific controller slot; if that controller
+overlay. Menus continue accepting all devices. The game's movement, camera and return actions
+use the selected keyboard/mouse or specific controller slot; if that controller
 disconnects, Escape provides a route back to the menu. Restart to select another
-device. Current gameplay only has the return action; future gameplay bindings
-should use the same session selection.
+device. Gameplay actions use the same session selection.
 
 DeviceSelection is a small headless CCM component, with native polling isolated
-in TitleInputReader and the current return action in SessionInput. The external
+in TitleInputReader and gameplay action mapping in SessionInput. The external
 Input library and its vendored snapshot are unchanged. Generic session/device
 selection can be contributed to the library separately.
 
@@ -86,7 +85,7 @@ validated platform. Refresh rate remains Raylib/driver controlled.
   InitialLoading loads Config/presentation-assets.json (the title's OBJ mark).
   After title confirmation, Loading loads Config/assets.json (the foundation
   verification model). Both call ProcessNext once per frame and display actual
-  progress. The title mark is drawn only on the title; the game remains black.
+  progress. Dungeon blocks are drawn procedurally and need no external models.
 - The splash and loading text use Raylib's built-in font. Each catalogue is
   validated when its loading stage begins. Failures remain on a responsive
   error screen; Escape/B or window close exits. Details go to logs.
@@ -100,16 +99,46 @@ validated platform. Refresh rate remains Raylib/driver controlled.
   closes its file handle after each write.
 
 Framework dependencies and source provenance are in [vendor/PROVENANCE.md](vendor/PROVENANCE.md).
-No gameplay, character, physics or animation systems are introduced.
+The dungeon uses simple flat-floor collision and a block character; no combat,
+jumping, animation, enemies or procedural generation are included.
+
+## Dungeon test level
+
+New Game and Test Level Debug enter the same room, doorway and short corridor.
+Pillars and low blocks provide collision/camera obstacles. Entering the scene
+resets the player to the spawn point.
+
+- Keyboard/mouse: WASD moves relative to the camera, mouse orbits, Escape returns.
+- Controller: left stick moves, right stick orbits, B returns.
+- Title selection determines the gameplay device. Other controllers cannot move
+  the player. If the selected controller disconnects, movement/look stop and
+  keyboard Escape returns to the menu.
+- Mouse capture is active only during focused keyboard/mouse gameplay, restored
+  on focus loss or scene exit. The first look sample after capture is discarded.
+- Debug mode draws collision bounds, facing direction, player position and
+  camera distance.
+
+Config/dungeon.json controls speed, sensitivities, deadzones, camera distance
+and starting pitch. Config/input.json contains the action bindings.
+ThreeD Transform3D supplies player position, rotation and facing vectors.
+CCM owns the room, collision, movement and camera. Collision uses a conservative
+square footprint and small axis-separated steps; the character slides along
+walls. The camera tests its path against expanded obstacle bounds. Simulation
+limits long frame intervals to 0.1 seconds rather than moving through walls.
+
+Input-library follow-up work is recorded in
+[docs/input-library-follow-up.md](docs/input-library-follow-up.md).
+The external libraries remain untouched.
 
 ## Validation
 
 Executed successfully on Windows:
 - Release build, zero warnings/errors.
-- 21 headless tests: all startup combinations, required lifecycle ordering,
+- 30 headless tests: all startup combinations, required lifecycle ordering,
   return/new-game/shutdown transitions, invalid configs, persisted settings,
   bundled menu/input/catalogue validation, separate loading catalogues, title
-  press/release selection and missing-asset diagnostics.
+  press/release selection and missing-asset diagnostics; dungeon movement,
+  collision, camera obstruction/pitch, input timing, deadzones and controller filtering.
 - Four native tests: all three startup profiles with both loading stages, title and splash frames,
   actual Model loading, both menu/game transitions and clean window teardown;
   window resolution changes, fullscreen round trip and persistence.
@@ -131,9 +160,10 @@ Still check interactively:
 1. Visually inspect splash centring, loading progress and the debug overlay in
    each mode. Each tiny asset may finish in just two loading frames.
 2. Use keyboard, mouse and a physical controller for every menu action; verify
-   New Game is completely black in Regular mode and the selected device returns.
+   New Game opens the dungeon and the selected device moves, looks and returns.
    Hold splash skip, release, and verify the title needs a second press. Confirm
-   with a controller and check another controller cannot control the blank scene.
+   with a controller and check another controller cannot control the player. Walk against walls, through
+   the doorway and around obstacles; orbit near walls, then Alt-Tab and return.
 3. Resize while Settings is open; apply several modes, restart, and confirm
    selection/persistence. Check monitor moves, DPI scaling and driver-specific
    fullscreen behaviour on the intended hardware.

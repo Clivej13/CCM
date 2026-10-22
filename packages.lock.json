@@ -32,6 +32,13 @@
           "Raylib-cs": "[8.0.0, )",
           "RaylibGameFramework.Input": "[0.1.5, )"
         }
+      },
+      "raylibgameframework.threed": {
+        "type": "Project",
+        "dependencies": {
+          "Raylib-cs": "[8.0.0, )",
+          "RaylibGameFramework.Assets": "[0.1.4, )"
+        }
       }
     }
   }

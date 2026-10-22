@@ -16,6 +16,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RaylibGameFramework.Logging
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RaylibGameFramework.Menus", "vendor\RaylibGameFramework.Menus\RaylibGameFramework.Menus.csproj", "{284FB0D1-2310-4D62-984C-30AC0AA10004}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RaylibGameFramework.ThreeD", "vendor\RaylibGameFramework.ThreeD\RaylibGameFramework.ThreeD.csproj", "{284FB0D1-2310-4D62-984C-30AC0AA10005}"
+EndProject
 Global
     GlobalSection(SolutionConfigurationPlatforms) = preSolution
         Debug|Any CPU = Debug|Any CPU
@@ -50,5 +52,9 @@ Global
         {284FB0D1-2310-4D62-984C-30AC0AA10004}.Debug|Any CPU.Build.0 = Debug|Any CPU
         {284FB0D1-2310-4D62-984C-30AC0AA10004}.Release|Any CPU.ActiveCfg = Release|Any CPU
         {284FB0D1-2310-4D62-984C-30AC0AA10004}.Release|Any CPU.Build.0 = Release|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10005}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10005}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10005}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10005}.Release|Any CPU.Build.0 = Release|Any CPU
     EndGlobalSection
 EndGlobal

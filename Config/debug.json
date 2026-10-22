@@ -1,7 +1,7 @@
 {
   "Debug": {
-    "Enabled": false,
-    "StartupScene": "Menu",
+    "Enabled": true,
+    "StartupScene": "TestLevel",
     "ShowFPS": true
   }
 }

@@ -8,6 +8,7 @@
   <ItemGroup>
     <PackageReference Include="Raylib-cs" Version="8.0.0" />
     <ProjectReference Include="vendor/RaylibGameFramework.Assets/RaylibGameFramework.Assets.csproj" />
+    <ProjectReference Include="vendor/RaylibGameFramework.ThreeD/RaylibGameFramework.ThreeD.csproj" />
     <ProjectReference Include="vendor/RaylibGameFramework.Configuration/RaylibGameFramework.Configuration.csproj" />
     <ProjectReference Include="vendor/RaylibGameFramework.Input/RaylibGameFramework.Input.csproj" />
     <ProjectReference Include="vendor/RaylibGameFramework.Logging/RaylibGameFramework.Logging.csproj" />

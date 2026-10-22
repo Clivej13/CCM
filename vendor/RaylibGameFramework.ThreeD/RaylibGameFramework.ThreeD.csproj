@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackageId>RaylibGameFramework.ThreeD</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>RaylibGameFramework</Authors>
+    <Description>Reusable 3D transforms, animation playback, material overrides, and particles for Raylib-cs.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Raylib-cs" Version="8.0.0" />
+    <ProjectReference Include="../RaylibGameFramework.Assets/RaylibGameFramework.Assets.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Tests/**/*.cs" />
+  </ItemGroup>
+
+</Project>

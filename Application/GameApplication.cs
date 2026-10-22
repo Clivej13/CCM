@@ -31,7 +31,9 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
             var bindings = InputConfigLoader.Load(Settings.ConfigPath("input.json"));
             var input = new InputController(bindings);
             var selection = new DeviceSelection();
-            var sessionInput = new SessionInput(bindings, selection);
+            var dungeon = Settings.Required<CCM.Game.DungeonSettings>(Settings.ConfigPath("dungeon.json"));
+            dungeon.Validate();
+            var sessionInput = new SessionInput(bindings, selection, dungeon);
             int titleSamples = 0;
             TitleInput ReadTitleInput()
             {
@@ -54,7 +56,7 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
                 () => Transition(Lifecycle.Destination(debug)), () => Transition(AppState.Shutdown));
             scenes[AppState.MainMenu] = new MenuScene(input, bindings, display, store, diagnostics,
                 () => Transition(AppState.Game), () => Transition(AppState.Shutdown));
-            scenes[AppState.Game] = new GameScene(sessionInput, () => Transition(AppState.MainMenu));
+            scenes[AppState.Game] = new GameScene(sessionInput, dungeon, debug.Enabled, () => Transition(AppState.MainMenu));
             lifecycle.Changed += (previous, next) =>
             {
                 active?.Exit();
