@@ -1,41 +1,49 @@
 using System.Numerics;
 using CCM.Game;
+using Raylib_cs;
 using RaylibGameFramework.Input;
 namespace CCM.Application;
 
-/// <summary>Selected gameplay device. Unrestricted menu input remains separate.</summary>
+/// <summary>Maps owned framework input to gameplay; menu input remains unrestricted.</summary>
 public sealed class SessionInput
 {
     private readonly InputConfig bindings;
     private readonly DeviceSelection selection;
     private readonly DungeonSettings settings;
-    private readonly IGamepadSource gamepads;
     private readonly InputController keyboard;
+    private InputController? gameplay;
+    private SelectedDevice? owner;
     private bool backDown, backPressed;
     public Vector2 Move { get; private set; }
     public Vector2 Look { get; private set; }
     public bool UsesMouse => selection.Selected?.Family == InputDeviceFamily.KeyboardMouse;
     public bool ControllerDisconnected => selection.Selected is { Family: InputDeviceFamily.Gamepad } selected &&
-        !gamepads.Available(selected.Gamepad);
+        !Raylib.IsGamepadAvailable(selected.Gamepad);
 
-    public SessionInput(InputConfig bindings, DeviceSelection selection, DungeonSettings settings, IGamepadSource? gamepads = null)
+    public SessionInput(InputConfig bindings, DeviceSelection selection, DungeonSettings settings)
     {
         this.bindings = bindings; this.selection = selection; this.settings = settings;
-        this.gamepads = gamepads ?? new RaylibGamepadSource();
-        keyboard = new(new InputConfig { Bindings = bindings.Bindings.Where(b =>
-            b.Device.Equals("Keyboard",StringComparison.OrdinalIgnoreCase) ||
-            b.Device.Equals("Mouse",StringComparison.OrdinalIgnoreCase) ||
-            b.Device.Equals("MouseAxis",StringComparison.OrdinalIgnoreCase)).ToList() });
+        keyboard = new(bindings, new InputControllerOptions { DeviceFamily = InputDeviceFamily.KeyboardMouse });
     }
     public void Update()
     {
+        // Always sample the fallback, even while a connected controller owns gameplay.
         keyboard.Update();
         Move = Look = Vector2.Zero;
         bool down = false;
         if (selection.Selected is { } selected)
         {
-            float Value(string action) => UsesMouse ? Math.Abs(keyboard.GetValue(action))
-                : GamepadActions.Value(bindings, gamepads, selected.Gamepad, action);
+            if (gameplay is null || owner != selected)
+            {
+                gameplay = new(bindings, new InputControllerOptions
+                {
+                    DeviceFamily = selected.Family,
+                    GamepadIndex = selected.Family == InputDeviceFamily.Gamepad ? selected.Gamepad : null
+                });
+                owner = selected;
+            }
+            gameplay.Update();
+            float Value(string action) => Math.Abs(gameplay.GetRawValue(action));
             Move = new(Value("MoveRight")-Value("MoveLeft"), Value("MoveForward")-Value("MoveBackward"));
             Look = new(Value("LookRight")-Value("LookLeft"), Value("LookDown")-Value("LookUp"));
             if (UsesMouse)
@@ -44,11 +52,12 @@ public sealed class SessionInput
             }
             else
             {
-                Move = GamepadActions.Deadzone(Move, settings.MoveDeadzone);
-                Look = GamepadActions.Deadzone(Look, settings.LookDeadzone);
+                Move = InputMath.ApplyRadialDeadzone(Move, settings.MoveDeadzone);
+                Look = InputMath.ApplyRadialDeadzone(Look, settings.LookDeadzone);
             }
-            down = ControllerDisconnected ? keyboard.IsDown("MenuBack") : Value("MenuBack") > 0;
+            down = ControllerDisconnected ? keyboard.IsDown("MenuBack") : gameplay.IsDown("MenuBack");
         }
+        // Preserve one logical edge when fallback and controller are both held.
         backPressed = down && !backDown;
         backDown = down;
     }

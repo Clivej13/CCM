@@ -1,36 +1,38 @@
-# Input library follow-up
+# Input 0.2.0 migration — completed
 
-The dungeon implementation intentionally keeps these changes inside CCM.
-Neither the external Input repository nor CCM's Input snapshot was modified.
+CCM now consumes the Input 0.2.0 source snapshot in vendor.
+NuGet.org did not contain this package during migration; no machine-local feed
+or sibling project path is required. See vendor/PROVENANCE.md for source details.
 
-Local implementation:
-- Application/GamepadActions.cs reads configured actions from one selected slot.
-  IGamepadSource permits headless tests with two controllers and disconnection.
-- Raw directional stick components are combined into a two-dimensional vector,
-  then a radial deadzone is applied and the remaining magnitude is rescaled.
-  This avoids the library's current fixed 0.5 per-axis activation threshold.
-- Application/SessionInput.cs keeps keyboard/mouse on the framework controller,
-  composes movement/look vectors and keeps gamepad return-button edges locally.
-- Config/dungeon.json supplies movement/look deadzones and sensitivities.
-- DeviceSelection continues owning title press/release gating in CCM.
+Replaced:
+- GamepadActions and IGamepadSource were removed.
+- SessionInput creates an InputController with InputControllerOptions after
+  title selection, filtering DeviceFamily and GamepadIndex.
+- Movement/look composition uses Math.Abs(GetRawValue(action)) for directional
+  magnitudes. InputMath.ApplyRadialDeadzone handles each controller stick.
+- The unrestricted menu controller keeps the framework's default thresholds.
 
-Proposed upstream API work:
-1. Optional selected gamepad index and device-family filter on InputController;
-   preserve unrestricted input as the default for existing menus.
-2. Raw selected-controller axis sampling, plus configurable radial stick
-   deadzones distinct from digital navigation/rebind thresholds.
-3. Preserve action press/release semantics when filtering or disconnecting.
-4. Keep mouse delta units separate from stick deflection. Mouse look is a
-   displacement; stick look is a rate multiplied by elapsed time.
-5. Validate bindings against supported devices/axes, and define trigger mapping
-   separately from signed stick directions.
-6. Tests for multiple pads, inactive devices, disconnect/reconnect, thresholds,
-   diagonal vectors, low analog values and title-input carry-through.
+Preserved in CCM:
+- DeviceSelection's fresh press/release title gate and fixed session owner.
+- Keyboard diagonal normalization and action-to-gameplay mapping.
+- Mouse delta sensitivity without elapsed-time scaling; controller rotation
+  rate multiplied by elapsed time in DungeonSimulation.
+- Selected-controller connectivity checks and keyboard Escape fallback.
+- Combined backDown/backPressed tracking prevents duplicate actions when
+  switching between a held controller back button and held fallback Escape.
+- Config/input.json and Config/dungeon.json values remain unchanged.
 
-When upstream supports these, replace GamepadActions with the framework API,
-retaining CCM's action-to-gameplay mapping, camera sensitivity and movement rules.
-Keep CCM's keyboard escape route when the selected controller disconnects.
-No automatic device takeover is implemented; title selection lasts the session.
+Validation:
+- 29 foundation/dungeon tests and 5 session-integration tests.
+- Integration tests link unchanged production Input sources and CCM session
+  sources against deterministic native polling, without a graphics context.
+- Four native smoke tests exercise the actual compiled Input 0.2.0 library with
+  menus, both startup routes, dungeon rendering, display settings and teardown.
+- Physical dual-controller operation, unplug/replug and mouse capture still
+  benefit from interactive checks.
 
-Current scope is signed stick axes and buttons used by this dungeon.
-This local adapter is not a complete replacement input framework.
+The external Input repository was only read. No upstream API changes are needed
+for this migration. When 0.2.0 is published to an accessible feed, switch both CCM
+and its vendored Menus project together to one exact package version, remove the
+Input project/snapshot, and update the linked-source test strategy and lock files.
+Do not leave old source and package definitions active simultaneously.

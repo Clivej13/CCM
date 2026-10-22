@@ -86,25 +86,11 @@ public sealed class DungeonTests
     [Fact]
     public void RadialDeadzoneRemovesDriftAndPreservesAnalogRange()
     {
-        Assert.Equal(Vector2.Zero,GamepadActions.Deadzone(new(0.05f,0.05f),0.18f));
-        var slow = GamepadActions.Deadzone(new(0.3f,0),0.18f);
+        Assert.Equal(Vector2.Zero,InputMath.ApplyRadialDeadzone(new(0.05f,0.05f),0.18f));
+        var slow = InputMath.ApplyRadialDeadzone(new(0.3f,0),0.18f);
         Assert.InRange(slow.X,0.14f,0.15f);
-        Assert.Equal(Vector2.UnitX,GamepadActions.Deadzone(Vector2.UnitX,0.18f));
-        Assert.InRange(GamepadActions.Deadzone(Vector2.One,0.18f).Length(),0.999f,1.001f);
-    }
-    [Fact]
-    public void ControllerActionsRespectSelectedSlotBindingsAndDisconnection()
-    {
-        var config = InputConfigLoader.Load(Settings.ConfigPath("input.json"));
-        var source = new FakeGamepad();
-        Assert.Equal(0.3f,GamepadActions.Value(config,source,2,"MoveRight"));
-        Assert.Equal(0,GamepadActions.Value(config,source,0,"MoveRight"));
-        Assert.Equal(0,GamepadActions.Value(config,source,2,"MoveLeft"));
-        Assert.Equal(1,GamepadActions.Value(config,source,2,"MenuBack"));
-        Assert.Equal(0.4f,GamepadActions.Value(config,source,2,"LookUp"));
-        source.Connected = false;
-        Assert.Equal(0,GamepadActions.Value(config,source,2,"MoveRight"));
-        Assert.Equal(0,GamepadActions.Value(config,source,2,"MenuBack"));
+        Assert.Equal(Vector2.UnitX,InputMath.ApplyRadialDeadzone(Vector2.UnitX,0.18f));
+        Assert.InRange(InputMath.ApplyRadialDeadzone(Vector2.One,0.18f).Length(),0.999f,1.001f);
     }
     [Fact]
     public void DungeonConfigValidatesTuning()
@@ -112,13 +98,5 @@ public sealed class DungeonTests
         Settings.Required<DungeonSettings>(Settings.ConfigPath("dungeon.json")).Validate();
         Assert.Throws<InvalidDataException>(()=>new DungeonSettings { MoveDeadzone=1 }.Validate());
         Assert.Throws<InvalidDataException>(()=>new DungeonSettings { CameraDistance=float.NaN }.Validate());
-    }
-    private sealed class FakeGamepad : IGamepadSource
-    {
-        public bool Connected = true;
-        public bool Available(int index) => Connected && index is 0 or 2;
-        public float Axis(int index,GamepadAxis axis) => index == 2 ?
-            axis == GamepadAxis.LeftX ? 0.3f : axis == GamepadAxis.RightY ? -0.4f : 0 : 0;
-        public bool Down(int index,GamepadButton button) => index == 2 && button == GamepadButton.RightFaceRight;
     }
 }

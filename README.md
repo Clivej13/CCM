@@ -22,9 +22,11 @@ dependent and needs the .NET 9 runtime.
 
 ## Startup modes
 
-Edit Config/debug.json beside the executable, or select a bundled profile:
+Edit Config/debug.json beside the executable, or select a bundled profile.
+regular.json explicitly disables debug, independent of your default debug.json:
 
 ```text
+dotnet run --project CCM.csproj -- --debug-config regular.json
 dotnet run --project CCM.csproj -- --debug-config regular-debug.json
 dotnet run --project CCM.csproj -- --debug-config test-level-debug.json
 ```
@@ -54,8 +56,9 @@ device. Gameplay actions use the same session selection.
 
 DeviceSelection is a small headless CCM component, with native polling isolated
 in TitleInputReader and gameplay action mapping in SessionInput. The external
-Input library and its vendored snapshot are unchanged. Generic session/device
-selection can be contributed to the library separately.
+Input repository is unchanged by this migration. CCM now includes the 0.2.0
+source snapshot and uses InputControllerOptions, GetRawValue and
+InputMath.ApplyRadialDeadzone. Title arbitration remains CCM policy.
 
 ## Menus and display settings
 
@@ -126,7 +129,7 @@ square footprint and small axis-separated steps; the character slides along
 walls. The camera tests its path against expanded obstacle bounds. Simulation
 limits long frame intervals to 0.1 seconds rather than moving through walls.
 
-Input-library follow-up work is recorded in
+The completed Input 0.2.0 migration is recorded in
 [docs/input-library-follow-up.md](docs/input-library-follow-up.md).
 The external libraries remain untouched.
 
@@ -134,11 +137,14 @@ The external libraries remain untouched.
 
 Executed successfully on Windows:
 - Release build, zero warnings/errors.
-- 30 headless tests: all startup combinations, required lifecycle ordering,
+- 34 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
   return/new-game/shutdown transitions, invalid configs, persisted settings,
   bundled menu/input/catalogue validation, separate loading catalogues, title
   press/release selection and missing-asset diagnostics; dungeon movement,
   collision, camera obstruction/pitch, input timing, deadzones and controller filtering.
+  Input integration links the production library and CCM session sources against
+  deterministic Raylib polling, covering multiple pads, title release gating,
+  raw mouse/stick values and disconnect/reconnect fallback edges.
 - Four native tests: all three startup profiles with both loading stages, title and splash frames,
   actual Model loading, both menu/game transitions and clean window teardown;
   window resolution changes, fullscreen round trip and persistence.
