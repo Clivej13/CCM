@@ -1,0 +1,9 @@
+{
+  "Assets": [
+    {
+      "Key": "foundation-triangle",
+      "Type": "Model",
+      "Path": "Assets/foundation.obj"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <DefaultItemExcludes>$(DefaultItemExcludes);artifacts/**</DefaultItemExcludes>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Raylib-cs" Version="8.0.0" />
+    <ProjectReference Include="vendor/RaylibGameFramework.Assets/RaylibGameFramework.Assets.csproj" />
+    <ProjectReference Include="vendor/RaylibGameFramework.Configuration/RaylibGameFramework.Configuration.csproj" />
+    <ProjectReference Include="vendor/RaylibGameFramework.Input/RaylibGameFramework.Input.csproj" />
+    <ProjectReference Include="vendor/RaylibGameFramework.Logging/RaylibGameFramework.Logging.csproj" />
+    <ProjectReference Include="vendor/RaylibGameFramework.Menus/RaylibGameFramework.Menus.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Tests/**/*.cs;vendor/**/*.cs" />
+    <None Update="Config/**/*.json;Assets/**/*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

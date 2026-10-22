@@ -1,0 +1,11 @@
+{
+  "Title": "CCM",
+  "TargetFps": 60,
+  "SplashSeconds": 2,
+  "SkipSplash": true,
+  "Window": {
+    "Width": 1280,
+    "Height": 720,
+    "Fullscreen": false
+  }
+}

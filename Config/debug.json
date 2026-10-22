@@ -1,0 +1,7 @@
+{
+  "Debug": {
+    "Enabled": false,
+    "StartupScene": "Menu",
+    "ShowFPS": true
+  }
+}

@@ -1,0 +1,54 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CCM", "CCM.csproj", "{73510344-23B2-44D3-8C18-EE218F2264BC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CCM.Tests", "Tests\CCM.Tests.csproj", "{38D2B1FD-27B9-43FA-B142-B62337A1071B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RaylibGameFramework.Assets", "vendor\RaylibGameFramework.Assets\RaylibGameFramework.Assets.csproj", "{284FB0D1-2310-4D62-984C-30AC0AA10000}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RaylibGameFramework.Configuration", "vendor\RaylibGameFramework.Configuration\RaylibGameFramework.Configuration.csproj", "{284FB0D1-2310-4D62-984C-30AC0AA10001}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RaylibGameFramework.Input", "vendor\RaylibGameFramework.Input\RaylibGameFramework.Input.csproj", "{284FB0D1-2310-4D62-984C-30AC0AA10002}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RaylibGameFramework.Logging", "vendor\RaylibGameFramework.Logging\RaylibGameFramework.Logging.csproj", "{284FB0D1-2310-4D62-984C-30AC0AA10003}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RaylibGameFramework.Menus", "vendor\RaylibGameFramework.Menus\RaylibGameFramework.Menus.csproj", "{284FB0D1-2310-4D62-984C-30AC0AA10004}"
+EndProject
+Global
+    GlobalSection(SolutionConfigurationPlatforms) = preSolution
+        Debug|Any CPU = Debug|Any CPU
+        Release|Any CPU = Release|Any CPU
+    EndGlobalSection
+    GlobalSection(ProjectConfigurationPlatforms) = postSolution
+        {73510344-23B2-44D3-8C18-EE218F2264BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {73510344-23B2-44D3-8C18-EE218F2264BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {73510344-23B2-44D3-8C18-EE218F2264BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {73510344-23B2-44D3-8C18-EE218F2264BC}.Release|Any CPU.Build.0 = Release|Any CPU
+        {38D2B1FD-27B9-43FA-B142-B62337A1071B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {38D2B1FD-27B9-43FA-B142-B62337A1071B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {38D2B1FD-27B9-43FA-B142-B62337A1071B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {38D2B1FD-27B9-43FA-B142-B62337A1071B}.Release|Any CPU.Build.0 = Release|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10000}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10000}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10000}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10000}.Release|Any CPU.Build.0 = Release|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10001}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10001}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10001}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10001}.Release|Any CPU.Build.0 = Release|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10002}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10002}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10002}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10002}.Release|Any CPU.Build.0 = Release|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10003}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10003}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10003}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10003}.Release|Any CPU.Build.0 = Release|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10004}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10004}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10004}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {284FB0D1-2310-4D62-984C-30AC0AA10004}.Release|Any CPU.Build.0 = Release|Any CPU
+    EndGlobalSection
+EndGlobal

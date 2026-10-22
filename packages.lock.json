@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net9.0": {
+      "Raylib-cs": {
+        "type": "Direct",
+        "requested": "[8.0.0, )",
+        "resolved": "8.0.0",
+        "contentHash": "m+fStTZjOGtkx05RNflERtKbmEUrIZ5/PFV5QXnlA02kAEwxxOC+XhNeCSZJhaGHu9d8m0eTMmefRhHueS3hkg=="
+      },
+      "raylibgameframework.assets": {
+        "type": "Project",
+        "dependencies": {
+          "Raylib-cs": "[8.0.0, )"
+        }
+      },
+      "raylibgameframework.configuration": {
+        "type": "Project"
+      },
+      "raylibgameframework.input": {
+        "type": "Project",
+        "dependencies": {
+          "Raylib-cs": "[8.0.0, )"
+        }
+      },
+      "raylibgameframework.logging": {
+        "type": "Project"
+      },
+      "raylibgameframework.menus": {
+        "type": "Project",
+        "dependencies": {
+          "Raylib-cs": "[8.0.0, )",
+          "RaylibGameFramework.Input": "[0.1.5, )"
+        }
+      }
+    }
+  }
+}

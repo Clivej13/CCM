@@ -1,0 +1,74 @@
+{
+  "Bindings": [
+    {
+      "Device": "Keyboard",
+      "Input": "Up",
+      "Action": "MenuUp"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Down",
+      "Action": "MenuDown"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Left",
+      "Action": "MenuLeft"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Right",
+      "Action": "MenuRight"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Enter",
+      "Action": "MenuConfirm"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Escape",
+      "Action": "MenuBack"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Space",
+      "Action": "SkipSplash"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "LeftFaceUp",
+      "Action": "MenuUp"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "LeftFaceDown",
+      "Action": "MenuDown"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "LeftFaceLeft",
+      "Action": "MenuLeft"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "LeftFaceRight",
+      "Action": "MenuRight"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "RightFaceDown",
+      "Action": "MenuConfirm"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "RightFaceRight",
+      "Action": "MenuBack"
+    },
+    {
+      "Device": "Mouse",
+      "Input": "Left",
+      "Action": "SkipSplash"
+    }
+  ]
+}

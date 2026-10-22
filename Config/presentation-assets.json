@@ -1,0 +1,9 @@
+{
+  "Assets": [
+    {
+      "Key": "title-mark",
+      "Type": "Model",
+      "Path": "Assets/title.obj"
+    }
+  ]
+}

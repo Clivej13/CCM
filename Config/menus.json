@@ -1,0 +1,56 @@
+{
+  "StartMenu": "Main",
+  "Menus": {
+    "Main": {
+      "Title": "CCM",
+      "Items": [
+        {
+          "Type": "Button",
+          "Text": "New Game",
+          "Function": "NewGame"
+        },
+        {
+          "Type": "Button",
+          "Text": "Settings",
+          "Function": "OpenMenu",
+          "Target": "Settings"
+        },
+        {
+          "Type": "Button",
+          "Text": "Exit Game",
+          "Function": "Exit"
+        }
+      ]
+    },
+    "Settings": {
+      "Title": "Display settings",
+      "Items": [
+        {
+          "Type": "Toggle",
+          "Text": "Fullscreen",
+          "Function": "SetFullscreen",
+          "Value": false
+        },
+        {
+          "Type": "Selector",
+          "Text": "Resolution",
+          "Function": "SetResolution",
+          "Options": [
+            "1280 x 720"
+          ],
+          "Value": "1280 x 720"
+        },
+        {
+          "Type": "Button",
+          "Text": "Apply settings",
+          "Function": "Apply"
+        },
+        {
+          "Type": "Button",
+          "Text": "Return to main menu",
+          "Function": "Back"
+        }
+      ]
+    }
+  }
+}
