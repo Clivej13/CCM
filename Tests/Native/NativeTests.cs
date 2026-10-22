@@ -10,7 +10,7 @@ namespace CCM.NativeTests;
 public sealed class NativeTests
 {
     [Theory]
-    [InlineData("debug.json", "MainMenu")]
+    [InlineData("regular.json", "MainMenu")]
     [InlineData("regular-debug.json", "MainMenu")]
     [InlineData("test-level-debug.json", "Game")]
     public void RealWindowLoadsAssetsRoutesAndCleansUp(string profile, string destination)

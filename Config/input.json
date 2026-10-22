@@ -69,6 +69,86 @@
       "Device": "Mouse",
       "Input": "Left",
       "Action": "SkipSplash"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "W",
+      "Action": "MoveForward"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "S",
+      "Action": "MoveBackward"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "A",
+      "Action": "MoveLeft"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "D",
+      "Action": "MoveRight"
+    },
+    {
+      "Device": "GamepadAxis",
+      "Input": "LeftXNegative",
+      "Action": "MoveLeft"
+    },
+    {
+      "Device": "GamepadAxis",
+      "Input": "LeftXPositive",
+      "Action": "MoveRight"
+    },
+    {
+      "Device": "GamepadAxis",
+      "Input": "LeftYNegative",
+      "Action": "MoveForward"
+    },
+    {
+      "Device": "GamepadAxis",
+      "Input": "LeftYPositive",
+      "Action": "MoveBackward"
+    },
+    {
+      "Device": "GamepadAxis",
+      "Input": "RightXNegative",
+      "Action": "LookLeft"
+    },
+    {
+      "Device": "GamepadAxis",
+      "Input": "RightXPositive",
+      "Action": "LookRight"
+    },
+    {
+      "Device": "GamepadAxis",
+      "Input": "RightYNegative",
+      "Action": "LookUp"
+    },
+    {
+      "Device": "GamepadAxis",
+      "Input": "RightYPositive",
+      "Action": "LookDown"
+    },
+    {
+      "Device": "MouseAxis",
+      "Input": "MouseXNegative",
+      "Action": "LookLeft"
+    },
+    {
+      "Device": "MouseAxis",
+      "Input": "MouseXPositive",
+      "Action": "LookRight"
+    },
+    {
+      "Device": "MouseAxis",
+      "Input": "MouseYNegative",
+      "Action": "LookUp"
+    },
+    {
+      "Device": "MouseAxis",
+      "Input": "MouseYPositive",
+      "Action": "LookDown"
     }
   ]
 }

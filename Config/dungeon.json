@@ -1,0 +1,9 @@
+{
+  "MoveSpeed": 4.5,
+  "MouseSensitivity": 0.003,
+  "ControllerLookSpeed": 2.4,
+  "MoveDeadzone": 0.18,
+  "LookDeadzone": 0.12,
+  "CameraDistance": 5,
+  "CameraPitch": 0.45
+}

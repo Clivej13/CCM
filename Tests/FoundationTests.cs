@@ -56,7 +56,7 @@ public sealed class FoundationTests
         Assert.Equal(AppState.Shutdown, state.State);
     }
     [Theory]
-    [InlineData("debug.json", false, AppState.MainMenu)]
+    [InlineData("regular.json", false, AppState.MainMenu)]
     [InlineData("regular-debug.json", true, AppState.MainMenu)]
     [InlineData("test-level-debug.json", true, AppState.Game)]
     public void BundledProfilesResolveCorrectly(string file, bool enabled, AppState destination)

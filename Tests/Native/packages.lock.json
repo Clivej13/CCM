@@ -114,7 +114,8 @@
           "RaylibGameFramework.Configuration": "[0.1.0, )",
           "RaylibGameFramework.Input": "[0.1.5, )",
           "RaylibGameFramework.Logging": "[0.1.0, )",
-          "RaylibGameFramework.Menus": "[0.1.3, )"
+          "RaylibGameFramework.Menus": "[0.1.3, )",
+          "RaylibGameFramework.ThreeD": "[0.1.0, )"
         }
       },
       "raylibgameframework.assets": {
@@ -140,6 +141,13 @@
         "dependencies": {
           "Raylib-cs": "[8.0.0, )",
           "RaylibGameFramework.Input": "[0.1.5, )"
+        }
+      },
+      "raylibgameframework.threed": {
+        "type": "Project",
+        "dependencies": {
+          "Raylib-cs": "[8.0.0, )",
+          "RaylibGameFramework.Assets": "[0.1.4, )"
         }
       }
     }
