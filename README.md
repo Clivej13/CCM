@@ -2,7 +2,7 @@
 
 C# / .NET 9 / Raylib-cs 8.0.0 game foundation. One window, one game loop:
 Initial Loading → Splash → Title → Loading → MainMenu or Game → Shutdown. New Game and debug test-level
-startup share the same block-built dungeon test level. Escape / controller B returns to the menu.
+startup share the same block-built dungeon test level. Escape / controller Start opens the pause menu.
 
 ## Build and launch
 
@@ -49,9 +49,9 @@ do not select controls. All three modes wait at the title, including Test Level
 Debug. Keyboard/mouse wins simultaneous presses, then the lowest controller slot.
 
 The selected device stays fixed for this session and is shown in the debug
-overlay. Menus continue accepting all devices. The game's movement, camera and return actions
+overlay. Menus continue accepting all devices. The game's movement and camera actions
 use the selected keyboard/mouse or specific controller slot; if that controller
-disconnects, Escape provides a route back to the menu. Restart to select another
+disconnects, Escape still opens the pause menu. Restart to select another
 device. Gameplay movement and camera actions use that selection.
 
 DeviceSelection is a small headless CCM component, with native polling isolated
@@ -63,7 +63,7 @@ InputMath.ApplyRadialDeadzone. Title arbitration remains CCM policy.
 ## Menus and settings
 
 Arrow keys navigate; Enter activates buttons/toggles; Left/Right changes the
-resolution selector. Mouse clicks and controller D-pad/A/B are supported through
+resolution selector. Mouse clicks and controller D-pad/left stick/A/B are supported through
 the framework. MenuBack is Escape/B. All bindings live in Config/input.json.
 
 Settings edits are pending until Apply. Returning to the main menu discards them.
@@ -108,13 +108,33 @@ Framework dependencies and source provenance are in [vendor/PROVENANCE.md](vendo
 The dungeon uses flat-floor collision, block characters and one melee enemy.
 Jumping, animation and procedural generation are not included.
 
+## Inventory and equipment
+
+Config/items.json defines item IDs, display names, equipment slots and simple
+block visual types. Config/containers.json gives the starter chest item IDs and
+quantities. Both catalogues load through the Configuration library at startup;
+unknown references and duplicate definitions stop startup with an error.
+The Raylib AssetManager and Config/assets.json still own graphical resources.
+These prototype items use procedural block visuals, so they add no model or
+texture assets yet. An item is an ID and quantity in an Inventory, never a
+separately loaded asset instance.
+
+Open the chest through the normal interaction controls to display its contents.
+Up/Down, controller D-pad or left stick selects a stack; Enter/A or a mouse click transfers
+it to the player's inventory. Press I or controller Y to open the inventory,
+then select a sword, bow, staff, armour or quiver to equip it. Equipment remains
+in the inventory when replaced. Arrows are a stack, not an equipment slot.
+B or I/Y closes either panel; Escape/Start opens the pause menu. The panel suspends dungeon updates while open;
+the chest and player inventory reset when entering a new game. Equipping changes
+the player's block appearance; attacks remain the existing melee prototype.
+
 ## Dungeon test level
 
 New Game and Test Level Debug enter the same two-room dungeon. The second room
 is wider and deeper, with one block-built melee enemy. Opening the corridor door
 reveals the enemy; combat begins when it sees the player within its configured
-vision range. A box beside the first room's north wall remains a separate
-interaction target. Entering the scene resets the player, enemy, door and box.
+vision range. A chest beside the first room's north wall remains a separate
+interaction target. Entering the scene resets the player, enemy, door and chest.
 
 - Follow camera keyboard: W/S move forward/back, A/D turn, Q/E strafe.
   Hold right mouse to turn the camera and character; while held, A/D strafe.
@@ -129,28 +149,28 @@ interaction target. Entering the scene resets the player, enemy, door and box.
 - Top-down camera: WASD or left stick pans without following the player.
   The mouse or right stick moves the cursor. Left click uses nearby objects,
   selects or attacks an enemy, or routes the player to a floor point. Right click
-  on a door or box routes the player into interaction range and activates it on
+  on a door or chest routes the player into interaction range and activates it on
   arrival; right click on an enemy chases and attacks it. Controller A does the
   same from the cursor: approach and use an object, chase and attack an enemy, or
   move to a floor point. LB/RB cycles reachable objects and the enemy; A acts on
   that choice. Moving the right stick returns to cursor control. A new floor move
   command cancels a pending object action or enemy chase.
 - In follow view, left click selects an enemy. A short right click interacts
-  with a reachable door or box, or selects an enemy and starts auto attack.
+  with a reachable door or chest, or selects an enemy and starts auto attack.
   A right drag turns the camera without issuing an action. In top-down view,
   left click or A interacts with objects or selects enemies. Object interaction
   has a distance limit; enemy selection does not.
 - The mouse wheel zooms continuously between follow and free top-down camera
   at the configured threshold. On Xbox, press the right stick (R3) to cycle
   close follow, wide follow and free top-down views. LT and RT are unbound for
-  future actions. Space/Start pauses; Escape/B returns to the menu. Top-down
+  future actions. During combat, Space/Back toggles combat pause; Escape/Start opens the separate pause menu. Top-down
   uses the pointer or controller cursor; third-person controller interaction
   uses the highlighted reachable object. That object turns gold, and doors
   cannot close on the player.
 - Opening the door does not pause or start combat by itself. The enemy spots the
   player when within VisionRange and line of sight; its default 28-unit range
   covers the player at the doorway after it opens. Combat then starts and, with
-  AutoPauseOnCombatStart enabled, pauses until Space or Start/Options resumes it.
+  AutoPauseOnCombatStart enabled, pauses until Space or Back resumes it.
   The enemy advances and attacks automatically
   in melee range. In follow view, left click selects the enemy and right click
   starts repeating melee attacks; with an Xbox controller, LB/RB chooses the
@@ -158,10 +178,10 @@ interaction target. Entering the scene resets the player, enemy, door and box.
   as soon as an enemy is selected. In follow view, move into range to land hits;
   top-down attack moves the player into range automatically. Both combatants use
   a cast time, cooldown, health and line-of-sight checks. Defeat ends combat;
-  Escape/B returns to the menu.
+  use Return to Main Menu in the pause menu to leave. Resuming the pause menu preserves any combat pause.
 - Title selection determines the gameplay device. Other controllers cannot move
   the player. If the selected controller disconnects, movement/look stop and
-  keyboard Escape returns to the menu.
+  keyboard Escape opens the pause menu.
 - Mouse capture is active only while right mouse is held in focused follow-camera
   gameplay. Releasing it restores the pointer to its original position; focus
   loss and scene exit restore it as well. The first look sample after capture is
@@ -174,9 +194,10 @@ top-down pan/cursor speeds, starting pitch, interaction range and Combat values 
 cooldown, melee reach, enemy speed, vision range and AutoPauseOnCombatStart). Config/input.json
 contains the action bindings.
 CombatEntity provides shared health, cast and cooldown behaviour for PlayerEntity
-and EnemyEntity. Static walls/floors and interactable door/box use shared Block
-geometry; only interactables carry open/close state, so there is no world-object
-base class yet. ThreeD Transform3D supplies position, rotation and facing vectors.
+and EnemyEntity. PlayerEntity composes an Inventory and Equipment; EnemyEntity
+does not carry player equipment. DoorInteractable and ChestInteractable share
+the Interactable targeting contract, while static walls and floors remain Block
+geometry. ThreeD Transform3D supplies position, rotation and facing vectors.
 CCM owns the room, collision and movement. DungeonCamera owns follow/top-down
 position, rotation, zoom, panning and camera collision. GameplayTargeting owns
 pointer rays, the controller cursor and contextual action selection. Four
@@ -196,17 +217,18 @@ The external libraries remain untouched.
 
 Executed successfully on Windows:
 - Release build, zero warnings/errors.
-- 69 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
+- 75 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
   return/new-game/shutdown transitions, invalid configs, persisted settings,
   bundled menu/input/catalogue validation, separate loading catalogues, title
   press/release selection and missing-asset diagnostics; dungeon movement,
   collision, camera obstruction/pitch, input timing, deadzones, controller filtering,
-  door/box targeting, reach, occlusion, collision, melee timing, pause, combat
+  door/chest targeting, reach, occlusion, collision, melee timing, pause, combat
   start, unlimited enemy selection, limited object interaction, zoom mode,
   routed click movement and object activation, keyboard turning and facing, contextual Xbox interaction,
   reachable-action cycling, controller view presets and target selection,
-  long-range follow-camera aiming, top-down combat chase and selected-device
-  action edges.
+  long-range follow-camera aiming, top-down combat chase, selected-device
+  action edges, item catalogue validation, chest transfer, equipment slots and
+  inventory reset.
   Input integration links the production library and CCM session sources against
   deterministic Raylib polling, covering multiple pads, title release gating,
   raw mouse/stick values and disconnect/reconnect fallback edges.
@@ -235,22 +257,29 @@ Still check interactively:
    New Game opens the dungeon and the selected device moves, looks and returns.
    Hold splash skip, release, and verify the title needs a second press. Confirm
    with a controller and check another controller cannot control the player. Walk against walls, through
-   the doorway and around obstacles; aim at the door and box to verify the gold
+   the doorway and around obstacles; aim at the door and chest to verify the gold
    highlight follows the pointer on mouse and nearby object in view on Xbox. Open the door, enter the second
    room, return, and check that the door cannot close on the player. Open the
    door with auto-pause on and off; confirm opening alone does not pause, then
    confirm enemy detection starts combat and auto-pause. Select and attack the
    enemy, watch both health
-   bars and cast/cooldown indicators, and verify Space/Start freezes the fight.
+   bars and cast/cooldown indicators, and verify Space/Back freezes the fight.
+   Open the separate pause menu with Escape/Start, navigate it with the left stick,
+   and verify Resume preserves combat pause while Return to Main Menu leaves the scene.
+   Confirm B alone does not leave gameplay.
    Zoom out to free top-down view, pan away from the player, click around obstacles
-   and through the open doorway, right-click the door and box from beyond reach
+   and through the open doorway, right-click the door and chest from beyond reach
    to confirm the player walks up and activates them, then use A and the
    controller cursor, and zoom in to
    reattach the camera. Confirm distant enemy selection works while a distant
-   door/box click cannot activate it. In follow view, right-click an enemy,
+   door/chest left click cannot instantly activate it. Open the chest in each
+   camera view, take all six stacks, equip each weapon in turn plus armour and
+   quiver, and verify the block visuals and arrow count. Reopen the emptied
+   chest, then start a new game and verify its contents reset. In follow view,
+   right-click an enemy,
    right-drag the camera and verify the pointer returns on release. Check A/D turning,
    Q/E strafing, A/D strafing during right drag, and short right-click interaction.
-   On an Xbox controller, use LB/RB to cycle the door, box and enemy, A to
+   On an Xbox controller, use LB/RB to cycle the door, chest and enemy, A to
    interact or attack, and R3 to cycle close, wide and top-down views. Toggle
    Auto attack selected enemy in Settings, Apply, and confirm that selection
    starts attacks automatically and persists after restart. Verify LT/RT do not

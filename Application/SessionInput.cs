@@ -13,7 +13,7 @@ public sealed class SessionInput
     private readonly InputController keyboard;
     private InputController? gameplay;
     private SelectedDevice? owner;
-    private bool backDown, backPressed;
+    private bool backDown, backPressed, pauseDown, pausePressed;
     public Vector2 Move { get; private set; }
     public float Strafe { get; private set; }
     public Vector2 Look { get; private set; }
@@ -65,16 +65,25 @@ public sealed class SessionInput
         // Preserve one logical edge when fallback and controller are both held.
         backPressed = down && !backDown;
         backDown = down;
+        bool pauseHeld = keyboard.IsDown("Pause") ||
+            (!ControllerDisconnected && gameplay?.IsDown("Pause") == true);
+        pausePressed = pauseHeld && !pauseDown;
+        pauseDown = pauseHeld;
     }
     public bool ReturnPressed() => backPressed;
     public bool InteractPressed() => gameplay?.WasPressed("Interact") == true;
-    public bool PausePressed() => gameplay?.WasPressed("Pause") == true;
+    public bool PausePressed() => pausePressed;
+    public bool CombatPausePressed() => gameplay?.WasPressed("CombatPause") == true;
     public bool SelectPressed() => gameplay?.WasPressed("SelectEnemy") == true;
     public bool AttackPressed() => gameplay?.WasPressed("Attack") == true;
     public bool AttackHeld => gameplay?.IsDown("Attack") == true;
     public bool CycleViewPressed() => gameplay?.WasPressed("CycleView") == true;
     public bool CycleActionLeftPressed() => gameplay?.WasPressed("CycleActionLeft") == true;
     public bool CycleActionRightPressed() => gameplay?.WasPressed("CycleActionRight") == true;
+    public bool InventoryPressed() => gameplay?.WasPressed("Inventory") == true;
+    public bool UiUpPressed() => gameplay?.WasPressed("MenuUp") == true;
+    public bool UiDownPressed() => gameplay?.WasPressed("MenuDown") == true;
+    public bool UiConfirmPressed() => gameplay?.WasPressed("MenuConfirm") == true;
     public string InteractionBinding => gameplay?.GetBinding("Interact",
         UsesMouse ? InputDeviceFamily.KeyboardMouse : InputDeviceFamily.Gamepad) is { } binding
         ? InputController.GetInputDisplayName(binding.Device,binding.Input) : "Unbound";

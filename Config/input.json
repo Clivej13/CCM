@@ -56,6 +56,26 @@
       "Action": "MenuRight"
     },
     {
+      "Device": "GamepadAxis",
+      "Input": "LeftYNegative",
+      "Action": "MenuUp"
+    },
+    {
+      "Device": "GamepadAxis",
+      "Input": "LeftYPositive",
+      "Action": "MenuDown"
+    },
+    {
+      "Device": "GamepadAxis",
+      "Input": "LeftXNegative",
+      "Action": "MenuLeft"
+    },
+    {
+      "Device": "GamepadAxis",
+      "Input": "LeftXPositive",
+      "Action": "MenuRight"
+    },
+    {
       "Device": "GamepadButton",
       "Input": "RightFaceDown",
       "Action": "MenuConfirm"
@@ -173,12 +193,22 @@
     {
       "Device": "Keyboard",
       "Input": "Space",
+      "Action": "CombatPause"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Escape",
       "Action": "Pause"
     },
     {
       "Device": "GamepadButton",
       "Input": "MiddleRight",
       "Action": "Pause"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "MiddleLeft",
+      "Action": "CombatPause"
     },
     {
       "Device": "Mouse",
@@ -204,6 +234,16 @@
       "Device": "GamepadButton",
       "Input": "RightThumb",
       "Action": "CycleView"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "I",
+      "Action": "Inventory"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "RightFaceUp",
+      "Action": "Inventory"
     }
   ]
 }

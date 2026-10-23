@@ -8,6 +8,7 @@ public sealed class DungeonSimulation
 {
     private readonly DungeonSettings settings;
     private readonly GameplaySettings gameplay;
+    private readonly ItemCatalogue items;
     private readonly List<Vector3> movementPath = [];
     private Interactable? pendingInteraction;
     private int waypoint;
@@ -19,13 +20,14 @@ public sealed class DungeonSimulation
     private Interactable? chosenContext;
     private bool chosenEnemy;
     private bool doorJustOpened;
-    public DungeonWorld World { get; } = new();
+    public DungeonWorld World { get; }
     public PlayerEntity Player { get; private set; }
     public EnemyEntity Enemy { get; private set; }
     public InteractionTarget? VisibleTarget { get; private set; }
     public InteractionTarget? Target { get; private set; }
     public Vector3? MoveDestination => waypoint < movementPath.Count ? movementPath[^1] : null;
     public string? InteractionMessage { get; private set; }
+    public ChestInteractable? ChestOpened { get; private set; }
     public string? CombatMessage { get; private set; }
     public bool CombatStarted { get; private set; }
     public bool Paused { get; private set; }
@@ -42,12 +44,15 @@ public sealed class DungeonSimulation
     public Vector3 CameraTarget => Camera.Target;
     public Vector3 CameraPosition => Camera.Position;
 
-    public DungeonSimulation(DungeonSettings settings, GameplaySettings? gameplay = null)
+    public DungeonSimulation(DungeonSettings settings, GameplaySettings? gameplay = null,
+        ItemCatalogue? items=null,IEnumerable<ItemStack>? chestContents=null)
     {
         settings.Validate();
         this.settings = settings;
         this.gameplay = gameplay ?? new GameplaySettings();
-        Player = new(World.Spawn,settings.Combat);
+        this.items=items ?? new ItemCatalogue();
+        World=new DungeonWorld(chestContents);
+        Player = new(World.Spawn,settings.Combat,this.items);
         Enemy = new(new(0,0,-30),settings.Combat);
         Camera = new DungeonCamera(settings,World,()=>Player.Position);
         Reset();
@@ -55,8 +60,9 @@ public sealed class DungeonSimulation
     public void Reset()
     {
         World.Reset();
-        Player = new(World.Spawn,settings.Combat);
+        Player = new(World.Spawn,settings.Combat,items);
         Enemy = new(new(0,0,-30),settings.Combat);
+        ChestOpened=null;
         VisibleTarget = Target = null;
         InteractionMessage = CombatMessage = null;
         CombatStarted = Paused = EnemySelected = attackRequested = false;
@@ -73,7 +79,11 @@ public sealed class DungeonSimulation
         doorJustOpened = false;
     }
     public void TogglePause() => Paused = !Paused;
-    public void ClearInteractionMessage() => InteractionMessage = null;
+    public void ClearInteractionMessage()
+    {
+        InteractionMessage=null;
+        ChestOpened=null;
+    }
     public void CycleView()
     {
         if (Camera.CycleView()) ClearOnCameraModeChange();
@@ -212,12 +222,16 @@ public sealed class DungeonSimulation
             InteractionMessage = "Move closer to interact";
             return true;
         }
+        bool wasOpen=item.IsOpen;
         bool changed = item.Activate(Player.Position);
         InteractionMessage = changed
-            ? $"{item.Name} {(item.IsOpen ? "opened" : "closed")}"
+            ? item is ChestInteractable && wasOpen ? "Chest searched"
+                : $"{item.Name} {(item.IsOpen ? "opened" : "closed")}"
             : "Step away from the doorway";
         if (changed && item.Kind == InteractionKind.Door && item.IsOpen)
             doorJustOpened = true;
+        if (changed && item is ChestInteractable chest)
+            ChestOpened=chest;
         if (contextualAim) UpdateContextAim();
         else UpdateAim(aimOrigin,aimDirection);
         return true;
@@ -414,7 +428,7 @@ public sealed class DungeonSimulation
         else if (!Player.Alive)
         {
             attackRequested = false;
-            CombatMessage = "Player defeated - Escape to menu";
+            CombatMessage = "Player defeated - open pause menu to return";
         }
     }
 

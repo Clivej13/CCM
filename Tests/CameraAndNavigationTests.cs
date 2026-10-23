@@ -83,7 +83,7 @@ public sealed class CameraAndNavigationTests
             simulation.UpdateTopDown(Vector2.Zero,0.1f);
         Assert.True(box.IsOpen, $"Player {simulation.Player.Position}; destination {simulation.MoveDestination}; message {simulation.InteractionMessage}");
         Assert.False(simulation.World.Interactables[0].IsOpen);
-        Assert.Equal("Box opened",simulation.InteractionMessage);
+        Assert.Equal("Chest opened",simulation.InteractionMessage);
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public sealed class CameraAndNavigationTests
 
         simulation.Player.Position = new(0,0,-20);
         Assert.False(simulation.RequestInteraction(box));
-        Assert.Equal("No clear route to box",simulation.InteractionMessage);
+        Assert.Equal("No clear route to chest",simulation.InteractionMessage);
         Assert.False(box.IsOpen);
     }
 

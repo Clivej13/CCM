@@ -22,6 +22,21 @@
         }
       ]
     },
+    "Pause": {
+      "Title": "Paused",
+      "Items": [
+        {
+          "Type": "Button",
+          "Text": "Resume Game",
+          "Function": "ResumeGame"
+        },
+        {
+          "Type": "Button",
+          "Text": "Return to Main Menu",
+          "Function": "ReturnToMainMenu"
+        }
+      ]
+    },
     "Settings": {
       "Title": "Settings",
       "Items": [
