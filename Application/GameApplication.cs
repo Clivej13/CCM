@@ -1,4 +1,5 @@
 using CCM.Scenes;
+using CCM.Game;
 using Raylib_cs;
 using RaylibGameFramework.Configuration;
 using RaylibGameFramework.Input;
@@ -6,7 +7,8 @@ using RaylibGameFramework.Input;
 namespace CCM.Application;
 
 public sealed class GameApplication(AppSettings settings, DebugSettings debug, Diagnostics diagnostics,
-    JsonSettingsStore<DisplaySettings> store, DisplaySettings initial)
+    JsonSettingsStore<DisplaySettings> store, DisplaySettings initial,
+    JsonSettingsStore<GameplaySettings>? gameplayStore = null, GameplaySettings? gameplaySettings = null)
 {
     private readonly Lifecycle lifecycle = new();
     private readonly DisplayManager display = new();
@@ -34,6 +36,9 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
             var dungeon = Settings.Required<CCM.Game.DungeonSettings>(Settings.ConfigPath("dungeon.json"));
             dungeon.Validate();
             var sessionInput = new SessionInput(bindings, selection, dungeon);
+            var gameplay = gameplaySettings ?? new GameplaySettings();
+            var gameplaySave = gameplayStore ?? new JsonSettingsStore<GameplaySettings>(
+                Path.Combine(Settings.DataDirectory, "gameplay.json"));
             int titleSamples = 0;
             TitleInput ReadTitleInput()
             {
@@ -55,8 +60,9 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
             scenes[AppState.Loading] = new LoadingScene(assets, diagnostics, input,
                 () => Transition(Lifecycle.Destination(debug)), () => Transition(AppState.Shutdown));
             scenes[AppState.MainMenu] = new MenuScene(input, bindings, display, store, diagnostics,
-                () => Transition(AppState.Game), () => Transition(AppState.Shutdown));
-            scenes[AppState.Game] = new GameScene(sessionInput, dungeon, debug.Enabled, () => Transition(AppState.MainMenu));
+                () => Transition(AppState.Game), () => Transition(AppState.Shutdown), gameplaySave, gameplay);
+            scenes[AppState.Game] = new GameScene(sessionInput, dungeon, debug.Enabled,
+                () => Transition(AppState.MainMenu), gameplay);
             lifecycle.Changed += (previous, next) =>
             {
                 active?.Exit();

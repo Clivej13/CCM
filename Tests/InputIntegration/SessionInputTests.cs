@@ -48,7 +48,7 @@ public sealed class SessionInputTests
         Assert.False(session.ReturnPressed());
     }
     [Fact]
-    public void KeyboardOwnershipNormalizesMovementButPreservesUnclampedMouseDelta()
+    public void KeyboardOwnershipPreservesTurnAndStrafeAxesAndMouseDelta()
     {
         Raylib.Reset();
         var session = new SessionInput(Bindings(),Select(InputDeviceFamily.KeyboardMouse),new());
@@ -58,8 +58,11 @@ public sealed class SessionInputTests
         Raylib.Keys.UnionWith([KeyboardKey.W,KeyboardKey.D]);
         Raylib.Delta = new(-20,7);
         session.Update();
-        Assert.InRange(session.Move.Length(),.999f,1.001f);
-        Assert.True(session.Move.X>0 && session.Move.Y>0);
+        Assert.Equal(Vector2.One,session.Move);
+        Assert.Equal(0,session.Strafe);
+        Raylib.Keys.Add(KeyboardKey.Q);
+        session.Update();
+        Assert.Equal(-1,session.Strafe);
         Assert.Equal(new Vector2(-20,7),session.Look);
         Assert.False(session.ReturnPressed());
         Assert.True(session.UsesMouse);
@@ -140,9 +143,115 @@ public sealed class SessionInputTests
         Assert.False(keyboard.InteractPressed());
         Raylib.Keys.Add(KeyboardKey.E);
         keyboard.Update();
+        Assert.False(keyboard.InteractPressed());
+        Assert.Equal(1,keyboard.Strafe);
+        Raylib.Keys.Add(KeyboardKey.F);
+        keyboard.Update();
         Assert.True(keyboard.InteractPressed());
         keyboard.Update();
         Assert.False(keyboard.InteractPressed());
+    }
+
+    [Fact]
+    public void CombatAndPauseActionsBelongToTheSelectedDevice()
+    {
+        Raylib.Reset();
+        var pad = new SessionInput(Bindings(),Select(InputDeviceFamily.Gamepad,2),new());
+        Raylib.Connected.UnionWith([0,2]);
+        Raylib.Keys.Add(KeyboardKey.Space);
+        Raylib.Mouse.UnionWith([MouseButton.Left,MouseButton.Right]);
+        Raylib.Buttons.UnionWith([
+            (0,GamepadButton.MiddleRight),
+            (0,GamepadButton.LeftTrigger1),
+            (0,GamepadButton.RightTrigger1)
+        ]);
+        pad.Update();
+        Assert.False(pad.PausePressed());
+        Assert.False(pad.SelectPressed());
+        Assert.False(pad.AttackPressed());
+        Assert.False(pad.AttackHeld);
+        Raylib.Buttons.UnionWith([
+            (2,GamepadButton.MiddleRight),
+            (2,GamepadButton.LeftTrigger1),
+            (2,GamepadButton.RightTrigger1)
+        ]);
+        pad.Update();
+        Assert.True(pad.PausePressed());
+        Assert.True(pad.CycleActionLeftPressed());
+        Assert.True(pad.CycleActionRightPressed());
+        Assert.False(pad.SelectPressed());
+        Assert.False(pad.AttackPressed());
+        Assert.False(pad.AttackHeld);
+        pad.Update();
+        Assert.False(pad.PausePressed());
+        Assert.False(pad.CycleActionLeftPressed());
+        Assert.False(pad.CycleActionRightPressed());
+
+        Raylib.Reset();
+        var keyboard = new SessionInput(Bindings(),Select(InputDeviceFamily.KeyboardMouse),new());
+        Raylib.Keys.Add(KeyboardKey.Space);
+        Raylib.Mouse.UnionWith([MouseButton.Left,MouseButton.Right]);
+        keyboard.Update();
+        Assert.True(keyboard.PausePressed());
+        Assert.True(keyboard.SelectPressed());
+        Assert.True(keyboard.AttackPressed());
+    }
+
+    [Fact]
+    public void MouseWheelZoomDoesNotUseControllerTriggers()
+    {
+        Raylib.Reset();
+        var pad = new SessionInput(Bindings(),Select(InputDeviceFamily.Gamepad,2),new());
+        Raylib.Connected.UnionWith([0,2]);
+        Raylib.Wheel = new(0,-2);
+        Raylib.Axes[(0,GamepadAxis.RightTrigger)] = 1;
+        pad.Update();
+        Assert.Equal(0,pad.Zoom);
+        Raylib.Axes[(2,GamepadAxis.RightTrigger)] = 1;
+        pad.Update();
+        Assert.Equal(0,pad.Zoom);
+        Raylib.Axes[(2,GamepadAxis.RightTrigger)] = -1;
+        Raylib.Axes[(2,GamepadAxis.LeftTrigger)] = 1;
+        pad.Update();
+        Assert.Equal(0,pad.Zoom);
+
+        Raylib.Reset();
+        var keyboard = new SessionInput(Bindings(),Select(InputDeviceFamily.KeyboardMouse),new());
+        Raylib.Wheel = new(0,-2);
+        keyboard.Update();
+        Assert.Equal(-2,keyboard.Zoom);
+    }
+
+    [Fact]
+    public void SelectedControllerCyclesActionsAndCameraOnPressEdges()
+    {
+        Raylib.Reset();
+        var pad = new SessionInput(Bindings(),Select(InputDeviceFamily.Gamepad,2),new());
+        Raylib.Connected.UnionWith([0,2]);
+        Raylib.Buttons.UnionWith([
+            (0,GamepadButton.LeftTrigger1),
+            (0,GamepadButton.RightTrigger1),
+            (0,GamepadButton.RightThumb)
+        ]);
+        pad.Update();
+        Assert.False(pad.CycleActionLeftPressed());
+        Assert.False(pad.CycleActionRightPressed());
+        Assert.False(pad.CycleViewPressed());
+        Raylib.Buttons.UnionWith([
+            (2,GamepadButton.LeftTrigger1),
+            (2,GamepadButton.RightThumb)
+        ]);
+        pad.Update();
+        Assert.True(pad.CycleActionLeftPressed());
+        Assert.False(pad.CycleActionRightPressed());
+        Assert.True(pad.CycleViewPressed());
+        pad.Update();
+        Assert.False(pad.CycleActionLeftPressed());
+        Assert.False(pad.CycleViewPressed());
+        Raylib.Buttons.Remove((2,GamepadButton.LeftTrigger1));
+        Raylib.Buttons.Add((2,GamepadButton.RightTrigger1));
+        pad.Update();
+        Assert.True(pad.CycleActionRightPressed());
     }
 
     [Fact]

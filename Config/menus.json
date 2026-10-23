@@ -23,7 +23,7 @@
       ]
     },
     "Settings": {
-      "Title": "Display settings",
+      "Title": "Settings",
       "Items": [
         {
           "Type": "Toggle",
@@ -39,6 +39,12 @@
             "1280 x 720"
           ],
           "Value": "1280 x 720"
+        },
+        {
+          "Type": "Toggle",
+          "Text": "Auto attack selected enemy",
+          "Function": "SetAutoAttack",
+          "Value": false
         },
         {
           "Type": "Button",

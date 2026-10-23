@@ -1,4 +1,5 @@
 using CCM.Application;
+using CCM.Game;
 using RaylibGameFramework.Assets;
 using RaylibGameFramework.Configuration;
 using RaylibGameFramework.Input;
@@ -94,10 +95,26 @@ public sealed class FoundationTests
         finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
     }
     [Fact]
+    public void GameplayPreferenceRoundTrips()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "CCM-tests-"+Guid.NewGuid());
+        try
+        {
+            var store = new JsonSettingsStore<GameplaySettings>(Path.Combine(directory,"gameplay.json"));
+            Assert.Null(store.Load());
+            store.Save(new GameplaySettings { AutoAttackSelectedEnemy = true });
+            Assert.True(store.Load()!.AutoAttackSelectedEnemy);
+        }
+        finally { if (Directory.Exists(directory)) Directory.Delete(directory,true); }
+    }
+
+    [Fact]
     public void BundledConfigurationAndCatalogueAreValidWithoutGraphics()
     {
         Settings.Required<AppSettings>(Settings.ConfigPath("application.json")).Validate();
         var menus = MenuConfigLoader.Load(Settings.ConfigPath("menus.json"));
+        Assert.Contains(menus.Menus["Settings"].Items,
+            item => item.Function == "SetAutoAttack" && item.Type == "Toggle");
         Assert.Equal(new[] { "NewGame", "OpenMenu", "Exit" },
             menus.Menus["Main"].Items.Select(i => i.Function));
         var input = InputConfigLoader.Load(Settings.ConfigPath("input.json"));

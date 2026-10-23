@@ -52,7 +52,7 @@ The selected device stays fixed for this session and is shown in the debug
 overlay. Menus continue accepting all devices. The game's movement, camera and return actions
 use the selected keyboard/mouse or specific controller slot; if that controller
 disconnects, Escape provides a route back to the menu. Restart to select another
-device. Gameplay actions use the same session selection.
+device. Gameplay movement and camera actions use that selection.
 
 DeviceSelection is a small headless CCM component, with native polling isolated
 in TitleInputReader and gameplay action mapping in SessionInput. The external
@@ -60,7 +60,7 @@ Input repository is unchanged by this migration. CCM now includes the 0.2.0
 source snapshot and uses InputControllerOptions, GetRawValue and
 InputMath.ApplyRadialDeadzone. Title arbitration remains CCM policy.
 
-## Menus and display settings
+## Menus and settings
 
 Arrow keys navigate; Enter activates buttons/toggles; Left/Right changes the
 resolution selector. Mouse clicks and controller D-pad/A/B are supported through
@@ -68,9 +68,12 @@ the framework. MenuBack is Escape/B. All bindings live in Config/input.json.
 
 Settings edits are pending until Apply. Returning to the main menu discards them.
 Apply changes the live window, reads the actual resulting dimensions and saves
-through JsonSettingsStore to %LOCALAPPDATA%/CCM/display.json. Saved settings take
-precedence over application defaults at next launch. Resizing updates the
-settings selection; use Apply to persist that size.
+display settings through JsonSettingsStore to %LOCALAPPDATA%/CCM/display.json.
+The Auto attack selected enemy toggle is saved separately to
+%LOCALAPPDATA%/CCM/gameplay.json and starts repeating attacks when an enemy is
+selected. With it off, press A on a selected enemy (or use the mouse attack
+command) to begin attacking. Saved settings take precedence over defaults at
+next launch. Resizing updates the display selection; use Apply to persist it.
 
 Windows fullscreen choices come from the current monitor's enumerated display
 modes. Windowed presets are bounded by desktop dimensions and include the current
@@ -94,7 +97,7 @@ validated platform. Refresh rate remains Raylib/driver controlled.
   error screen; Escape/B or window close exits. Details go to logs.
 - All assets unload before CloseWindow, including after loading failure.
 - Configuration uses framework JsonSettingsStore for typed application/debug/
-  logging files and persisted display settings, plus framework catalogue,
+  logging files and persisted display/gameplay settings, plus framework catalogue,
   menu and input loaders. Required malformed config fails with a useful log.
   Invalid saved settings fall back without overwriting the bad file.
 - Logs rotate under %LOCALAPPDATA%/CCM/Logs. Config/logging.json controls size and
@@ -102,32 +105,78 @@ validated platform. Refresh rate remains Raylib/driver controlled.
   closes its file handle after each write.
 
 Framework dependencies and source provenance are in [vendor/PROVENANCE.md](vendor/PROVENANCE.md).
-The dungeon uses simple flat-floor collision and a block character; no combat,
-jumping, animation, enemies or procedural generation are included.
+The dungeon uses flat-floor collision, block characters and one melee enemy.
+Jumping, animation and procedural generation are not included.
 
 ## Dungeon test level
 
-New Game and Test Level Debug enter the same two-room dungeon. A closed door
-blocks the corridor between rooms. A separate box beside the first room's north
-wall tests choosing between nearby actions. Entering the scene resets the player,
-door and box.
+New Game and Test Level Debug enter the same two-room dungeon. The second room
+is wider and deeper, with one block-built melee enemy. Opening the corridor door
+reveals the enemy; combat begins when it sees the player within its configured
+vision range. A box beside the first room's north wall remains a separate
+interaction target. Entering the scene resets the player, enemy, door and box.
 
-- Keyboard/mouse: WASD moves relative to the camera, mouse orbits, E acts, Escape returns.
-- Controller: left stick moves, right stick orbits, A acts, B returns.
-- Aim with the centre of the screen. A reachable, unobstructed door or box turns
-  gold and shows its action. Open the door to reach the second room; the box opens
-  and closes in place. The door cannot close on the player.
+- Follow camera keyboard: W/S move forward/back, A/D turn, Q/E strafe.
+  Hold right mouse to turn the camera and character; while held, A/D strafe.
+  Releasing right mouse restores the pointer. F is an alternate interact key.
+- Follow camera Xbox controller: left stick moves, right stick turns the camera.
+  LB/RB cycles reachable doors and boxes, plus the enemy once combat starts.
+  A opens/closes the chosen object or starts attacking the chosen enemy.
+  Enemy selection has no distance limit; objects must be in reach. The chosen
+  object stays highlighted while reachable. Available actions and the selected
+  option appear in the upper HUD. Once the enemy detects the player it is
+  selected automatically. No mouse pointer is needed in this view.
+- Top-down camera: WASD or left stick pans without following the player.
+  The mouse or right stick moves the cursor. Left click uses nearby objects,
+  selects or attacks an enemy, or routes the player to a floor point. Right click
+  on a door or box routes the player into interaction range and activates it on
+  arrival; right click on an enemy chases and attacks it. Controller A does the
+  same from the cursor: approach and use an object, chase and attack an enemy, or
+  move to a floor point. LB/RB cycles reachable objects and the enemy; A acts on
+  that choice. Moving the right stick returns to cursor control. A new floor move
+  command cancels a pending object action or enemy chase.
+- In follow view, left click selects an enemy. A short right click interacts
+  with a reachable door or box, or selects an enemy and starts auto attack.
+  A right drag turns the camera without issuing an action. In top-down view,
+  left click or A interacts with objects or selects enemies. Object interaction
+  has a distance limit; enemy selection does not.
+- The mouse wheel zooms continuously between follow and free top-down camera
+  at the configured threshold. On Xbox, press the right stick (R3) to cycle
+  close follow, wide follow and free top-down views. LT and RT are unbound for
+  future actions. Space/Start pauses; Escape/B returns to the menu. Top-down
+  uses the pointer or controller cursor; third-person controller interaction
+  uses the highlighted reachable object. That object turns gold, and doors
+  cannot close on the player.
+- Opening the door does not pause or start combat by itself. The enemy spots the
+  player when within VisionRange and line of sight; its default 28-unit range
+  covers the player at the doorway after it opens. Combat then starts and, with
+  AutoPauseOnCombatStart enabled, pauses until Space or Start/Options resumes it.
+  The enemy advances and attacks automatically
+  in melee range. In follow view, left click selects the enemy and right click
+  starts repeating melee attacks; with an Xbox controller, LB/RB chooses the
+  enemy and A attacks. The Auto attack selected enemy menu option starts attacks
+  as soon as an enemy is selected. In follow view, move into range to land hits;
+  top-down attack moves the player into range automatically. Both combatants use
+  a cast time, cooldown, health and line-of-sight checks. Defeat ends combat;
+  Escape/B returns to the menu.
 - Title selection determines the gameplay device. Other controllers cannot move
   the player. If the selected controller disconnects, movement/look stop and
   keyboard Escape returns to the menu.
-- Mouse capture is active only during focused keyboard/mouse gameplay, restored
-  on focus loss or scene exit. The first look sample after capture is discarded.
+- Mouse capture is active only while right mouse is held in focused follow-camera
+  gameplay. Releasing it restores the pointer to its original position; focus
+  loss and scene exit restore it as well. The first look sample after capture is
+  discarded. Top-down mouse and controller behavior is unchanged.
 - Debug mode draws collision bounds, facing direction, player position and
   camera distance.
 
-Config/dungeon.json controls speed, sensitivities, deadzones, camera distance,
-starting pitch and interaction range. Config/input.json contains the action bindings.
-ThreeD Transform3D supplies player position, rotation and facing vectors.
+Config/dungeon.json controls movement and turn speed, sensitivities, deadzones, zoom threshold,
+top-down pan/cursor speeds, starting pitch, interaction range and Combat values (health, damage, cast time,
+cooldown, melee reach, enemy speed, vision range and AutoPauseOnCombatStart). Config/input.json
+contains the action bindings.
+CombatEntity provides shared health, cast and cooldown behaviour for PlayerEntity
+and EnemyEntity. Static walls/floors and interactable door/box use shared Block
+geometry; only interactables carry open/close state, so there is no world-object
+base class yet. ThreeD Transform3D supplies position, rotation and facing vectors.
 CCM owns the room, collision, movement and camera. Collision uses a conservative
 square footprint and small axis-separated steps; the character slides along
 walls. The camera tests its path against expanded obstacle bounds. Simulation
@@ -141,18 +190,24 @@ The external libraries remain untouched.
 
 Executed successfully on Windows:
 - Release build, zero warnings/errors.
-- 41 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
+- 69 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
   return/new-game/shutdown transitions, invalid configs, persisted settings,
   bundled menu/input/catalogue validation, separate loading catalogues, title
   press/release selection and missing-asset diagnostics; dungeon movement,
   collision, camera obstruction/pitch, input timing, deadzones, controller filtering,
-  door/box targeting, reach, occlusion, collision and selected-device action edges.
+  door/box targeting, reach, occlusion, collision, melee timing, pause, combat
+  start, unlimited enemy selection, limited object interaction, zoom mode,
+  routed click movement and object activation, keyboard turning and facing, contextual Xbox interaction,
+  reachable-action cycling, controller view presets and target selection,
+  long-range follow-camera aiming, top-down combat chase and selected-device
+  action edges.
   Input integration links the production library and CCM session sources against
   deterministic Raylib polling, covering multiple pads, title release gating,
   raw mouse/stick values and disconnect/reconnect fallback edges.
-- Four native tests: all three startup profiles with both loading stages, title and splash frames,
-  actual Model loading, both menu/game transitions and clean window teardown;
-  window resolution changes, fullscreen round trip and persistence.
+- Six native tests: all three startup profiles with both loading stages,
+  title and splash frames, actual Model loading, both menu/game transitions
+  and clean window teardown; window resolution changes, fullscreen round trip,
+  persistence and screen-to-world pointer rays in both camera modes.
 - Release publish, including Config and Assets.
 
 ```text
@@ -175,9 +230,26 @@ Still check interactively:
    Hold splash skip, release, and verify the title needs a second press. Confirm
    with a controller and check another controller cannot control the player. Walk against walls, through
    the doorway and around obstacles; aim at the door and box to verify the gold
-   highlight follows the centre of the screen. Open the door, enter the second
-   room, return, and check that the door cannot close on the player. Orbit near
-   walls, then Alt-Tab and return.
+   highlight follows the pointer on mouse and nearby object in view on Xbox. Open the door, enter the second
+   room, return, and check that the door cannot close on the player. Open the
+   door with auto-pause on and off; confirm opening alone does not pause, then
+   confirm enemy detection starts combat and auto-pause. Select and attack the
+   enemy, watch both health
+   bars and cast/cooldown indicators, and verify Space/Start freezes the fight.
+   Zoom out to free top-down view, pan away from the player, click around obstacles
+   and through the open doorway, right-click the door and box from beyond reach
+   to confirm the player walks up and activates them, then use A and the
+   controller cursor, and zoom in to
+   reattach the camera. Confirm distant enemy selection works while a distant
+   door/box click cannot activate it. In follow view, right-click an enemy,
+   right-drag the camera and verify the pointer returns on release. Check A/D turning,
+   Q/E strafing, A/D strafing during right drag, and short right-click interaction.
+   On an Xbox controller, use LB/RB to cycle the door, box and enemy, A to
+   interact or attack, and R3 to cycle close, wide and top-down views. Toggle
+   Auto attack selected enemy in Settings, Apply, and confirm that selection
+   starts attacks automatically and persists after restart. Verify LT/RT do not
+   zoom and no pointer is needed in follow view. Orbit near walls, then Alt-Tab
+   and return.
 3. Resize while Settings is open; apply several modes, restart, and confirm
    selection/persistence. Check monitor moves, DPI scaling and driver-specific
    fullscreen behaviour on the intended hardware.

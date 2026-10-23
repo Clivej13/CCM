@@ -152,13 +152,58 @@
     },
     {
       "Device": "Keyboard",
+      "Input": "Q",
+      "Action": "StrafeLeft"
+    },
+    {
+      "Device": "Keyboard",
       "Input": "E",
+      "Action": "StrafeRight"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "F",
       "Action": "Interact"
     },
     {
       "Device": "GamepadButton",
       "Input": "RightFaceDown",
       "Action": "Interact"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Space",
+      "Action": "Pause"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "MiddleRight",
+      "Action": "Pause"
+    },
+    {
+      "Device": "Mouse",
+      "Input": "Left",
+      "Action": "SelectEnemy"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "LeftTrigger1",
+      "Action": "CycleActionLeft"
+    },
+    {
+      "Device": "Mouse",
+      "Input": "Right",
+      "Action": "Attack"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "RightTrigger1",
+      "Action": "CycleActionRight"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "RightThumb",
+      "Action": "CycleView"
     }
   ]
 }

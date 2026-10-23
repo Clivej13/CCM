@@ -17,10 +17,11 @@ public sealed class DungeonWorld
         new(new(0,1.5f,8.5f),new(16,3,1)),
         new(new(-5,1.5f,-8.5f),new(6,3,1)), new(new(5,1.5f,-8.5f),new(6,3,1)),
         new(new(-2.5f,1.5f,-12),new(1,3,8)), new(new(2.5f,1.5f,-12),new(1,3,8)),
-        new(new(-4,1.5f,-16.5f),new(4,3,1)), new(new(4,1.5f,-16.5f),new(4,3,1)),
-        new(new(-6.5f,1.5f,-22),new(1,3,12)), new(new(6.5f,1.5f,-22),new(1,3,12)),
-        new(new(0,1.5f,-28.5f),new(14,3,1)),
-        new(new(-3,0.6f,-24),new(2,1.2f,2)),
+        new(new(-6,1.5f,-16.5f),new(8,3,1)), new(new(6,1.5f,-16.5f),new(8,3,1)),
+        new(new(-10.5f,1.5f,-28),new(1,3,24)), new(new(10.5f,1.5f,-28),new(1,3,24)),
+        new(new(0,1.5f,-40.5f),new(22,3,1)),
+        new(new(-4,0.6f,-27),new(2,1.2f,2)),
+        new(new(5,0.7f,-33),new(2,1.4f,2)),
         new(new(-4,1.5f,-3),new(1.2f,3,1.2f)), new(new(4,1.5f,-3),new(1.2f,3,1.2f)),
         new(new(-3,0.55f,2),new(2,1.1f,1.5f)), new(new(3,0.55f,1),new(1.5f,1.1f,2))
     ];
@@ -28,6 +29,13 @@ public sealed class DungeonWorld
         [new(InteractionKind.Door),new(InteractionKind.Box)];
     public IEnumerable<Block> Solids => StaticSolids.Concat(Interactables.Select(item => item.Bounds));
     public void Reset() { foreach (var item in Interactables) item.Reset(); }
+    public bool ClearLine(Vector3 from, Vector3 to)
+    {
+        foreach (var block in Solids)
+            if (SegmentHit(from,to-from,block.Min,block.Max,out float hit) && hit < 0.999f)
+                return false;
+        return true;
+    }
     public static bool OverlapsPlayer(Block box, Vector3 feet) =>
         feet.Y < box.Max.Y && feet.Y+1.6f > box.Min.Y &&
         feet.X > box.Min.X - PlayerRadius && feet.X < box.Max.X + PlayerRadius &&
