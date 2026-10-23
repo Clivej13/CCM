@@ -1,5 +1,6 @@
 using System.Text.Json;
 using CCM.Application;
+using CCM.Game;
 using Raylib_cs;
 using RaylibGameFramework.Configuration;
 using RaylibGameFramework.Input;
@@ -12,6 +13,9 @@ public sealed class MenuScene : Scene
     private readonly MenuManager menus;
     private readonly DisplayManager display;
     private readonly JsonSettingsStore<DisplaySettings> store;
+    private readonly JsonSettingsStore<GameplaySettings> gameplayStore;
+    private readonly GameplaySettings gameplay;
+    private bool pendingAutoAttack;
     private readonly Diagnostics diagnostics;
     private readonly Action newGame, exit;
     private DisplaySettings pending = new();
@@ -19,10 +23,12 @@ public sealed class MenuScene : Scene
     private string status = "";
 
     public MenuScene(InputController input, InputConfig bindings, DisplayManager display,
-        JsonSettingsStore<DisplaySettings> store, Diagnostics diagnostics, Action newGame, Action exit)
+        JsonSettingsStore<DisplaySettings> store, Diagnostics diagnostics, Action newGame, Action exit,
+        JsonSettingsStore<GameplaySettings> gameplayStore, GameplaySettings gameplay)
     {
         this.display = display; this.store = store; this.diagnostics = diagnostics;
         this.newGame = newGame; this.exit = exit;
+        this.gameplayStore = gameplayStore; this.gameplay = gameplay;
         config = MenuConfigLoader.Load(Settings.ConfigPath("menus.json"));
         menus = new MenuManager(config, input, bindings);
     }
@@ -32,6 +38,7 @@ public sealed class MenuScene : Scene
     private void Refresh()
     {
         pending = display.Current;
+        pendingAutoAttack = gameplay.AutoAttackSelectedEnemy;
         status = "";
         RefreshOptions();
     }
@@ -42,6 +49,7 @@ public sealed class MenuScene : Scene
         if (!resolutions.Contains(selected)) selected = resolutions.Last();
         pending.Width = selected.Width; pending.Height = selected.Height;
         Control("SetFullscreen").Value = JsonSerializer.SerializeToElement(pending.Fullscreen);
+        Control("SetAutoAttack").Value = JsonSerializer.SerializeToElement(pendingAutoAttack);
         var resolution = Control("SetResolution");
         resolution.Options = resolutions.Select(r => r.ToString()).ToList();
         resolution.Value = JsonSerializer.SerializeToElement(selected.ToString());
@@ -66,6 +74,8 @@ public sealed class MenuScene : Scene
             case "SetFullscreen":
                 pending.Fullscreen = (bool)action.Value!;
                 RefreshOptions(); break;
+            case "SetAutoAttack":
+                pendingAutoAttack = (bool)action.Value!; break;
             case "SetResolution":
                 var size = resolutions.Single(r => r.ToString() == (string)action.Value!);
                 pending.Width = size.Width; pending.Height = size.Height; break;
@@ -75,8 +85,10 @@ public sealed class MenuScene : Scene
                     display.Apply(pending);
                     pending = display.Current;
                     store.Save(pending);
+                    gameplayStore.Save(new GameplaySettings { AutoAttackSelectedEnemy = pendingAutoAttack });
+                    gameplay.AutoAttackSelectedEnemy = pendingAutoAttack;
                     RefreshOptions();
-                    status = "Display settings saved.";
+                    status = "Settings saved.";
                     diagnostics.Event($"Display applied: {pending.Width}x{pending.Height}, fullscreen={pending.Fullscreen}");
                 }
                 catch (Exception error)

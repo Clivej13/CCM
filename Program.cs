@@ -1,4 +1,5 @@
 using CCM.Application;
+using CCM.Game;
 using RaylibGameFramework.Configuration;
 using RaylibGameFramework.Logging;
 
@@ -31,7 +32,15 @@ try
         diagnostics.Error("Invalid saved display settings; using application defaults. The file was preserved.", error);
         initial = app.Window;
     }
-    new GameApplication(app, debug, diagnostics, store, initial).Run(smoke);
+    var gameplayStore = new JsonSettingsStore<GameplaySettings>(Path.Combine(Settings.DataDirectory, "gameplay.json"));
+    GameplaySettings gameplay;
+    try { gameplay = gameplayStore.Load() ?? new GameplaySettings(); }
+    catch (Exception error)
+    {
+        diagnostics.Error("Invalid saved gameplay settings; using defaults. The file was preserved.", error);
+        gameplay = new GameplaySettings();
+    }
+    new GameApplication(app, debug, diagnostics, store, initial, gameplayStore, gameplay).Run(smoke);
     return 0;
 }
 catch (Exception error)

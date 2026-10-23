@@ -24,6 +24,20 @@ public sealed class DungeonTests
         Assert.InRange(turned.Player.Forward.X,0.999f,1.001f);
     }
     [Fact]
+    public void KeyboardTurnRotatesCameraAndCharacterWithoutMoving()
+    {
+        var simulation = new DungeonSimulation(new());
+        var start = simulation.Player.Position;
+        simulation.Update(Vector2.Zero,Vector2.Zero,true,0.1f,turn:1);
+        Assert.Equal(start,simulation.Player.Position);
+        Assert.InRange(simulation.Yaw,-0.241f,-0.239f);
+        Assert.InRange(simulation.Player.Forward.X,0.23f,0.25f);
+        simulation.Update(new(1,0),Vector2.Zero,true,0.1f,faceCamera:true);
+        Assert.True(simulation.Player.Position.X>start.X);
+        Assert.InRange(simulation.Player.Forward.X,0.23f,0.25f);
+    }
+
+    [Fact]
     public void WallsStopLargeDisplacementsAndAllowSliding()
     {
         var world = new DungeonWorld();
@@ -72,7 +86,7 @@ public sealed class DungeonTests
         first.Update(Vector2.Zero,new(0,10000),true,0.1f);
         Assert.Equal(1.25f,first.Pitch);
         first.Update(Vector2.Zero,new(0,-10000),true,0.1f);
-        Assert.Equal(0.12f,first.Pitch);
+        Assert.Equal(-0.18f,first.Pitch);
     }
     [Fact]
     public void ResetRestoresSpawnAndInvalidFramesDoNotCorruptState()
@@ -100,6 +114,7 @@ public sealed class DungeonTests
         Settings.Required<DungeonSettings>(Settings.ConfigPath("dungeon.json")).Validate();
         Assert.Throws<InvalidDataException>(()=>new DungeonSettings { MoveDeadzone=1 }.Validate());
         Assert.Throws<InvalidDataException>(()=>new DungeonSettings { CameraDistance=float.NaN }.Validate());
+        Assert.Throws<InvalidDataException>(()=>new DungeonSettings { KeyboardTurnSpeed=0 }.Validate());
         Assert.Throws<InvalidDataException>(()=>new DungeonSettings { InteractionRange=0 }.Validate());
     }
 }

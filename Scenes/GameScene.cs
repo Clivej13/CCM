@@ -4,10 +4,16 @@ using CCM.Game;
 using Raylib_cs;
 namespace CCM.Scenes;
 
-public sealed class GameScene(SessionInput input, DungeonSettings settings, bool debug, Action returnToMenu) : Scene
+public sealed class GameScene(SessionInput input, DungeonSettings settings, bool debug,
+    Action returnToMenu, GameplaySettings? gameplay = null) : Scene
 {
-    private readonly DungeonSimulation simulation = new(settings);
-    private bool captured, ignoreLook;
+    private readonly DungeonSimulation simulation = new(settings, gameplay);
+    private bool captured, ignoreLook, rightDragged, rightClickPending;
+    private Vector2 rightStart;
+    private float rightDragDistance;
+    private Vector2 controllerCursor;
+    private bool wasTopDown;
+    private bool controllerContextMode;
     private string? feedback;
     private float feedbackSeconds;
     public override void Enter()
@@ -15,20 +21,39 @@ public sealed class GameScene(SessionInput input, DungeonSettings settings, bool
         simulation.Reset();
         feedback = null; feedbackSeconds = 0;
         ignoreLook = true;
+        rightDragged = rightClickPending = false;
+        rightDragDistance = 0;
+        wasTopDown = false;
+        controllerContextMode = false;
+        controllerCursor = new(Raylib.GetScreenWidth()/2f,Raylib.GetScreenHeight()/2f);
         UpdateCapture();
     }
     private void UpdateCapture()
     {
-        bool capture = input.UsesMouse && Raylib.IsWindowFocused();
+        bool capture = input.UsesMouse && !simulation.TopDown &&
+            Raylib.IsWindowFocused() && input.AttackHeld;
         if (capture == captured) return;
-        if (capture) Raylib.DisableCursor(); else Raylib.EnableCursor();
+        if (capture)
+        {
+            rightStart = Raylib.GetMousePosition();
+            rightDragged = false;
+            rightDragDistance = 0;
+            Raylib.DisableCursor();
+        }
+        else if (captured)
+        {
+            Raylib.EnableCursor();
+            Raylib.SetMousePosition((int)rightStart.X,(int)rightStart.Y);
+            rightClickPending = !simulation.TopDown && Raylib.IsWindowFocused() &&
+                !input.AttackHeld && !rightDragged;
+        }
         captured = capture;
         ignoreLook = true;
     }
     public override void Update(float seconds)
     {
         UpdateCapture();
-        if (!Raylib.IsWindowFocused()) return;
+        if (!Raylib.IsWindowFocused()) { rightClickPending = false; return; }
         feedbackSeconds = Math.Max(0,feedbackSeconds-seconds);
         if (input.ReturnPressed()) { returnToMenu(); return; }
         if (input.PausePressed())
@@ -36,32 +61,145 @@ public sealed class GameScene(SessionInput input, DungeonSettings settings, bool
             simulation.TogglePause();
             ignoreLook = true;
         }
-        if (simulation.Paused) return;
-        simulation.Update(input.Move, ignoreLook ? Vector2.Zero : input.Look, input.UsesMouse, seconds);
-        simulation.UpdateInteraction(false);
-        if (!ignoreLook && input.SelectPressed()) simulation.SelectEnemy();
-        bool action = !ignoreLook && input.AttackOrInteractPressed();
-        if ((!ignoreLook && input.InteractPressed()) || (action && simulation.Target is not null))
-            simulation.UpdateInteraction(true);
-        else if (action) simulation.RequestAttack();
-        simulation.UpdateCombat(seconds);
+        if (simulation.Paused) { rightClickPending = false; return; }
+        simulation.AdjustZoom(input.Zoom*settings.MouseZoomStep);
+        if (!input.UsesMouse && input.CycleViewPressed()) simulation.CycleView();
+        if (simulation.TopDown != wasTopDown)
+        {
+            wasTopDown = simulation.TopDown;
+            controllerContextMode = false;
+            controllerCursor = new(Raylib.GetScreenWidth()/2f,Raylib.GetScreenHeight()/2f);
+            ignoreLook = true;
+        }
+        UpdateCapture();
+        simulation.ClearInteractionMessage();
+        if (simulation.TopDown)
+        {
+            simulation.UpdateTopDown(input.Move,seconds);
+            if (!input.UsesMouse)
+                controllerCursor += input.Look*settings.ControllerCursorSpeed*seconds;
+            controllerCursor = Vector2.Clamp(controllerCursor,Vector2.Zero,
+                new(Raylib.GetScreenWidth()-1,Raylib.GetScreenHeight()-1));
+        }
+        else
+        {
+            if (captured && !ignoreLook)
+            {
+                rightDragDistance += input.Look.Length();
+                if (rightDragDistance > 6) rightDragged = true;
+            }
+            var look = ignoreLook || input.UsesMouse && !captured
+                ? Vector2.Zero : input.Look;
+            var move = input.Move;
+            float turn = 0;
+            if (input.UsesMouse)
+            {
+                turn = captured ? 0 : move.X;
+                move.X = input.Strafe + (captured ? move.X : 0);
+            }
+            simulation.Update(move,look,input.UsesMouse,seconds,turn,faceCamera:input.UsesMouse);
+        }
+        var camera = CreateCamera();
+        Ray aim = default;
+        if (!input.UsesMouse && simulation.TopDown && input.Look.LengthSquared() > 0.01f)
+            controllerContextMode = false;
+        if (input.UsesMouse || simulation.TopDown && !controllerContextMode)
+        {
+            Vector2 screenPoint = input.UsesMouse ? Raylib.GetMousePosition() : controllerCursor;
+            aim = Raylib.GetScreenToWorldRay(screenPoint,camera);
+            simulation.UpdateAim(aim.Position,aim.Direction);
+        }
+        else simulation.UpdateContextAim();
+        if (!input.UsesMouse)
+        {
+            bool left = input.CycleActionLeftPressed();
+            bool right = input.CycleActionRightPressed();
+            if (left || right)
+                controllerContextMode = simulation.CycleContext(left ? -1 : 1);
+        }
+        bool combatBeforeFrame = simulation.CombatStarted;
+        if (!ignoreLook || rightClickPending)
+        {
+            bool primary = !ignoreLook && (input.UsesMouse ? input.SelectPressed() : input.InteractPressed());
+            if (primary)
+            {
+                if (!simulation.TopDown && input.UsesMouse)
+                    simulation.SelectEnemy(aim.Position,aim.Direction);
+                else if (!simulation.TopDown || controllerContextMode)
+                    simulation.ActivateContext();
+                else if (!input.UsesMouse)
+                {
+                    if (simulation.SelectEnemy(aim.Position,aim.Direction))
+                        simulation.RequestAttack();
+                    else if (simulation.VisibleTarget is { } visible)
+                        simulation.RequestInteraction(visible.Item);
+                    else SetGroundDestination(aim);
+                }
+                else if (!simulation.TryInteractVisible())
+                {
+                    if (simulation.SelectEnemy(aim.Position,aim.Direction))
+                        simulation.RequestAttack();
+                    else SetGroundDestination(aim);
+                }
+            }
+            if (!ignoreLook && input.UsesMouse && !primary && input.InteractPressed())
+                simulation.TryInteractVisible();
+            bool attack = rightClickPending ||
+                (!ignoreLook && input.UsesMouse && simulation.TopDown && input.AttackPressed());
+            if (attack)
+            {
+                if (simulation.TopDown)
+                {
+                    if (simulation.SelectEnemy(aim.Position,aim.Direction))
+                        simulation.RequestAttack();
+                    else if (simulation.VisibleTarget is { } visible)
+                        simulation.RequestInteraction(visible.Item);
+                }
+                else if (input.UsesMouse)
+                {
+                    if (!simulation.TryInteractVisible())
+                    {
+                        simulation.SelectEnemy(aim.Position,aim.Direction);
+                        simulation.RequestAttack();
+                    }
+                }
+            }
+            rightClickPending = false;
+        }
+        simulation.UpdateCombat(seconds, controllerScheme: !input.UsesMouse);
+        if (!input.UsesMouse && !combatBeforeFrame && simulation.CombatStarted)
+            controllerContextMode = simulation.TopDown;
         if (simulation.InteractionMessage is { } interaction) { feedback = interaction; feedbackSeconds = 1.5f; }
         if (simulation.CombatMessage is { } combat) { feedback = combat; feedbackSeconds = 1.5f; }
         ignoreLook = false;
     }
+    private void SetGroundDestination(Ray aim)
+    {
+        if (aim.Direction.Y >= -0.0001f) return;
+        float distance = -aim.Position.Y/aim.Direction.Y;
+        if (distance <= 0) return;
+        simulation.SetMoveDestination(aim.Position+aim.Direction*distance);
+    }
+    private Camera3D CreateCamera() => new()
+    {
+        Position = simulation.CameraPosition, Target = simulation.CameraTarget,
+        Up = simulation.TopDown ? -Vector3.UnitZ : Vector3.UnitY,
+        FovY = 60, Projection = CameraProjection.Perspective
+    };
     public override void Exit()
     {
-        if (captured) Raylib.EnableCursor();
+        if (captured)
+        {
+            Raylib.EnableCursor();
+            Raylib.SetMousePosition((int)rightStart.X,(int)rightStart.Y);
+        }
         captured = false;
+        rightClickPending = false;
     }
     public override void Render()
     {
         Raylib.ClearBackground(new Color(20,23,30,255));
-        var camera = new Camera3D
-        {
-            Position = simulation.CameraPosition, Target = simulation.CameraTarget,
-            Up = Vector3.UnitY, FovY = 60, Projection = CameraProjection.Perspective
-        };
+        var camera = CreateCamera();
         Raylib.BeginMode3D(camera);
         for (int x = -8; x < 8; x += 2)
             for (int z = -8; z < 8; z += 2)
@@ -83,6 +221,8 @@ public sealed class GameScene(SessionInput input, DungeonSettings settings, bool
             enemy.Alive ? new Color(170,58,58,255) : Color.DarkGray);
         if (simulation.EnemySelected && enemy.Alive)
             Raylib.DrawCubeWiresV(enemy.Position+new Vector3(0,0.9f,0),new(1,1.9f,1),Color.Gold);
+        if (simulation.MoveDestination is { } destination)
+            Raylib.DrawCubeV(destination+new Vector3(0,0.08f,0),new(0.4f,0.12f,0.4f),Color.Gold);
         var player = simulation.Player;
         Raylib.DrawCubeV(player.Position + new Vector3(0,0.65f,0),new(0.6f,1.1f,0.6f),Color.SkyBlue);
         Raylib.DrawCubeV(player.Position + new Vector3(0,1.4f,0),new(0.5f,0.4f,0.5f),Color.Beige);
@@ -98,8 +238,25 @@ public sealed class GameScene(SessionInput input, DungeonSettings settings, bool
         if (simulation.Target is { } highlighted)
             Raylib.DrawCubeWiresV(highlighted.Item.Bounds.Centre,highlighted.Item.Bounds.Size+new Vector3(0.05f),Color.Gold);
         Raylib.EndMode3D();
-        if (simulation.Target is { } target)
-            DrawPrompt($"[{input.InteractionBinding}] {target.Item.Action}",Raylib.GetScreenHeight()/2+60,Color.Gold);
+        if (simulation.VisibleTarget is { } visible)
+        {
+            string control = simulation.TopDown ? (input.UsesMouse ? "Left click" : "A")
+                : input.UsesMouse ? "Right click" : "A";
+            string prompt = simulation.Target is not null
+                ? $"{control}: {visible.Item.Action}"
+                : simulation.TopDown
+                    ? $"{(input.UsesMouse ? "Right click" : "A")}: approach + {visible.Item.Action}"
+                    : $"{visible.Item.Name} - move closer";
+            if (!input.UsesMouse) prompt += " | LB/RB: choose";
+            DrawPrompt(prompt,Raylib.GetScreenHeight()/2+60,
+                simulation.Target is not null ? Color.Gold : Color.RayWhite);
+        }
+        if (!input.UsesMouse && simulation.ContextEnemySelected)
+            DrawPrompt("A: attack selected enemy | LB/RB: choose",
+                Raylib.GetScreenHeight()/2+60,Color.Gold);
+        if (!input.UsesMouse) DrawContextOptions();
+        if (simulation.TopDown && !input.UsesMouse && !controllerContextMode)
+            Raylib.DrawCircleV(controllerCursor,6,Color.Gold);
         if (feedbackSeconds > 0 && feedback is not null)
             DrawPrompt(feedback,Raylib.GetScreenHeight()-70,Color.RayWhite);
         DrawHealthBar(16,78,player.Health,player.MaxHealth,"Player",Color.SkyBlue);
@@ -112,10 +269,17 @@ public sealed class GameScene(SessionInput input, DungeonSettings settings, bool
             Raylib.DrawText($"Enemy: {enemy.Phase} {enemy.AttackProgress:P0}",
                 Raylib.GetScreenWidth()-236,116,16,Color.Red);
         string hint1 = input.ControllerDisconnected ? "Controller disconnected - Escape to menu"
-            : input.UsesMouse ? "WASD move | Mouse look | LMB select | RMB attack/use"
-            : "Sticks move/look | LB select | RB attack/use";
-        string hint2 = input.ControllerDisconnected ? "" :
-            input.UsesMouse ? "E use | Space pause | Escape menu" : "A use | Start pause | B menu";
+            : input.UsesMouse
+                ? simulation.TopDown ? "WASD pan camera | Wheel zoom | LMB move / use / select"
+                    : "W/S move | A/D turn | Q/E strafe | RMB hold look"
+                : simulation.TopDown ? "Left stick pan | Right stick cursor | R3 view"
+                    : "Left stick move | Right stick look | R3 view";
+        string hint2 = input.ControllerDisconnected ? "" : input.UsesMouse
+            ? simulation.TopDown ? "RMB approach + use / attack | Space pause | Esc menu"
+                : "LMB select | RMB use / attack | F use | Wheel zoom"
+            : simulation.TopDown
+                ? "A approach / use / attack / move | LB/RB choose | Start pause | B menu"
+                : "LB/RB choose | A use / attack | Start pause | B menu";
         Raylib.DrawRectangle(0,Raylib.GetScreenHeight()-56,Raylib.GetScreenWidth(),56,new Color(0,0,0,190));
         Raylib.DrawText(hint1,16,Raylib.GetScreenHeight()-50,16,Color.RayWhite);
         Raylib.DrawText(hint2,16,Raylib.GetScreenHeight()-27,16,Color.RayWhite);
@@ -126,6 +290,25 @@ public sealed class GameScene(SessionInput input, DungeonSettings settings, bool
         {
             Raylib.DrawRectangle(0,0,Raylib.GetScreenWidth(),Raylib.GetScreenHeight(),new Color(0,0,0,160));
             DrawPrompt("PAUSED - Space / Start to resume",Raylib.GetScreenHeight()/2,Color.RayWhite);
+        }
+    }
+    private void DrawContextOptions()
+    {
+        var options = simulation.AvailableContextActions();
+        if (options.Count == 0) return;
+        const int fontSize = 16;
+        const int gap = 18;
+        int width = options.Sum(option => Raylib.MeasureText(option.Label,fontSize)) +
+            gap * (options.Count-1) + 32;
+        int x = Math.Max(8,(Raylib.GetScreenWidth()-width)/2);
+        int y = 148;
+        Raylib.DrawRectangle(x-8,y-6,Math.Min(width+16,Raylib.GetScreenWidth()-x),30,
+            new Color(0,0,0,190));
+        x += 8;
+        foreach (var option in options)
+        {
+            Raylib.DrawText(option.Label,x,y,fontSize,option.Selected ? Color.Gold : Color.RayWhite);
+            x += Raylib.MeasureText(option.Label,fontSize)+gap;
         }
     }
     private static void DrawHealthBar(int x,int y,int health,int maximum,string label,Color colour)

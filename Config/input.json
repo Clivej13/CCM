@@ -152,7 +152,17 @@
     },
     {
       "Device": "Keyboard",
+      "Input": "Q",
+      "Action": "StrafeLeft"
+    },
+    {
+      "Device": "Keyboard",
       "Input": "E",
+      "Action": "StrafeRight"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "F",
       "Action": "Interact"
     },
     {
@@ -178,17 +188,22 @@
     {
       "Device": "GamepadButton",
       "Input": "LeftTrigger1",
-      "Action": "SelectEnemy"
+      "Action": "CycleActionLeft"
     },
     {
       "Device": "Mouse",
       "Input": "Right",
-      "Action": "AttackOrInteract"
+      "Action": "Attack"
     },
     {
       "Device": "GamepadButton",
       "Input": "RightTrigger1",
-      "Action": "AttackOrInteract"
+      "Action": "CycleActionRight"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "RightThumb",
+      "Action": "CycleView"
     }
   ]
 }

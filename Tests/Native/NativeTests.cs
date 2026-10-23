@@ -1,4 +1,6 @@
+using System.Numerics;
 using CCM.Application;
+using CCM.Game;
 using Raylib_cs;
 using RaylibGameFramework.Configuration;
 using RaylibGameFramework.Logging;
@@ -49,6 +51,72 @@ public sealed class NativeTests
     }
 
     [Fact]
+    public void TopDownScreenRayReachesTheGroundUnderTheCursor()
+    {
+        Raylib.InitWindow(800,600,"CCM top-down camera validation");
+        try
+        {
+            var simulation = new DungeonSimulation(new());
+            simulation.AdjustZoom(-6);
+            var camera = new Camera3D
+            {
+                Position=simulation.CameraPosition,
+                Target=simulation.CameraTarget,
+                Up=-Vector3.UnitZ,
+                FovY=60,
+                Projection=CameraProjection.Perspective
+            };
+            var ray = Raylib.GetScreenToWorldRay(new(400,300),camera);
+            Assert.True(ray.Direction.Y < -0.9f);
+            float distance = -ray.Position.Y/ray.Direction.Y;
+            var ground = ray.Position+ray.Direction*distance;
+            Assert.InRange(Vector3.Distance(ground,simulation.FreeCameraCentre),0,0.05f);
+            for (int i=0;i<12;i++) simulation.UpdateTopDown(new(0,1),0.1f);
+            camera.Position=simulation.CameraPosition;
+            camera.Target=simulation.CameraTarget;
+            var door=simulation.World.Interactables[0];
+            var screen=Raylib.GetWorldToScreen(door.Bounds.Centre,camera);
+            var objectRay=Raylib.GetScreenToWorldRay(screen,camera);
+            Assert.Same(door,InteractionQuery.FindVisible(simulation.World,
+                objectRay.Position,objectRay.Direction)?.Item);
+        }
+        finally { Raylib.CloseWindow(); }
+    }
+
+    [Fact]
+    public void FollowCameraPointerRaySelectsOffCentreEnemy()
+    {
+        Raylib.InitWindow(800,600,"CCM follow pointer validation");
+        try
+        {
+            var simulation = new DungeonSimulation(new DungeonSettings
+                { Combat = new() { AutoPauseOnCombatStart=false } });
+            simulation.Player.Position = new(0,0,-6.35f);
+            simulation.UpdateAim(new(0,1.2f,0),-Vector3.UnitZ);
+            Assert.True(simulation.TryInteractVisible());
+            simulation.UpdateCombat(0.1f);
+            simulation.UpdateCombat(0.1f);
+            simulation.Player.Position = new(0,0,-25);
+            simulation.Enemy.Position = new(2,0,-30);
+            var camera = new Camera3D
+            {
+                Position=simulation.CameraPosition,
+                Target=simulation.CameraTarget,
+                Up=Vector3.UnitY,
+                FovY=60,
+                Projection=CameraProjection.Perspective
+            };
+            var screen = Raylib.GetWorldToScreen(simulation.Enemy.Position+new Vector3(0,0.9f,0),camera);
+            Assert.True(screen.X > 0 && screen.X < 800);
+            Assert.True(screen.Y > 0 && screen.Y < 600);
+            Assert.True(Math.Abs(screen.X-400)>20);
+            var ray = Raylib.GetScreenToWorldRay(screen,camera);
+            Assert.True(simulation.SelectEnemy(ray.Position,ray.Direction));
+        }
+        finally { Raylib.CloseWindow(); }
+    }
+
+    [Fact]
     public void DisplayChangesAndSavedSettingsRoundTripWithRealWindow()
     {
         string directory = Path.Combine(Path.GetTempPath(), "CCM-display-"+Guid.NewGuid());
@@ -64,8 +132,9 @@ public sealed class NativeTests
             var size = display.Available(true).Last();
             display.Apply(new() { Width = size.Width, Height = size.Height, Fullscreen = true });
             Assert.True(Raylib.IsWindowFullscreen());
-            Assert.Equal(size.Width, display.Current.Width);
-            Assert.Equal(size.Height, display.Current.Height);
+            // Drivers can choose a different actual mode; the application reads it back.
+            var actualMode = new Resolution(display.Current.Width, display.Current.Height);
+            Assert.Contains(actualMode, display.Available(true));
             display.Apply(windowed);
             Assert.False(Raylib.IsWindowFullscreen());
             Assert.Equal(windowed, display.Current);

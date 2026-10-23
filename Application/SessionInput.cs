@@ -15,7 +15,10 @@ public sealed class SessionInput
     private SelectedDevice? owner;
     private bool backDown, backPressed;
     public Vector2 Move { get; private set; }
+    public float Strafe { get; private set; }
     public Vector2 Look { get; private set; }
+    /// <summary>Mouse wheel delta; controller camera changes use CycleView.</summary>
+    public float Zoom { get; private set; }
     public bool UsesMouse => selection.Selected?.Family == InputDeviceFamily.KeyboardMouse;
     public bool ControllerDisconnected => selection.Selected is { Family: InputDeviceFamily.Gamepad } selected &&
         !Raylib.IsGamepadAvailable(selected.Gamepad);
@@ -30,6 +33,7 @@ public sealed class SessionInput
         // Always sample the fallback, even while a connected controller owns gameplay.
         keyboard.Update();
         Move = Look = Vector2.Zero;
+        Strafe = Zoom = 0;
         bool down = false;
         if (selection.Selected is { } selected)
         {
@@ -48,7 +52,8 @@ public sealed class SessionInput
             Look = new(Value("LookRight")-Value("LookLeft"), Value("LookDown")-Value("LookUp"));
             if (UsesMouse)
             {
-                if (Move.LengthSquared() > 1) Move = Vector2.Normalize(Move);
+                Strafe = Value("StrafeRight") - Value("StrafeLeft");
+                Zoom = Raylib.GetMouseWheelMoveV().Y;
             }
             else
             {
@@ -65,7 +70,11 @@ public sealed class SessionInput
     public bool InteractPressed() => gameplay?.WasPressed("Interact") == true;
     public bool PausePressed() => gameplay?.WasPressed("Pause") == true;
     public bool SelectPressed() => gameplay?.WasPressed("SelectEnemy") == true;
-    public bool AttackOrInteractPressed() => gameplay?.WasPressed("AttackOrInteract") == true;
+    public bool AttackPressed() => gameplay?.WasPressed("Attack") == true;
+    public bool AttackHeld => gameplay?.IsDown("Attack") == true;
+    public bool CycleViewPressed() => gameplay?.WasPressed("CycleView") == true;
+    public bool CycleActionLeftPressed() => gameplay?.WasPressed("CycleActionLeft") == true;
+    public bool CycleActionRightPressed() => gameplay?.WasPressed("CycleActionRight") == true;
     public string InteractionBinding => gameplay?.GetBinding("Interact",
         UsesMouse ? InputDeviceFamily.KeyboardMouse : InputDeviceFamily.Gamepad) is { } binding
         ? InputController.GetInputDisplayName(binding.Device,binding.Input) : "Unbound";

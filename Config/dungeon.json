@@ -1,10 +1,18 @@
 {
   "MoveSpeed": 4.5,
+  "KeyboardTurnSpeed": 2.4,
   "MouseSensitivity": 0.003,
   "ControllerLookSpeed": 2.4,
   "MoveDeadzone": 0.18,
   "LookDeadzone": 0.12,
   "CameraDistance": 5,
+  "WideCameraDistance": 8,
+  "TopDownThreshold": 10,
+  "TopDownCameraDistance": 14,
+  "MaxZoomDistance": 30,
+  "MouseZoomStep": 1.5,
+  "FreeCameraSpeed": 10,
+  "ControllerCursorSpeed": 650,
   "CameraPitch": 0.45,
   "InteractionRange": 2.5,
   "Combat": {
@@ -15,6 +23,7 @@
     "CooldownSeconds": 0.8,
     "Range": 1.8,
     "EnemySpeed": 2.3,
+    "VisionRange": 28,
     "AutoPauseOnCombatStart": true
   }
 }

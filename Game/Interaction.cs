@@ -34,15 +34,19 @@ public readonly record struct InteractionTarget(Interactable Item, Vector3 Point
 
 public static class InteractionQuery
 {
-    /// <summary>Nearest visible centre-ray hit only, then player reach and line of sight.</summary>
     public static InteractionTarget? Find(DungeonWorld world, Vector3 eye, Vector3 camera, Vector3 direction, float range)
     {
-        if (!float.IsFinite(range) || range <= 0 || !Finite(eye) || !Finite(camera) || !Finite(direction) ||
-            direction.LengthSquared() < 0.000001f) return null;
-        var ray = Vector3.Normalize(direction) * 100;
+        var target = FindVisible(world,camera,direction);
+        return target is { } found && CanReach(world,eye,found.Item,range) ? found : null;
+    }
+
+    /// <summary>Nearest object under a screen ray, independent of player reach.</summary>
+    public static InteractionTarget? FindVisible(DungeonWorld world, Vector3 camera, Vector3 direction)
+    {
+        if (!Finite(camera) || !Finite(direction) || direction.LengthSquared() < 0.000001f) return null;
+        var ray = Vector3.Normalize(direction) * 1000;
         float nearest = 1;
         Interactable? selected = null;
-        // Test walls first: ties at a wall face are occluded, not actionable.
         foreach (var block in world.StaticSolids)
             if (DungeonWorld.SegmentHit(camera,ray,block.Min,block.Max,out float hit) && hit < nearest)
                 nearest = hit;
@@ -52,14 +56,64 @@ public static class InteractionQuery
                 nearest = hit;
                 selected = item;
             }
-        if (selected is null) return null;
-        var point = camera + ray * nearest;
-        if (Vector3.Distance(eye,point) > range) return null;
-        foreach (var block in world.StaticSolids)
-            if (Blocked(eye,point,block)) return null;
+        return selected is null ? null : new(selected,camera+ray*nearest);
+    }
+
+    /// <summary>Every reachable action, including choices outside the current camera direction.</summary>
+    public static IReadOnlyList<InteractionTarget> FindReachable(DungeonWorld world, Vector3 eye, float range)
+    {
+        if (!Finite(eye) || !float.IsFinite(range) || range <= 0) return [];
+        var choices = new List<InteractionTarget>();
         foreach (var item in world.Interactables)
-            if (item != selected && Blocked(eye,point,item.Bounds)) return null;
-        return new(selected,point);
+        {
+            if (!CanReach(world,eye,item,range)) continue;
+            var box = item.Bounds;
+            var point = new Vector3(Math.Clamp(eye.X,box.Min.X,box.Max.X),
+                Math.Clamp(eye.Y,box.Min.Y,box.Max.Y),
+                Math.Clamp(eye.Z,box.Min.Z,box.Max.Z));
+            choices.Add(new(item,point));
+        }
+        return choices;
+    }
+
+    /// <summary>Default controller action follows camera direction; D-pad can cycle all reachable actions.</summary>
+    public static InteractionTarget? FindNearby(DungeonWorld world, Vector3 eye, Vector3 forward, float range)
+    {
+        if (!Finite(forward)) return null;
+        forward.Y = 0;
+        if (forward.LengthSquared() < 0.000001f) return null;
+        forward = Vector3.Normalize(forward);
+        InteractionTarget? best = null;
+        float bestScore = float.MaxValue;
+        foreach (var choice in FindReachable(world,eye,range))
+        {
+            var offset = new Vector3(choice.Point.X-eye.X,0,choice.Point.Z-eye.Z);
+            float distance = offset.Length();
+            float facing = distance < 0.1f ? 1 : Vector3.Dot(offset/distance,forward);
+            if (facing < 0.25f) continue;
+            // Facing wins when two nearby actions overlap; distance breaks close ties.
+            float score = distance + (1-facing)*range*4;
+            if (score >= bestScore) continue;
+            bestScore = score;
+            best = choice;
+        }
+        return best;
+    }
+
+    /// <summary>Reach is measured from the player's ground position to the nearest object footprint.</summary>
+    public static bool CanReach(DungeonWorld world, Vector3 eye, Interactable item, float range)
+    {
+        if (!Finite(eye) || !float.IsFinite(range) || range <= 0) return false;
+        var box = item.Bounds;
+        var closest = new Vector3(Math.Clamp(eye.X,box.Min.X,box.Max.X),
+            Math.Clamp(eye.Y,box.Min.Y,box.Max.Y),
+            Math.Clamp(eye.Z,box.Min.Z,box.Max.Z));
+        if (Vector2.Distance(new(eye.X,eye.Z),new(closest.X,closest.Z)) > range) return false;
+        foreach (var block in world.StaticSolids)
+            if (Blocked(eye,closest,block)) return false;
+        foreach (var other in world.Interactables)
+            if (other != item && Blocked(eye,closest,other.Bounds)) return false;
+        return true;
     }
     private static bool Blocked(Vector3 eye,Vector3 point,Block block) =>
         DungeonWorld.SegmentHit(eye,point-eye,block.Min,block.Max,out float hit) && hit < 0.999f;

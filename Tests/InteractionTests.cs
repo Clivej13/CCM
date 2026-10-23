@@ -55,6 +55,61 @@ public sealed class InteractionTests
     }
 
     [Fact]
+    public void ControllerContextPicksReachableObjectByFacingWithoutScreenCursor()
+    {
+        var simulation = new DungeonSimulation(new DungeonSettings
+            { Combat = new() { AutoPauseOnCombatStart=false } });
+        simulation.Player.Position = new(0,0,-6.35f);
+        simulation.UpdateContextAim();
+        Assert.Same(simulation.World.Interactables[0],simulation.Target?.Item);
+        Assert.True(simulation.TryInteractVisible());
+        Assert.False(simulation.CombatStarted);
+        simulation.UpdateCombat(0.1f);
+        simulation.UpdateCombat(0.1f);
+        Assert.True(simulation.CombatStarted);
+        Assert.True(simulation.World.Interactables[0].IsOpen);
+
+        var overlapWorld = new DungeonWorld();
+        var overlapEye = new Vector3(1.8f,1.2f,-6);
+        Assert.Same(overlapWorld.Interactables[0],
+            InteractionQuery.FindNearby(overlapWorld,overlapEye,-Vector3.UnitZ,2.5f)?.Item);
+        Assert.Same(overlapWorld.Interactables[1],
+            InteractionQuery.FindNearby(overlapWorld,overlapEye,
+                Vector3.Normalize(new Vector3(0.6f,0,-0.5f)),2.5f)?.Item);
+
+        simulation.Player.Position = new(3.1f,0,-5.2f);
+        simulation.UpdateContextAim();
+        Assert.Same(simulation.World.Interactables[1],simulation.Target?.Item);
+        Assert.True(simulation.TryInteractVisible());
+        Assert.True(simulation.World.Interactables[1].IsOpen);
+
+        simulation.Update(Vector2.Zero,new(MathF.PI/0.003f,0),true,0.1f);
+        simulation.UpdateContextAim();
+        Assert.Null(simulation.Target);
+        Assert.True(Vector3.Distance(simulation.Player.Position,simulation.Enemy.Position)>20);
+        Assert.True(simulation.SelectEnemyContextual());
+        Assert.True(simulation.EnemySelected);
+    }
+
+    [Fact]
+    public void ControllerCanCycleReachableActionsAndKeepChoiceWhileTurning()
+    {
+        var simulation = new DungeonSimulation(new());
+        simulation.Player.Position = new(1.8f,0,-6);
+        simulation.UpdateContextAim();
+        Assert.Same(simulation.World.Interactables[0],simulation.Target?.Item);
+        Assert.True(simulation.CycleContext(1));
+        Assert.Same(simulation.World.Interactables[1],simulation.Target?.Item);
+        simulation.UpdateContextAim();
+        Assert.Same(simulation.World.Interactables[1],simulation.Target?.Item);
+        Assert.True(simulation.CycleContext(-1));
+        Assert.Same(simulation.World.Interactables[0],simulation.Target?.Item);
+        simulation.Player.Position = simulation.World.Spawn;
+        simulation.UpdateContextAim();
+        Assert.Null(simulation.Target);
+    }
+
+    [Fact]
     public void GameplayCameraCanActuallyOpenTheDoor()
     {
         var simulation = new DungeonSimulation(new());
@@ -65,7 +120,11 @@ public sealed class InteractionTests
         Assert.Same(simulation.World.Interactables[0],simulation.Target?.Item);
         simulation.UpdateInteraction(true);
         Assert.True(simulation.World.Interactables[0].IsOpen);
-        Assert.Equal("Combat started - paused",simulation.InteractionMessage);
+        Assert.Equal("Door opened",simulation.InteractionMessage);
+        Assert.False(simulation.CombatStarted);
+        Assert.False(simulation.Paused);
+        simulation.UpdateCombat(0.1f);
+        simulation.UpdateCombat(0.1f);
         Assert.True(simulation.CombatStarted);
         Assert.True(simulation.Paused);
     }
