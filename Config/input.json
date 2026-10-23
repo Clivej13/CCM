@@ -237,6 +237,41 @@
     },
     {
       "Device": "Keyboard",
+      "Input": "Q",
+      "Action": "PanelLeft"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "E",
+      "Action": "PanelRight"
+    },
+    {
+      "Device": "GamepadAxis",
+      "Input": "LeftTrigger",
+      "Action": "PanelLeft"
+    },
+    {
+      "Device": "GamepadAxis",
+      "Input": "RightTrigger",
+      "Action": "PanelRight"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Tab",
+      "Action": "InventoryPane"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "RightFaceLeft",
+      "Action": "InventoryPane"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "C",
+      "Action": "Character"
+    },
+    {
+      "Device": "Keyboard",
       "Input": "I",
       "Action": "Inventory"
     },

@@ -4,7 +4,8 @@ using RaylibGameFramework.Input;
 namespace CCM.Scenes;
 
 public sealed class LoadingScene(AssetSession assets, Diagnostics diagnostics, InputController input,
-    Action completed, Action exit, string catalogueFile = "assets.json") : Scene
+    Action completed, Action exit, string catalogueFile = "assets.json",
+    string[]? initialKeys = null) : Scene
 {
     private bool rendered;
     private string? error;
@@ -13,7 +14,7 @@ public sealed class LoadingScene(AssetSession assets, Diagnostics diagnostics, I
     {
         rendered = false;
         error = null;
-        try { assets.Begin(catalogueFile); diagnostics.Event("Asset catalogue queued."); }
+        try { assets.Begin(catalogueFile,initialKeys); diagnostics.Event("Asset catalogue queued."); }
         catch (Exception exception) { Fail(exception); }
     }
     private void Fail(Exception exception)

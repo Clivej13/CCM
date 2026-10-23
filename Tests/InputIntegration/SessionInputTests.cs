@@ -357,6 +357,104 @@ public sealed class SessionInputTests
     }
 
     [Fact]
+    public void InventoryFiltersAndPaneSwitchUseTheSelectedController()
+    {
+        Raylib.Reset();
+        var pad=new SessionInput(Bindings(),Select(InputDeviceFamily.Gamepad,2),new());
+        Raylib.Connected.UnionWith([0,2]);
+        Raylib.Axes[(0,GamepadAxis.LeftX)]=-1;
+        Raylib.Buttons.Add((0,GamepadButton.RightFaceLeft));
+        pad.Update();
+        Assert.False(pad.UiLeftPressed());
+        Assert.False(pad.UiPanePressed());
+
+        Raylib.Axes[(2,GamepadAxis.LeftX)]=-.8f;
+        Raylib.Buttons.Add((2,GamepadButton.RightFaceLeft));
+        pad.Update();
+        Assert.True(pad.UiLeftPressed());
+        Assert.True(pad.UiPanePressed());
+        pad.Update();
+        Assert.False(pad.UiLeftPressed());
+        Assert.False(pad.UiPanePressed());
+        Raylib.Axes[(2,GamepadAxis.LeftX)]=.8f;
+        pad.Update();
+        Assert.True(pad.UiRightPressed());
+    }
+
+    [Fact]
+    public void KeyboardFiltersAndPanelTabsHaveSeparatePressEdges()
+    {
+        Raylib.Reset();
+        var keyboard=new SessionInput(Bindings(),Select(InputDeviceFamily.KeyboardMouse),new());
+        Raylib.Keys.UnionWith([KeyboardKey.C,KeyboardKey.D,KeyboardKey.Q]);
+        keyboard.Update();
+        Assert.True(keyboard.CharacterPressed());
+        Assert.True(keyboard.UiRightPressed());
+        Assert.False(keyboard.UiLeftPressed());
+        Assert.True(keyboard.PanelLeftPressed());
+        Assert.False(keyboard.PanelRightPressed());
+        keyboard.Update();
+        Assert.False(keyboard.CharacterPressed());
+        Assert.False(keyboard.UiRightPressed());
+        Assert.False(keyboard.PanelLeftPressed());
+        Raylib.Keys.Clear();
+        keyboard.Update();
+        Raylib.Keys.UnionWith([KeyboardKey.A,KeyboardKey.E]);
+        keyboard.Update();
+        Assert.True(keyboard.UiLeftPressed());
+        Assert.True(keyboard.PanelRightPressed());
+        Assert.False(keyboard.UiRightPressed());
+        Assert.False(keyboard.PanelLeftPressed());
+
+        Raylib.Reset();
+        var pad=new SessionInput(Bindings(),Select(InputDeviceFamily.Gamepad,2),new());
+        Raylib.Connected.Add(2);
+        Raylib.Keys.UnionWith([KeyboardKey.C,KeyboardKey.A,KeyboardKey.D,
+            KeyboardKey.Q,KeyboardKey.E]);
+        pad.Update();
+        Assert.False(pad.CharacterPressed());
+        Assert.False(pad.PanelLeftPressed());
+        Assert.False(pad.PanelRightPressed());
+        Assert.False(pad.UiLeftPressed());
+        Assert.False(pad.UiRightPressed());
+    }
+
+    [Fact]
+    public void SelectedControllerTriggersSwitchPanelsOncePerPress()
+    {
+        Raylib.Reset();
+        var pad=new SessionInput(Bindings(),Select(InputDeviceFamily.Gamepad,2),new());
+        Raylib.Connected.UnionWith([0,2]);
+        Raylib.Axes[(0,GamepadAxis.LeftTrigger)]=1;
+        Raylib.Axes[(0,GamepadAxis.RightTrigger)]=1;
+        pad.Update();
+        Assert.False(pad.PanelLeftPressed());
+        Assert.False(pad.PanelRightPressed());
+
+        Raylib.Axes[(2,GamepadAxis.LeftTrigger)]=.4f;
+        pad.Update();
+        Assert.False(pad.PanelLeftPressed());
+        Raylib.Axes[(2,GamepadAxis.LeftTrigger)]=.8f;
+        pad.Update();
+        Assert.True(pad.PanelLeftPressed());
+        Assert.False(pad.PanelRightPressed());
+        pad.Update();
+        Assert.False(pad.PanelLeftPressed());
+
+        Raylib.Axes[(2,GamepadAxis.LeftTrigger)]=-1;
+        Raylib.Axes[(2,GamepadAxis.RightTrigger)]=.8f;
+        pad.Update();
+        Assert.False(pad.PanelLeftPressed());
+        Assert.True(pad.PanelRightPressed());
+        pad.Update();
+        Assert.False(pad.PanelRightPressed());
+        Raylib.Connected.Remove(2);
+        pad.Update();
+        Assert.False(pad.PanelLeftPressed());
+        Assert.False(pad.PanelRightPressed());
+    }
+
+    [Fact]
     public void InventoryNavigationUsesOnlyTheSelectedDeviceAndPressEdges()
     {
         Raylib.Reset();

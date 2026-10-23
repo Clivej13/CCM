@@ -2,6 +2,8 @@ namespace CCM.Game;
 
 public enum EquipmentSlot { None, Weapon, Body, Quiver }
 public enum ItemVisual { Sword, Bow, Staff, Armour, Quiver, Arrow }
+public enum ItemType { Weapon, Apparel, Ammunition }
+public enum ItemFilter { All, Weapons, Apparel }
 
 public sealed class ItemDefinition
 {
@@ -9,10 +11,19 @@ public sealed class ItemDefinition
     public string Name { get; set; } = "";
     public string Slot { get; set; } = "None";
     public string Visual { get; set; } = "";
+    public string Type { get; set; } = "";
+    public string Description { get; set; } = "";
+    public float Weight { get; set; }
+    public int AttackPower { get; set; }
+    public float AttackRange { get; set; }
+    public float AttackSpeed { get; set; }
+    public int Protection { get; set; }
+    public int Value { get; set; }
     public bool Stackable { get; set; }
     public EquipmentSlot EquipmentSlot =>
         Enum.TryParse<EquipmentSlot>(Slot,true,out var slot) ? slot : EquipmentSlot.None;
     public ItemVisual VisualKind => Enum.Parse<ItemVisual>(Visual,true);
+    public ItemType ItemType => Enum.Parse<ItemType>(Type,true);
 }
 
 public sealed class ItemCatalogue
@@ -26,13 +37,28 @@ public sealed class ItemCatalogue
         {
             if (item is null || string.IsNullOrWhiteSpace(item.Id) ||
                 string.IsNullOrWhiteSpace(item.Name) ||
+                string.IsNullOrWhiteSpace(item.Description) ||
                 !Enum.TryParse<EquipmentSlot>(item.Slot,true,out var slot) ||
                 !Enum.IsDefined(slot) ||
                 !Enum.TryParse<ItemVisual>(item.Visual,true,out var visual) ||
-                !Enum.IsDefined(visual) || !ids.Add(item.Id))
+                !Enum.IsDefined(visual) ||
+                !Enum.TryParse<ItemType>(item.Type,true,out var type) ||
+                !Enum.IsDefined(type) ||
+                !float.IsFinite(item.Weight) || item.Weight<0 ||
+                item.AttackPower<0 || !float.IsFinite(item.AttackRange) ||
+                !float.IsFinite(item.AttackSpeed) || item.Protection<0 || item.Value<0 ||
+                !ids.Add(item.Id))
                 throw new InvalidDataException("Invalid or duplicate item definition.");
             if (item.Stackable && slot!=EquipmentSlot.None)
                 throw new InvalidDataException($"Equippable item {item.Id} cannot be stackable.");
+            if (type==ItemType.Weapon && slot!=EquipmentSlot.Weapon ||
+                type==ItemType.Apparel && slot is not (EquipmentSlot.Body or EquipmentSlot.Quiver) ||
+                type==ItemType.Ammunition && slot!=EquipmentSlot.None)
+                throw new InvalidDataException($"Item {item.Id} has an incompatible type and slot.");
+            if (type==ItemType.Weapon && (item.AttackRange is < 0.5f or > 5f ||
+                    item.AttackSpeed is < 0.2f or > 4f) ||
+                type!=ItemType.Weapon && (item.AttackRange!=0 || item.AttackSpeed!=0))
+                throw new InvalidDataException($"Item {item.Id} has invalid weapon range or speed.");
         }
     }
     public ItemDefinition Get(string id) =>
@@ -78,7 +104,7 @@ public sealed class ContainerCatalogue
         ?? throw new KeyNotFoundException($"Unknown container: {id}");
 }
 
-/// <summary>Counts item IDs; definitions and visuals always come from ItemCatalogue.</summary>
+/// <summary>The bag owns unequipped item stacks; equipment has separate ownership.</summary>
 public sealed class Inventory
 {
     private readonly List<ItemStack> stacks=[];
@@ -93,6 +119,13 @@ public sealed class Inventory
     public int Count(string id) => stacks.FirstOrDefault(s=>s.ItemId==id)?.Quantity ?? 0;
     public int CountVisual(ItemCatalogue catalogue,ItemVisual visual) =>
         catalogue.Items.Where(item=>item.VisualKind==visual).Sum(item=>Count(item.Id));
+    public IReadOnlyList<ItemStack> Filter(ItemCatalogue catalogue,ItemFilter filter) => filter switch
+    {
+        ItemFilter.All => stacks,
+        ItemFilter.Weapons => stacks.Where(stack=>catalogue.Get(stack.ItemId).ItemType==ItemType.Weapon).ToArray(),
+        ItemFilter.Apparel => stacks.Where(stack=>catalogue.Get(stack.ItemId).ItemType==ItemType.Apparel).ToArray(),
+        _ => throw new ArgumentOutOfRangeException(nameof(filter))
+    };
     public void Add(string id,int quantity)
     {
         if (string.IsNullOrWhiteSpace(id) || quantity<=0) throw new ArgumentOutOfRangeException(nameof(quantity));
@@ -129,8 +162,25 @@ public sealed class Equipment(Inventory inventory,ItemCatalogue catalogue)
         if (inventory.Count(id)==0) return false;
         var slot=catalogue.Get(id).EquipmentSlot;
         if (slot==EquipmentSlot.None) return false;
+        string? previous=In(slot);
+        if (previous is not null && inventory.Count(previous)==int.MaxValue) return false;
+        if (!inventory.Remove(id,1)) return false;
+        if (previous is not null) inventory.Add(previous,1);
         equipped[slot]=id;
         return true;
     }
-    public void Clear() => equipped.Clear();
+    public bool Unequip(EquipmentSlot slot)
+    {
+        if (slot==EquipmentSlot.None || In(slot) is not { } id ||
+            inventory.Count(id)==int.MaxValue) return false;
+        inventory.Add(id,1);
+        equipped.Remove(slot);
+        return true;
+    }
+    public void Clear()
+    {
+        foreach (var slot in equipped.Keys.ToArray())
+            if (!Unequip(slot))
+                throw new InvalidOperationException($"Could not return equipped item in {slot} to the bag.");
+    }
 }

@@ -37,6 +37,11 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
             dungeon.Validate();
             var itemCatalogue=Settings.Required<ItemCatalogue>(Settings.ConfigPath("items.json"));
             itemCatalogue.Validate();
+            var playerDefinition=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json"));
+            playerDefinition.Validate();
+            var enemyCatalogue=Settings.Required<EnemyCatalogue>(Settings.ConfigPath("enemies.json"));
+            enemyCatalogue.Validate(itemCatalogue);
+            enemyCatalogue.Get(dungeon.EnemyId);
             var containerCatalogue=Settings.Required<ContainerCatalogue>(Settings.ConfigPath("containers.json"));
             containerCatalogue.Validate(itemCatalogue);
             var starterChest=containerCatalogue.Get("starter-chest");
@@ -63,15 +68,19 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
                 Transition(AppState.Loading);
             });
             scenes[AppState.Loading] = new LoadingScene(assets, diagnostics, input,
-                () => Transition(Lifecycle.Destination(debug)), () => Transition(AppState.Shutdown));
+                () => Transition(Lifecycle.Destination(debug)), () => Transition(AppState.Shutdown),
+                initialKeys:["foundation-triangle"]);
             scenes[AppState.MainMenu] = new MenuScene(input, bindings, display, store, diagnostics,
                 () => Transition(AppState.Game), () => Transition(AppState.Shutdown), gameplaySave, gameplay);
-            scenes[AppState.Game] = new GameScene(sessionInput, dungeon, debug.Enabled,
-                () => Transition(AppState.MainMenu), input,bindings,gameplay,itemCatalogue,starterChest.Contents);
             lifecycle.Changed += (previous, next) =>
             {
                 active?.Exit();
                 diagnostics.Event($"State {previous} -> {next}");
+                // Build the dungeon and its catalogue enemy only when gameplay is entered.
+                if (next==AppState.Game && !scenes.ContainsKey(AppState.Game))
+                    scenes[AppState.Game]=new GameScene(sessionInput,dungeon,debug.Enabled,
+                        () => Transition(AppState.MainMenu),input,bindings,gameplay,
+                        itemCatalogue,starterChest.Contents,playerDefinition,enemyCatalogue);
                 active = scenes.GetValueOrDefault(next);
                 active?.Enter();
             };

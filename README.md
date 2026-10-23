@@ -89,9 +89,11 @@ validated platform. Refresh rate remains Raylib/driver controlled.
   submenu of MainMenu, not an extra application state.
 - Separate AssetSessions own the presentation and destination AssetManagers.
   InitialLoading loads Config/presentation-assets.json (the title's OBJ mark).
-  After title confirmation, Loading loads Config/assets.json (the foundation
-  verification model). Both call ProcessNext once per frame and display actual
-  progress. Dungeon blocks are drawn procedurally and need no external models.
+  After title confirmation, Loading requires only the foundation verification
+  model from Config/assets.json. Other catalogue entries can remain unloaded until
+  a scene requires them through AssetManager.RequireAsset; ProcessNext loads one
+  required native asset per frame. Dungeon blocks are drawn procedurally and need
+  no external models.
 - The splash and loading text use Raylib's built-in font. Each catalogue is
   validated when its loading stage begins. Failures remain on a responsive
   error screen; Escape/B or window close exits. Details go to logs.
@@ -110,9 +112,9 @@ Jumping, animation and procedural generation are not included.
 
 ## Inventory and equipment
 
-Config/items.json defines item IDs, display names, equipment slots and simple
-block visual types. Config/containers.json gives the starter chest item IDs and
-quantities. Both catalogues load through the Configuration library at startup;
+Config/items.json defines item IDs, display names, type, description, weight,
+equipment slot, weapon damage/range/attack rate, protection, value and block visual types.
+Config/containers.json gives the starter chest item IDs and quantities. Both catalogues load through the Configuration library at startup;
 unknown references and duplicate definitions stop startup with an error.
 The Raylib AssetManager and Config/assets.json still own graphical resources.
 These prototype items use procedural block visuals, so they add no model or
@@ -121,12 +123,27 @@ separately loaded asset instance.
 
 Open the chest through the normal interaction controls to display its contents.
 Up/Down, controller D-pad or left stick selects a stack; Enter/A or a mouse click transfers
-it to the player's inventory. Press I or controller Y to open the inventory,
-then select a sword, bow, staff, armour or quiver to equip it. Equipment remains
-in the inventory when replaced. Arrows are a stack, not an equipment slot.
-B or I/Y closes either panel; Escape/Start opens the pause menu. The panel suspends dungeon updates while open;
-the chest and player inventory reset when entering a new game. Equipping changes
-the player's block appearance; attacks remain the existing melee prototype.
+it to the player's bag. Press I or controller Y to open the inventory. The bag is
+on the left, with All, Weapons and Apparel filters changed by A/D, Left/Right,
+controller left stick or a mouse click. Equipped Weapon, Body and Quiver slots are on the right, including
+empty slots. Tab or controller X switches between bag and equipment; Up/Down
+selects a row, and Enter/A equips or unequips. On mouse and keyboard, left click
+selects a bag item, right click equips it, and the wheel or scrollbar scrolls the
+bag. The selected item's catalogue details appear in the bottom-left detail panel;
+character attributes and combat values are on the Character menu. Equipped items
+leave the bag, and replaced or unequipped items return to it. Arrows remain a bag stack.
+On keyboard and mouse, I opens Inventory and C opens Character. Q/E switches
+between their title tabs, which can also be clicked; A/D changes Inventory
+filters. Character displays innate attributes, current health, derived combat
+values and equipped gear. The top-right X closes any of the
+Inventory, Character or chest panels. Movement does not close a panel, and I
+does not close Inventory. On controller, LT switches to Inventory and RT switches
+to Character while either screen is open. Y or B closes Inventory, Character or
+the chest; the X close button is hidden. Escape/Start opens the pause menu. Open panels
+suspend dungeon updates; the chest and player inventory reset when entering a
+new game. Equipping changes the player's block appearance and live
+combat values. Value is display-only. The bow currently uses a short melee range;
+projectiles and arrow consumption are not implemented. Arrows cannot be equipped.
 
 ## Dungeon test level
 
@@ -162,8 +179,9 @@ interaction target. Entering the scene resets the player, enemy, door and chest.
   has a distance limit; enemy selection does not.
 - The mouse wheel zooms continuously between follow and free top-down camera
   at the configured threshold. On Xbox, press the right stick (R3) to cycle
-  close follow, wide follow and free top-down views. LT and RT are unbound for
-  future actions. During combat, Space/Back toggles combat pause; Escape/Start opens the separate pause menu. Top-down
+  close follow, wide follow and free top-down views. LT and RT switch between
+  Inventory and Character while a panel is open; they do not zoom the camera.
+  During combat, Space/Back toggles combat pause; Escape/Start opens the separate pause menu. Top-down
   uses the pointer or controller cursor; third-person controller interaction
   uses the highlighted reachable object. That object turns gold, and doors
   cannot close on the player.
@@ -190,11 +208,17 @@ interaction target. Entering the scene resets the player, enemy, door and chest.
   camera distance.
 
 Config/dungeon.json controls movement and turn speed, sensitivities, deadzones, zoom threshold,
-top-down pan/cursor speeds, starting pitch, interaction range and Combat values (health, damage, cast time,
-cooldown, melee reach, enemy speed, vision range and AutoPauseOnCombatStart). Config/input.json
-contains the action bindings.
-CombatEntity provides shared health, cast and cooldown behaviour for PlayerEntity
-and EnemyEntity. PlayerEntity composes an Inventory and Equipment; EnemyEntity
+top-down pan/cursor speeds, starting pitch, interaction range, the active enemy ID and
+AutoPauseOnCombatStart. Config/input.json contains the action bindings.
+Config/player.json defines player attributes; Config/enemies.json catalogues enemy types,
+attributes, movement speed and vision range. The game instantiates the selected enemy
+only when entering the dungeon. CombatEntity shares health, mitigation, range, cast and
+cooldown rules for PlayerEntity and EnemyEntity. Strength raises base damage; Endurance
+raises health and armour; Agility raises attack rate; Intelligence and Willpower raise
+resistance. Equipped weapon damage adds to base damage, while its melee range and rate
+set the attack profile. Cast and cooldown divide the attack interval at a fixed ratio.
+Armour subtracts damage before percentage resistance, with a minimum of one damage
+for a successful hit. Enemy types can reference catalogue weapon and body-armour IDs. PlayerEntity composes an Inventory and Equipment; EnemyEntity
 does not carry player equipment. DoorInteractable and ChestInteractable share
 the Interactable targeting contract, while static walls and floors remain Block
 geometry. ThreeD Transform3D supplies position, rotation and facing vectors.
@@ -211,13 +235,17 @@ intervals to 0.1 seconds rather than moving through walls.
 
 The completed Input 0.2.0 migration is recorded in
 [docs/input-library-follow-up.md](docs/input-library-follow-up.md).
-The external libraries remain untouched.
+The external libraries remain untouched. The AssetManager owns native models and
+textures, while item/enemy catalogues own gameplay definitions. No dedicated weapon
+or enemy model files exist yet, so no such native assets are loaded; the dungeon
+continues drawing blocks. Their definitions are validated at startup, and the
+enemy instance is created only when the game scene is first entered.
 
 ## Validation
 
 Executed successfully on Windows:
 - Release build, zero warnings/errors.
-- 75 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
+- 81 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
   return/new-game/shutdown transitions, invalid configs, persisted settings,
   bundled menu/input/catalogue validation, separate loading catalogues, title
   press/release selection and missing-asset diagnostics; dungeon movement,
@@ -228,7 +256,7 @@ Executed successfully on Windows:
   reachable-action cycling, controller view presets and target selection,
   long-range follow-camera aiming, top-down combat chase, selected-device
   action edges, item catalogue validation, chest transfer, equipment slots and
-  inventory reset.
+  inventory reset, item metadata, bag filters, ownership transfers and input for pane switching.
   Input integration links the production library and CCM session sources against
   deterministic Raylib polling, covering multiple pads, title release gating,
   raw mouse/stick values and disconnect/reconnect fallback edges.
@@ -275,7 +303,17 @@ Still check interactively:
    door/chest left click cannot instantly activate it. Open the chest in each
    camera view, take all six stacks, equip each weapon in turn plus armour and
    quiver, and verify the block visuals and arrow count. Reopen the emptied
-   chest, then start a new game and verify its contents reset. In follow view,
+   chest, then start a new game and verify its contents reset. In inventory, use
+   Left/Right or the left stick to cycle filters, Tab/X to switch panes, and
+   Enter/A to unequip a slot. In the bag, left click an item to check its
+   bottom-left details, right click it to equip, then scroll with the wheel and
+   scrollbar; ensure scrolling does not change the selected item's details.
+   Check empty slot labels and that equipped items disappear from the bag, while
+   replaced items return to it. On keyboard and mouse, press C to open Character,
+   use Q/E or the title tabs to switch it with Inventory, A/D to change bag
+   filters, and click X to close Character, Inventory and the chest. Check that movement does not
+   close any panel. On controller, confirm LT/RT switches Inventory and Character,
+   B closes either screen and the chest, and no X close button appears. In follow view,
    right-click an enemy,
    right-drag the camera and verify the pointer returns on release. Check A/D turning,
    Q/E strafing, A/D strafing during right drag, and short right-click interaction.

@@ -1,5 +1,6 @@
 using System.Numerics;
 using CCM.Game;
+using CCM.Application;
 using Xunit;
 
 namespace CCM.Tests;
@@ -9,34 +10,35 @@ public sealed class CombatTests
     [Fact]
     public void BothCombatantsUseTheSameCastAndCooldownRules()
     {
-        var stats = new CombatSettings { CastSeconds=0.6f, CooldownSeconds=0.8f, Damage=12 };
-        var player = new PlayerEntity(Vector3.Zero,stats);
-        var enemy = new EnemyEntity(new(0,0,-1),stats);
+        var player = new PlayerEntity(Vector3.Zero,new CharacterAttributes());
+        var enemy = new EnemyEntity(new(0,0,-1),new EnemyDefinition());
         Assert.True(player.InRange(enemy));
         Assert.True(enemy.InRange(player));
-        Assert.False(player.UpdateAttack(0.3f,enemy,true));
+        float cast=player.Profile.CastSeconds;
+        Assert.False(player.UpdateAttack(cast/2,enemy,true));
         Assert.Equal(AttackPhase.Casting,player.Phase);
         Assert.Equal(enemy.MaxHealth,enemy.Health);
-        Assert.True(player.UpdateAttack(0.3f,enemy,true));
-        Assert.Equal(enemy.MaxHealth-12,enemy.Health);
+        Assert.True(player.UpdateAttack(cast/2,enemy,true));
+        int dealt=CombatFormula.DamageAfterDefence(player.Profile.Damage,enemy.Profile);
+        Assert.Equal(enemy.MaxHealth-dealt,enemy.Health);
         Assert.Equal(AttackPhase.Cooldown,player.Phase);
-        Assert.False(player.UpdateAttack(0.4f,enemy,true));
-        Assert.False(player.UpdateAttack(0.4f,enemy,true));
+        Assert.False(player.UpdateAttack(player.Profile.CooldownSeconds,enemy,true));
         Assert.Equal(AttackPhase.Ready,player.Phase);
-        Assert.True(enemy.UpdateAttack(0.6f,player,true));
-        Assert.Equal(player.MaxHealth-12,player.Health);
+        Assert.True(enemy.UpdateAttack(enemy.Profile.CastSeconds,player,true));
+        int received=CombatFormula.DamageAfterDefence(enemy.Profile.Damage,player.Profile);
+        Assert.Equal(player.MaxHealth-received,player.Health);
     }
 
     [Fact]
     public void AttackWhiffsWhenTargetLeavesReachBeforeImpact()
     {
-        var stats = new CombatSettings();
-        var player = new PlayerEntity(Vector3.Zero,stats);
-        var enemy = new EnemyEntity(new(0,0,-1),stats);
-        player.UpdateAttack(0.3f,enemy,true);
+        var player = new PlayerEntity(Vector3.Zero,new CharacterAttributes());
+        var enemy = new EnemyEntity(new(0,0,-1),new EnemyDefinition());
+        float halfCast=player.Profile.CastSeconds/2;
+        player.UpdateAttack(halfCast,enemy,true);
         enemy.Position = new(0,0,-10);
         Assert.False(player.InRange(enemy));
-        Assert.False(player.UpdateAttack(0.3f,enemy,true));
+        Assert.False(player.UpdateAttack(halfCast,enemy,true));
         Assert.Equal(enemy.MaxHealth,enemy.Health);
         Assert.Equal(AttackPhase.Cooldown,player.Phase);
     }
@@ -74,7 +76,8 @@ public sealed class CombatTests
     public void EnemyNeedsOpenSightAndVisionRangeBeforeCombat()
     {
         var simulation = AtDoor(new DungeonSettings
-            { Combat = new() { AutoPauseOnCombatStart = false, VisionRange = 5 } });
+            { Combat = new() { AutoPauseOnCombatStart = false } },
+            new EnemyCatalogue { Enemies=[new EnemyDefinition { VisionRange=5 }] });
         simulation.UpdateCombat(0.1f);
         Assert.False(simulation.CombatStarted);
         simulation.UpdateInteraction(true);
@@ -194,13 +197,94 @@ public sealed class CombatTests
     [Fact]
     public void InvalidCombatTuningIsRejected()
     {
-        Assert.Throws<InvalidDataException>(()=>new DungeonSettings { Combat=new() { CastSeconds=0 } }.Validate());
-        Assert.Throws<InvalidDataException>(()=>new DungeonSettings { Combat=new() { Range=float.NaN } }.Validate());
+        Assert.Throws<InvalidDataException>(()=>new DungeonSettings { EnemyId="" }.Validate());
+        Assert.Throws<InvalidDataException>(()=>new CharacterAttributes { Endurance=0 }.Validate());
+        Assert.Throws<InvalidDataException>(()=>
+            new EnemyDefinition { VisionRange=float.NaN }.Validate(new ItemCatalogue()));
     }
 
-    private static DungeonSimulation AtDoor(DungeonSettings settings)
+    [Fact]
+    public void AttributesAndEquippedWeaponsChangeLiveCombatValues()
     {
-        var simulation = new DungeonSimulation(settings);
+        var items=Settings.Required<ItemCatalogue>(Settings.ConfigPath("items.json"));
+        items.Validate();
+        var attributes=new CharacterAttributes();
+        var player=new PlayerEntity(Vector3.Zero,attributes,items);
+        var enemy=new EnemyEntity(new(0,0,-2),new EnemyDefinition(),items);
+        var unarmed=player.Profile;
+        Assert.False(player.InRange(enemy));
+        Assert.Equal(100,unarmed.MaxHealth);
+        Assert.Equal(12,unarmed.Damage);
+        Assert.Equal(CombatFormula.UnarmedRange,unarmed.Range);
+        Assert.True(unarmed.AttacksPerSecond>0);
+        Assert.True(unarmed.Armour>0);
+        Assert.True(unarmed.ResistancePercent>0);
+
+        player.Inventory.Add("iron-sword",1);
+        player.Inventory.Add("leather-armour",1);
+        player.Inventory.Add("leather-quiver",1);
+        Assert.True(player.Equipment.Equip("iron-sword"));
+        Assert.True(player.Equipment.Equip("leather-armour"));
+        Assert.True(player.Equipment.Equip("leather-quiver"));
+        var armed=player.Profile;
+        Assert.True(player.InRange(enemy));
+        Assert.Equal(2f,armed.Range);
+        Assert.Equal(unarmed.Damage+items.Get("iron-sword").AttackPower,armed.Damage);
+        Assert.True(armed.AttacksPerSecond>unarmed.AttacksPerSecond);
+        Assert.Equal(unarmed.Armour+5,armed.Armour);
+        Assert.True(player.UpdateAttack(armed.CastSeconds,enemy,true));
+        Assert.Equal(enemy.MaxHealth-CombatFormula.DamageAfterDefence(armed.Damage,enemy.Profile),
+            enemy.Health);
+
+        Assert.True(player.Equipment.Unequip(EquipmentSlot.Weapon));
+        Assert.Equal(unarmed.Range,player.Profile.Range);
+        Assert.Equal(unarmed.Damage,player.Profile.Damage);
+        player.Inventory.Add("arrow",20);
+        Assert.False(player.Equipment.Equip("arrow"));
+        Assert.Equal(20,player.Inventory.Count("arrow"));
+    }
+
+    [Fact]
+    public void BundledEnemyCatalogueBuildsOnlyTheRequestedEnemyType()
+    {
+        var items=Settings.Required<ItemCatalogue>(Settings.ConfigPath("items.json"));
+        items.Validate();
+        var player=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json"));
+        player.Validate();
+        var enemies=Settings.Required<EnemyCatalogue>(Settings.ConfigPath("enemies.json"));
+        enemies.Validate(items);
+        var dungeon=new DungeonSettings();
+        var simulation=new DungeonSimulation(dungeon,items:items,
+            playerDefinition:player,enemies:enemies);
+        Assert.Equal(dungeon.EnemyId,simulation.Enemy.Definition.Id);
+        Assert.Equal(player.Attributes.Strength,simulation.Player.Attributes.Strength);
+        Assert.Equal(enemies.Get(dungeon.EnemyId).Attributes.Endurance,
+            simulation.Enemy.Attributes.Endurance);
+        Assert.Equal(enemies.Get(dungeon.EnemyId).MoveSpeed,
+            simulation.Enemy.Definition.MoveSpeed);
+        var first=simulation.Enemy;
+        simulation.Reset();
+        Assert.NotSame(first,simulation.Enemy);
+
+        var armedDefinition=new EnemyDefinition
+            { Id="armed-guard", WeaponId="iron-sword", ArmourId="leather-armour" };
+        armedDefinition.Validate(items);
+        var armedEnemy=new EnemyEntity(Vector3.Zero,armedDefinition,items);
+        Assert.Equal(first.Profile.Damage+items.Get("iron-sword").AttackPower,
+            armedEnemy.Profile.Damage);
+        Assert.Equal(first.Profile.Armour+items.Get("leather-armour").Protection,
+            armedEnemy.Profile.Armour);
+
+        enemies.Enemies.Add(new EnemyDefinition { Id=dungeon.EnemyId });
+        Assert.Throws<InvalidDataException>(()=>enemies.Validate(items));
+        enemies.Enemies.RemoveAt(1);
+        enemies.Enemies[0].WeaponId="arrow";
+        Assert.Throws<InvalidDataException>(()=>enemies.Validate(items));
+    }
+
+    private static DungeonSimulation AtDoor(DungeonSettings settings,EnemyCatalogue? enemies=null)
+    {
+        var simulation = new DungeonSimulation(settings,enemies:enemies);
         for (int i=0;i<23;i++)
             simulation.Update(Vector2.UnitY,Vector2.Zero,true,0.1f);
         simulation.UpdateInteraction(false);
