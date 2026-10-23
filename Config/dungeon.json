@@ -6,5 +6,15 @@
   "LookDeadzone": 0.12,
   "CameraDistance": 5,
   "CameraPitch": 0.45,
-  "InteractionRange": 2.5
+  "InteractionRange": 2.5,
+  "Combat": {
+    "PlayerHealth": 100,
+    "EnemyHealth": 60,
+    "Damage": 12,
+    "CastSeconds": 0.6,
+    "CooldownSeconds": 0.8,
+    "Range": 1.8,
+    "EnemySpeed": 2.3,
+    "AutoPauseOnCombatStart": true
+  }
 }

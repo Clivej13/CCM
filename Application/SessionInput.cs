@@ -63,6 +63,9 @@ public sealed class SessionInput
     }
     public bool ReturnPressed() => backPressed;
     public bool InteractPressed() => gameplay?.WasPressed("Interact") == true;
+    public bool PausePressed() => gameplay?.WasPressed("Pause") == true;
+    public bool SelectPressed() => gameplay?.WasPressed("SelectEnemy") == true;
+    public bool AttackOrInteractPressed() => gameplay?.WasPressed("AttackOrInteract") == true;
     public string InteractionBinding => gameplay?.GetBinding("Interact",
         UsesMouse ? InputDeviceFamily.KeyboardMouse : InputDeviceFamily.Gamepad) is { } binding
         ? InputController.GetInputDisplayName(binding.Device,binding.Input) : "Unbound";

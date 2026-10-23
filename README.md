@@ -102,21 +102,31 @@ validated platform. Refresh rate remains Raylib/driver controlled.
   closes its file handle after each write.
 
 Framework dependencies and source provenance are in [vendor/PROVENANCE.md](vendor/PROVENANCE.md).
-The dungeon uses simple flat-floor collision and a block character; no combat,
-jumping, animation, enemies or procedural generation are included.
+The dungeon uses flat-floor collision, block characters and one melee enemy.
+Jumping, animation and procedural generation are not included.
 
 ## Dungeon test level
 
-New Game and Test Level Debug enter the same two-room dungeon. A closed door
-blocks the corridor between rooms. A separate box beside the first room's north
-wall tests choosing between nearby actions. Entering the scene resets the player,
-door and box.
+New Game and Test Level Debug enter the same two-room dungeon. The second room
+is wider and deeper, with one block-built melee enemy. Opening the corridor door
+starts combat. A box beside the first room's north wall remains a separate
+interaction target. Entering the scene resets the player, enemy, door and box.
 
-- Keyboard/mouse: WASD moves relative to the camera, mouse orbits, E acts, Escape returns.
-- Controller: left stick moves, right stick orbits, A acts, B returns.
+- Keyboard/mouse: WASD moves, mouse orbits, E interacts, left click selects the
+  enemy, right click uses the aimed object or starts basic auto attack against
+  the selected enemy, Space pauses, and Escape returns to the menu.
+- Controller: left/right sticks move/look, A interacts, LB selects the enemy,
+  RB uses the aimed object or starts auto attack, Start/Options pauses, and B
+  returns to the menu.
 - Aim with the centre of the screen. A reachable, unobstructed door or box turns
   gold and shows its action. Open the door to reach the second room; the box opens
   and closes in place. The door cannot close on the player.
+- Opening the door starts combat. With AutoPauseOnCombatStart enabled, press
+  Space or Start/Options to resume. The enemy advances and attacks automatically
+  in melee range. Select it with left click/LB and start your repeating melee
+  attack with right click/RB; move into range to land hits. Both combatants use
+  a cast time, cooldown, health and line-of-sight checks. Defeat ends combat;
+  Escape/B returns to the menu.
 - Title selection determines the gameplay device. Other controllers cannot move
   the player. If the selected controller disconnects, movement/look stop and
   keyboard Escape returns to the menu.
@@ -126,8 +136,13 @@ door and box.
   camera distance.
 
 Config/dungeon.json controls speed, sensitivities, deadzones, camera distance,
-starting pitch and interaction range. Config/input.json contains the action bindings.
-ThreeD Transform3D supplies player position, rotation and facing vectors.
+starting pitch, interaction range and Combat values (health, damage, cast time,
+cooldown, melee reach, enemy speed and AutoPauseOnCombatStart). Config/input.json
+contains the action bindings.
+CombatEntity provides shared health, cast and cooldown behaviour for PlayerEntity
+and EnemyEntity. Static walls/floors and interactable door/box use shared Block
+geometry; only interactables carry open/close state, so there is no world-object
+base class yet. ThreeD Transform3D supplies position, rotation and facing vectors.
 CCM owns the room, collision, movement and camera. Collision uses a conservative
 square footprint and small axis-separated steps; the character slides along
 walls. The camera tests its path against expanded obstacle bounds. Simulation
@@ -141,12 +156,13 @@ The external libraries remain untouched.
 
 Executed successfully on Windows:
 - Release build, zero warnings/errors.
-- 41 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
+- 49 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
   return/new-game/shutdown transitions, invalid configs, persisted settings,
   bundled menu/input/catalogue validation, separate loading catalogues, title
   press/release selection and missing-asset diagnostics; dungeon movement,
   collision, camera obstruction/pitch, input timing, deadzones, controller filtering,
-  door/box targeting, reach, occlusion, collision and selected-device action edges.
+  door/box targeting, reach, occlusion, collision, melee timing, pause, combat
+  start, enemy selection and selected-device action edges.
   Input integration links the production library and CCM session sources against
   deterministic Raylib polling, covering multiple pads, title release gating,
   raw mouse/stick values and disconnect/reconnect fallback edges.
@@ -176,8 +192,10 @@ Still check interactively:
    with a controller and check another controller cannot control the player. Walk against walls, through
    the doorway and around obstacles; aim at the door and box to verify the gold
    highlight follows the centre of the screen. Open the door, enter the second
-   room, return, and check that the door cannot close on the player. Orbit near
-   walls, then Alt-Tab and return.
+   room, return, and check that the door cannot close on the player. Open the
+   door with auto-pause on and off; select and attack the enemy, watch both health
+   bars and cast/cooldown indicators, and verify Space/Start freezes the fight.
+   Orbit near walls, then Alt-Tab and return.
 3. Resize while Settings is open; apply several modes, restart, and confirm
    selection/persistence. Check monitor moves, DPI scaling and driver-specific
    fullscreen behaviour on the intended hardware.

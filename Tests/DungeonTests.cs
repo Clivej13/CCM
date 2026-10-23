@@ -41,8 +41,8 @@ public sealed class DungeonTests
         var world = new DungeonWorld();
         Assert.False(world.CanStand(new(0,0,-8.5f)));
         Assert.True(world.Interactables[0].Activate(world.Spawn));
-        var end = world.Move(world.Spawn,new(0,0,-40));
-        Assert.InRange(end.Z,-27.65f,-27.5f);
+        var end = world.Move(world.Spawn,new(0,0,-60));
+        Assert.InRange(end.Z,-39.65f,-39.5f);
         Assert.True(world.CanStand(end));
         Assert.False(world.CanStand(new(-4,0,-3)));
         Assert.False(world.CanStand(new(3,0,1)));

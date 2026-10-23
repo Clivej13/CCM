@@ -18,7 +18,7 @@ public sealed class InteractionTests
         Assert.True(door.Activate(stopped));
         Assert.True(door.IsOpen);
         var farRoom = world.Move(stopped,new(0,0,-40));
-        Assert.InRange(farRoom.Z,-27.65f,-27.5f);
+        Assert.InRange(farRoom.Z,-39.65f,-39.5f);
         Assert.True(world.CanStand(farRoom));
     }
 
@@ -65,7 +65,9 @@ public sealed class InteractionTests
         Assert.Same(simulation.World.Interactables[0],simulation.Target?.Item);
         simulation.UpdateInteraction(true);
         Assert.True(simulation.World.Interactables[0].IsOpen);
-        Assert.Equal("Door opened",simulation.InteractionMessage);
+        Assert.Equal("Combat started - paused",simulation.InteractionMessage);
+        Assert.True(simulation.CombatStarted);
+        Assert.True(simulation.Paused);
     }
 
     [Fact]

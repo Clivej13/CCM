@@ -159,6 +159,36 @@
       "Device": "GamepadButton",
       "Input": "RightFaceDown",
       "Action": "Interact"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Space",
+      "Action": "Pause"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "MiddleRight",
+      "Action": "Pause"
+    },
+    {
+      "Device": "Mouse",
+      "Input": "Left",
+      "Action": "SelectEnemy"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "LeftTrigger1",
+      "Action": "SelectEnemy"
+    },
+    {
+      "Device": "Mouse",
+      "Input": "Right",
+      "Action": "AttackOrInteract"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "RightTrigger1",
+      "Action": "AttackOrInteract"
     }
   ]
 }

@@ -2,7 +2,7 @@ using System.Numerics;
 namespace Raylib_cs;
 public enum KeyboardKey { Null, W, A, S, D, E, Up, Down, Left, Right, Enter, Escape, Space }
 public enum MouseButton { Left, Right }
-public enum GamepadButton { Unknown, RightFaceDown, RightFaceRight, LeftFaceUp, LeftFaceDown, LeftFaceLeft, LeftFaceRight }
+public enum GamepadButton { Unknown, RightFaceDown, RightFaceRight, LeftFaceUp, LeftFaceDown, LeftFaceLeft, LeftFaceRight, LeftTrigger1, RightTrigger1, MiddleRight }
 public enum GamepadAxis { LeftX, LeftY, RightX, RightY, LeftTrigger, RightTrigger }
 public static class Raylib
 {

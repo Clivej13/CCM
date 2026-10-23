@@ -146,6 +146,47 @@ public sealed class SessionInputTests
     }
 
     [Fact]
+    public void CombatAndPauseActionsBelongToTheSelectedDevice()
+    {
+        Raylib.Reset();
+        var pad = new SessionInput(Bindings(),Select(InputDeviceFamily.Gamepad,2),new());
+        Raylib.Connected.UnionWith([0,2]);
+        Raylib.Keys.Add(KeyboardKey.Space);
+        Raylib.Mouse.UnionWith([MouseButton.Left,MouseButton.Right]);
+        Raylib.Buttons.UnionWith([
+            (0,GamepadButton.MiddleRight),
+            (0,GamepadButton.LeftTrigger1),
+            (0,GamepadButton.RightTrigger1)
+        ]);
+        pad.Update();
+        Assert.False(pad.PausePressed());
+        Assert.False(pad.SelectPressed());
+        Assert.False(pad.AttackOrInteractPressed());
+        Raylib.Buttons.UnionWith([
+            (2,GamepadButton.MiddleRight),
+            (2,GamepadButton.LeftTrigger1),
+            (2,GamepadButton.RightTrigger1)
+        ]);
+        pad.Update();
+        Assert.True(pad.PausePressed());
+        Assert.True(pad.SelectPressed());
+        Assert.True(pad.AttackOrInteractPressed());
+        pad.Update();
+        Assert.False(pad.PausePressed());
+        Assert.False(pad.SelectPressed());
+        Assert.False(pad.AttackOrInteractPressed());
+
+        Raylib.Reset();
+        var keyboard = new SessionInput(Bindings(),Select(InputDeviceFamily.KeyboardMouse),new());
+        Raylib.Keys.Add(KeyboardKey.Space);
+        Raylib.Mouse.UnionWith([MouseButton.Left,MouseButton.Right]);
+        keyboard.Update();
+        Assert.True(keyboard.PausePressed());
+        Assert.True(keyboard.SelectPressed());
+        Assert.True(keyboard.AttackOrInteractPressed());
+    }
+
+    [Fact]
     public void SignedBindingsDeadzoneAndDiagonalMagnitudeSurviveMigration()
     {
         Raylib.Reset();

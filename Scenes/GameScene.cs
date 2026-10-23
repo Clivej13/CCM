@@ -31,9 +31,22 @@ public sealed class GameScene(SessionInput input, DungeonSettings settings, bool
         if (!Raylib.IsWindowFocused()) return;
         feedbackSeconds = Math.Max(0,feedbackSeconds-seconds);
         if (input.ReturnPressed()) { returnToMenu(); return; }
+        if (input.PausePressed())
+        {
+            simulation.TogglePause();
+            ignoreLook = true;
+        }
+        if (simulation.Paused) return;
         simulation.Update(input.Move, ignoreLook ? Vector2.Zero : input.Look, input.UsesMouse, seconds);
-        simulation.UpdateInteraction(!ignoreLook && input.InteractPressed());
-        if (simulation.InteractionMessage is { } message) { feedback = message; feedbackSeconds = 1.5f; }
+        simulation.UpdateInteraction(false);
+        if (!ignoreLook && input.SelectPressed()) simulation.SelectEnemy();
+        bool action = !ignoreLook && input.AttackOrInteractPressed();
+        if ((!ignoreLook && input.InteractPressed()) || (action && simulation.Target is not null))
+            simulation.UpdateInteraction(true);
+        else if (action) simulation.RequestAttack();
+        simulation.UpdateCombat(seconds);
+        if (simulation.InteractionMessage is { } interaction) { feedback = interaction; feedbackSeconds = 1.5f; }
+        if (simulation.CombatMessage is { } combat) { feedback = combat; feedbackSeconds = 1.5f; }
         ignoreLook = false;
     }
     public override void Exit()
@@ -55,8 +68,8 @@ public sealed class GameScene(SessionInput input, DungeonSettings settings, bool
                 Floor(new(x+1,-0.15f,z+1), ((x+z)/2 & 1) == 0);
         for (int x = -2; x < 2; x += 2)
             for (int z = -16; z < -8; z += 2) Floor(new(x+1,-0.15f,z+1), ((x+z)/2 & 1) == 0);
-        for (int x = -6; x < 6; x += 2)
-            for (int z = -28; z < -16; z += 2)
+        for (int x = -10; x < 10; x += 2)
+            for (int z = -40; z < -16; z += 2)
                 Floor(new(x+1,-0.15f,z+1), ((x+z)/2 & 1) == 0);
         foreach (var block in simulation.World.StaticSolids)
         {
@@ -65,6 +78,11 @@ public sealed class GameScene(SessionInput input, DungeonSettings settings, bool
             Raylib.DrawCubeWiresV(block.Centre,block.Size,new Color(43,49,59,255));
         }
         foreach (var item in simulation.World.Interactables) DrawInteractable(item);
+        var enemy = simulation.Enemy;
+        Raylib.DrawCubeV(enemy.Position+new Vector3(0,0.9f,0),new(0.9f,1.8f,0.9f),
+            enemy.Alive ? new Color(170,58,58,255) : Color.DarkGray);
+        if (simulation.EnemySelected && enemy.Alive)
+            Raylib.DrawCubeWiresV(enemy.Position+new Vector3(0,0.9f,0),new(1,1.9f,1),Color.Gold);
         var player = simulation.Player;
         Raylib.DrawCubeV(player.Position + new Vector3(0,0.65f,0),new(0.6f,1.1f,0.6f),Color.SkyBlue);
         Raylib.DrawCubeV(player.Position + new Vector3(0,1.4f,0),new(0.5f,0.4f,0.5f),Color.Beige);
@@ -84,13 +102,37 @@ public sealed class GameScene(SessionInput input, DungeonSettings settings, bool
             DrawPrompt($"[{input.InteractionBinding}] {target.Item.Action}",Raylib.GetScreenHeight()/2+60,Color.Gold);
         if (feedbackSeconds > 0 && feedback is not null)
             DrawPrompt(feedback,Raylib.GetScreenHeight()-70,Color.RayWhite);
-        string hint = input.ControllerDisconnected ? "Controller disconnected - Escape to return to menu"
-            : input.UsesMouse ? "WASD move | Mouse look | E interact | Escape menu" : "Left stick move | Right stick look | A interact | B menu";
-        Raylib.DrawRectangle(0,Raylib.GetScreenHeight()-34,Raylib.GetScreenWidth(),34,new Color(0,0,0,190));
-        Raylib.DrawText(hint,16,Raylib.GetScreenHeight()-26,18,Color.RayWhite);
+        DrawHealthBar(16,78,player.Health,player.MaxHealth,"Player",Color.SkyBlue);
+        if (simulation.CombatStarted)
+            DrawHealthBar(Raylib.GetScreenWidth()-236,78,enemy.Health,enemy.MaxHealth,
+                simulation.EnemySelected ? "Enemy [selected]" : "Enemy",Color.Red);
+        if (simulation.AutoAttackEnabled && enemy.Alive)
+            Raylib.DrawText($"Auto attack: {player.Phase} {player.AttackProgress:P0}",16,116,16,Color.Gold);
+        if (simulation.CombatStarted && enemy.Alive)
+            Raylib.DrawText($"Enemy: {enemy.Phase} {enemy.AttackProgress:P0}",
+                Raylib.GetScreenWidth()-236,116,16,Color.Red);
+        string hint1 = input.ControllerDisconnected ? "Controller disconnected - Escape to menu"
+            : input.UsesMouse ? "WASD move | Mouse look | LMB select | RMB attack/use"
+            : "Sticks move/look | LB select | RB attack/use";
+        string hint2 = input.ControllerDisconnected ? "" :
+            input.UsesMouse ? "E use | Space pause | Escape menu" : "A use | Start pause | B menu";
+        Raylib.DrawRectangle(0,Raylib.GetScreenHeight()-56,Raylib.GetScreenWidth(),56,new Color(0,0,0,190));
+        Raylib.DrawText(hint1,16,Raylib.GetScreenHeight()-50,16,Color.RayWhite);
+        Raylib.DrawText(hint2,16,Raylib.GetScreenHeight()-27,16,Color.RayWhite);
         if (debug)
             Raylib.DrawText($"Position {player.Position.X:0.00}, {player.Position.Y:0.00}, {player.Position.Z:0.00} | Camera {Vector3.Distance(camera.Position,camera.Target):0.00}m",
                 8,50,16,Color.Lime);
+        if (simulation.Paused)
+        {
+            Raylib.DrawRectangle(0,0,Raylib.GetScreenWidth(),Raylib.GetScreenHeight(),new Color(0,0,0,160));
+            DrawPrompt("PAUSED - Space / Start to resume",Raylib.GetScreenHeight()/2,Color.RayWhite);
+        }
+    }
+    private static void DrawHealthBar(int x,int y,int health,int maximum,string label,Color colour)
+    {
+        Raylib.DrawText($"{label} {health}/{maximum}",x,y-22,18,Color.RayWhite);
+        Raylib.DrawRectangle(x,y,220,14,Color.DarkGray);
+        Raylib.DrawRectangle(x,y,(int)(220f*health/maximum),14,colour);
     }
     private void DrawInteractable(Interactable item)
     {
