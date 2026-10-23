@@ -177,10 +177,16 @@ CombatEntity provides shared health, cast and cooldown behaviour for PlayerEntit
 and EnemyEntity. Static walls/floors and interactable door/box use shared Block
 geometry; only interactables carry open/close state, so there is no world-object
 base class yet. ThreeD Transform3D supplies position, rotation and facing vectors.
-CCM owns the room, collision, movement and camera. Collision uses a conservative
-square footprint and small axis-separated steps; the character slides along
-walls. The camera tests its path against expanded obstacle bounds. Simulation
-limits long frame intervals to 0.1 seconds rather than moving through walls.
+CCM owns the room, collision and movement. DungeonCamera owns follow/top-down
+position, rotation, zoom, panning and camera collision. GameplayTargeting owns
+pointer rays, the controller cursor and contextual action selection. Four
+IGameplayControls implementations map keyboard/mouse and controller input in
+follow and top-down views to the same DungeonSimulation commands. GameScene
+coordinates updates and transitions; DungeonRenderer and GameplayHud draw the
+world and overlay separately. Collision uses a conservative square footprint
+and small axis-separated steps; the character slides along walls. The camera
+tests its path against expanded obstacle bounds. Simulation limits long frame
+intervals to 0.1 seconds rather than moving through walls.
 
 The completed Input 0.2.0 migration is recorded in
 [docs/input-library-follow-up.md](docs/input-library-follow-up.md).
