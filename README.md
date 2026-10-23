@@ -107,12 +107,16 @@ jumping, animation, enemies or procedural generation are included.
 
 ## Dungeon test level
 
-New Game and Test Level Debug enter the same room, doorway and short corridor.
-Pillars and low blocks provide collision/camera obstacles. Entering the scene
-resets the player to the spawn point.
+New Game and Test Level Debug enter the same two-room dungeon. A closed door
+blocks the corridor between rooms. A separate box beside the first room's north
+wall tests choosing between nearby actions. Entering the scene resets the player,
+door and box.
 
-- Keyboard/mouse: WASD moves relative to the camera, mouse orbits, Escape returns.
-- Controller: left stick moves, right stick orbits, B returns.
+- Keyboard/mouse: WASD moves relative to the camera, mouse orbits, E acts, Escape returns.
+- Controller: left stick moves, right stick orbits, A acts, B returns.
+- Aim with the centre of the screen. A reachable, unobstructed door or box turns
+  gold and shows its action. Open the door to reach the second room; the box opens
+  and closes in place. The door cannot close on the player.
 - Title selection determines the gameplay device. Other controllers cannot move
   the player. If the selected controller disconnects, movement/look stop and
   keyboard Escape returns to the menu.
@@ -121,8 +125,8 @@ resets the player to the spawn point.
 - Debug mode draws collision bounds, facing direction, player position and
   camera distance.
 
-Config/dungeon.json controls speed, sensitivities, deadzones, camera distance
-and starting pitch. Config/input.json contains the action bindings.
+Config/dungeon.json controls speed, sensitivities, deadzones, camera distance,
+starting pitch and interaction range. Config/input.json contains the action bindings.
 ThreeD Transform3D supplies player position, rotation and facing vectors.
 CCM owns the room, collision, movement and camera. Collision uses a conservative
 square footprint and small axis-separated steps; the character slides along
@@ -137,11 +141,12 @@ The external libraries remain untouched.
 
 Executed successfully on Windows:
 - Release build, zero warnings/errors.
-- 34 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
+- 41 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
   return/new-game/shutdown transitions, invalid configs, persisted settings,
   bundled menu/input/catalogue validation, separate loading catalogues, title
   press/release selection and missing-asset diagnostics; dungeon movement,
-  collision, camera obstruction/pitch, input timing, deadzones and controller filtering.
+  collision, camera obstruction/pitch, input timing, deadzones, controller filtering,
+  door/box targeting, reach, occlusion, collision and selected-device action edges.
   Input integration links the production library and CCM session sources against
   deterministic Raylib polling, covering multiple pads, title release gating,
   raw mouse/stick values and disconnect/reconnect fallback edges.
@@ -169,7 +174,10 @@ Still check interactively:
    New Game opens the dungeon and the selected device moves, looks and returns.
    Hold splash skip, release, and verify the title needs a second press. Confirm
    with a controller and check another controller cannot control the player. Walk against walls, through
-   the doorway and around obstacles; orbit near walls, then Alt-Tab and return.
+   the doorway and around obstacles; aim at the door and box to verify the gold
+   highlight follows the centre of the screen. Open the door, enter the second
+   room, return, and check that the door cannot close on the player. Orbit near
+   walls, then Alt-Tab and return.
 3. Resize while Settings is open; apply several modes, restart, and confirm
    selection/persistence. Check monitor moves, DPI scaling and driver-specific
    fullscreen behaviour on the intended hardware.

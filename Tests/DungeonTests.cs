@@ -39,8 +39,10 @@ public sealed class DungeonTests
     public void CorridorDoorIsPassableButEndWallAndObstaclesBlock()
     {
         var world = new DungeonWorld();
-        var end = world.Move(world.Spawn,new(0,0,-30));
-        Assert.InRange(end.Z,-15.65f,-15.5f);
+        Assert.False(world.CanStand(new(0,0,-8.5f)));
+        Assert.True(world.Interactables[0].Activate(world.Spawn));
+        var end = world.Move(world.Spawn,new(0,0,-40));
+        Assert.InRange(end.Z,-27.65f,-27.5f);
         Assert.True(world.CanStand(end));
         Assert.False(world.CanStand(new(-4,0,-3)));
         Assert.False(world.CanStand(new(3,0,1)));
@@ -98,5 +100,6 @@ public sealed class DungeonTests
         Settings.Required<DungeonSettings>(Settings.ConfigPath("dungeon.json")).Validate();
         Assert.Throws<InvalidDataException>(()=>new DungeonSettings { MoveDeadzone=1 }.Validate());
         Assert.Throws<InvalidDataException>(()=>new DungeonSettings { CameraDistance=float.NaN }.Validate());
+        Assert.Throws<InvalidDataException>(()=>new DungeonSettings { InteractionRange=0 }.Validate());
     }
 }

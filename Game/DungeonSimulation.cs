@@ -6,15 +6,36 @@ public sealed class DungeonSimulation
 {
     public DungeonWorld World { get; } = new();
     public Transform3D Player { get; private set; } = Transform3D.Identity;
+    public InteractionTarget? Target { get; private set; }
+    public string? InteractionMessage { get; private set; }
+    public void UpdateInteraction(bool activate)
+    {
+        Target = InteractionQuery.Find(World,Player.Position+new Vector3(0,1.2f,0),
+            CameraPosition,CameraTarget-CameraPosition,settings.InteractionRange);
+        InteractionMessage = null;
+        if (activate && Target is { } target)
+        {
+            bool changed = target.Item.Activate(Player.Position);
+            InteractionMessage = changed
+                ? $"{target.Item.Name} {(target.Item.IsOpen ? "opened" : "closed")}"
+                : "Step away from the doorway";
+            // The door moved: refresh targeting so no stale object stays highlighted.
+            Target = InteractionQuery.Find(World,Player.Position+new Vector3(0,1.2f,0),
+                CameraPosition,CameraTarget-CameraPosition,settings.InteractionRange);
+        }
+    }
     public float Yaw { get; private set; }
     public float Pitch { get; private set; }
     private readonly DungeonSettings settings;
-    public Vector3 CameraTarget => Player.Position + new Vector3(0,1.2f,0);
-    public Vector3 CameraPosition => World.CameraPosition(CameraTarget, CameraTarget +
+    private Vector3 CameraAnchor => Player.Position + new Vector3(0,1.2f,0);
+    // Aim the screen centre just ahead of the character so nearby objects stay under the reticle.
+    public Vector3 CameraTarget => CameraAnchor + new Vector3(-MathF.Sin(Yaw),0,-MathF.Cos(Yaw)) * 1.5f - new Vector3(0,0.3f,0);
+    public Vector3 CameraPosition => World.CameraPosition(CameraAnchor, CameraAnchor +
         new Vector3(MathF.Sin(Yaw)*MathF.Cos(Pitch), MathF.Sin(Pitch), MathF.Cos(Yaw)*MathF.Cos(Pitch)) * settings.CameraDistance);
     public DungeonSimulation(DungeonSettings settings) { settings.Validate(); this.settings = settings; Reset(); }
     public void Reset()
     {
+        World.Reset(); Target = null; InteractionMessage = null;
         Player = new Transform3D(World.Spawn, Quaternion.Identity, Vector3.One);
         Yaw = 0; Pitch = settings.CameraPitch;
     }
