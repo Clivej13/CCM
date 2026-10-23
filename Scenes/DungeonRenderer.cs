@@ -4,7 +4,7 @@ using Raylib_cs;
 
 namespace CCM.Scenes;
 
-internal sealed class DungeonRenderer(DungeonSimulation simulation,bool debug)
+internal sealed class DungeonRenderer(DungeonSimulation simulation,ItemCatalogue items,bool debug)
 {
     public void Render()
     {
@@ -34,10 +34,14 @@ internal sealed class DungeonRenderer(DungeonSimulation simulation,bool debug)
         if (simulation.MoveDestination is { } destination)
             Raylib.DrawCubeV(destination+new Vector3(0,0.08f,0),new(0.4f,0.12f,0.4f),Color.Gold);
         var player = simulation.Player;
-        Raylib.DrawCubeV(player.Position + new Vector3(0,0.65f,0),new(0.6f,1.1f,0.6f),Color.SkyBlue);
+        bool armoured=player.Equipment.In(EquipmentSlot.Body) is { } body &&
+            items.Get(body).VisualKind==ItemVisual.Armour;
+        Raylib.DrawCubeV(player.Position + new Vector3(0,0.65f,0),new(0.6f,1.1f,0.6f),
+            armoured ? new Color(116,103,76,255) : Color.SkyBlue);
         Raylib.DrawCubeV(player.Position + new Vector3(0,1.4f,0),new(0.5f,0.4f,0.5f),Color.Beige);
         // A bright front marker makes facing visible without a model or animation.
         Raylib.DrawCubeV(player.TransformPoint(new(0,1.4f,-0.31f)),new(0.18f,0.15f,0.18f),Color.Orange);
+        DrawEquipment(player);
         if (debug)
         {
             foreach (var block in simulation.World.Solids)
@@ -48,6 +52,36 @@ internal sealed class DungeonRenderer(DungeonSimulation simulation,bool debug)
         if (simulation.Target is { } highlighted)
             Raylib.DrawCubeWiresV(highlighted.Item.Bounds.Centre,highlighted.Item.Bounds.Size+new Vector3(0.05f),Color.Gold);
         Raylib.EndMode3D();
+    }
+
+    private void DrawEquipment(PlayerEntity player)
+    {
+        if (player.Equipment.In(EquipmentSlot.Quiver) is { } quiver &&
+            items.Get(quiver).VisualKind==ItemVisual.Quiver)
+        {
+            Raylib.DrawCubeV(player.TransformPoint(new(0.25f,0.85f,0.38f)),
+                new(0.26f,0.65f,0.22f),Color.Brown);
+            if (player.Inventory.CountVisual(items,ItemVisual.Arrow)>0)
+                Raylib.DrawCubeV(player.TransformPoint(new(0.25f,1.25f,0.38f)),
+                    new(0.18f,0.2f,0.16f),Color.Beige);
+        }
+        if (player.Equipment.In(EquipmentSlot.Weapon) is not { } weapon) return;
+        var hand=player.TransformPoint(new(0.48f,0.9f,-0.1f));
+        switch (items.Get(weapon).VisualKind)
+        {
+            case ItemVisual.Sword:
+                Raylib.DrawCubeV(hand+new Vector3(0,0.45f,0),new(0.12f,0.9f,0.12f),Color.LightGray);
+                Raylib.DrawCubeV(hand,new(0.38f,0.1f,0.16f),Color.Gold);
+                break;
+            case ItemVisual.Bow:
+                Raylib.DrawCubeV(hand,new(0.12f,1.25f,0.14f),Color.Brown);
+                Raylib.DrawCubeV(hand+new Vector3(0.2f,0,0),new(0.03f,1.2f,0.03f),Color.Beige);
+                break;
+            case ItemVisual.Staff:
+                Raylib.DrawCubeV(hand+new Vector3(0,0.25f,0),new(0.14f,1.6f,0.14f),Color.Brown);
+                Raylib.DrawCubeV(hand+new Vector3(0,1.1f,0),new(0.25f,0.25f,0.25f),Color.Purple);
+                break;
+        }
     }
 
     private void DrawInteractable(Interactable item)

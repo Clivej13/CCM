@@ -66,8 +66,16 @@ public abstract class CombatEntity
         Vector2.Distance(new(Position.X, Position.Z), new(target.Position.X, target.Position.Z)) <= stats.Range;
 }
 
-public sealed class PlayerEntity(Vector3 position, CombatSettings stats)
-    : CombatEntity(position, stats.PlayerHealth, stats);
+public sealed class PlayerEntity : CombatEntity
+{
+    public Inventory Inventory { get; } = new();
+    public Equipment Equipment { get; }
+    public PlayerEntity(Vector3 position, CombatSettings stats, ItemCatalogue? items=null)
+        : base(position,stats.PlayerHealth,stats)
+    {
+        Equipment=new Equipment(Inventory,items ?? new ItemCatalogue());
+    }
+}
 
 public sealed class EnemyEntity(Vector3 position, CombatSettings stats)
     : CombatEntity(position, stats.EnemyHealth, stats);

@@ -146,7 +146,7 @@ public sealed class InteractionTests
         simulation.UpdateInteraction(true);
         Assert.True(simulation.World.Interactables[1].IsOpen);
         Assert.False(simulation.World.Interactables[0].IsOpen);
-        Assert.Equal("Box opened",simulation.InteractionMessage);
+        Assert.Equal("Chest opened",simulation.InteractionMessage);
     }
 
     [Fact]

@@ -30,6 +30,8 @@ internal sealed class GameplayHud(SessionInput input,DungeonSimulation simulatio
             DrawPrompt("A: attack selected enemy | LB/RB: choose",
                 Raylib.GetScreenHeight()/2+60,Color.Gold);
         if (!input.UsesMouse) DrawContextOptions();
+        Raylib.DrawText(input.UsesMouse ? "I: Inventory" : "Y: Inventory",
+            16,150,16,Color.RayWhite);
         if (simulation.TopDown && !input.UsesMouse && !targeting.ControllerContextMode)
             Raylib.DrawCircleV(targeting.ControllerCursor,6,Color.Gold);
         if (feedbackSeconds > 0 && feedback is not null)
@@ -43,18 +45,18 @@ internal sealed class GameplayHud(SessionInput input,DungeonSimulation simulatio
         if (simulation.CombatStarted && enemy.Alive)
             Raylib.DrawText($"Enemy: {enemy.Phase} {enemy.AttackProgress:P0}",
                 Raylib.GetScreenWidth()-236,116,16,Color.Red);
-        string hint1 = input.ControllerDisconnected ? "Controller disconnected - Escape to menu"
+        string hint1 = input.ControllerDisconnected ? "Controller disconnected - Esc: pause menu"
             : input.UsesMouse
                 ? simulation.TopDown ? "WASD pan camera | Wheel zoom | LMB move / use / select"
                     : "W/S move | A/D turn | Q/E strafe | RMB hold look"
                 : simulation.TopDown ? "Left stick pan | Right stick cursor | R3 view"
                     : "Left stick move | Right stick look | R3 view";
         string hint2 = input.ControllerDisconnected ? "" : input.UsesMouse
-            ? simulation.TopDown ? "RMB approach + use / attack | Space pause | Esc menu"
+            ? simulation.TopDown ? "RMB approach + use / attack | Space combat pause | Esc menu"
                 : "LMB select | RMB use / attack | F use | Wheel zoom"
             : simulation.TopDown
-                ? "A approach / use / attack / move | LB/RB choose | Start pause | B menu"
-                : "LB/RB choose | A use / attack | Start pause | B menu";
+                ? "A use / move | LB/RB choose | Back combat pause | Start menu"
+                : "LB/RB choose | A use / attack | Back combat pause | Start menu";
         Raylib.DrawRectangle(0,Raylib.GetScreenHeight()-56,Raylib.GetScreenWidth(),56,new Color(0,0,0,190));
         Raylib.DrawText(hint1,16,Raylib.GetScreenHeight()-50,16,Color.RayWhite);
         Raylib.DrawText(hint2,16,Raylib.GetScreenHeight()-27,16,Color.RayWhite);
@@ -64,7 +66,7 @@ internal sealed class GameplayHud(SessionInput input,DungeonSimulation simulatio
         if (simulation.Paused)
         {
             Raylib.DrawRectangle(0,0,Raylib.GetScreenWidth(),Raylib.GetScreenHeight(),new Color(0,0,0,160));
-            DrawPrompt("PAUSED - Space / Start to resume",Raylib.GetScreenHeight()/2,Color.RayWhite);
+            DrawPrompt("COMBAT PAUSED - Space / Back to resume",Raylib.GetScreenHeight()/2,Color.RayWhite);
         }
     }
 

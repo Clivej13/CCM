@@ -1,0 +1,15 @@
+{
+  "Containers": [
+    {
+      "Id": "starter-chest",
+      "Contents": [
+        { "ItemId": "iron-sword", "Quantity": 1 },
+        { "ItemId": "short-bow", "Quantity": 1 },
+        { "ItemId": "leather-quiver", "Quantity": 1 },
+        { "ItemId": "arrow", "Quantity": 20 },
+        { "ItemId": "leather-armour", "Quantity": 1 },
+        { "ItemId": "oak-staff", "Quantity": 1 }
+      ]
+    }
+  ]
+}

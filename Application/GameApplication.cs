@@ -35,6 +35,11 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
             var selection = new DeviceSelection();
             var dungeon = Settings.Required<CCM.Game.DungeonSettings>(Settings.ConfigPath("dungeon.json"));
             dungeon.Validate();
+            var itemCatalogue=Settings.Required<ItemCatalogue>(Settings.ConfigPath("items.json"));
+            itemCatalogue.Validate();
+            var containerCatalogue=Settings.Required<ContainerCatalogue>(Settings.ConfigPath("containers.json"));
+            containerCatalogue.Validate(itemCatalogue);
+            var starterChest=containerCatalogue.Get("starter-chest");
             var sessionInput = new SessionInput(bindings, selection, dungeon);
             var gameplay = gameplaySettings ?? new GameplaySettings();
             var gameplaySave = gameplayStore ?? new JsonSettingsStore<GameplaySettings>(
@@ -62,7 +67,7 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
             scenes[AppState.MainMenu] = new MenuScene(input, bindings, display, store, diagnostics,
                 () => Transition(AppState.Game), () => Transition(AppState.Shutdown), gameplaySave, gameplay);
             scenes[AppState.Game] = new GameScene(sessionInput, dungeon, debug.Enabled,
-                () => Transition(AppState.MainMenu), gameplay);
+                () => Transition(AppState.MainMenu), input,bindings,gameplay,itemCatalogue,starterChest.Contents);
             lifecycle.Changed += (previous, next) =>
             {
                 active?.Exit();

@@ -1,6 +1,7 @@
 using CCM.Application;
 using CCM.Game;
 using Raylib_cs;
+using RaylibGameFramework.Input;
 namespace CCM.Scenes;
 
 public sealed class GameScene : Scene
@@ -12,6 +13,8 @@ public sealed class GameScene : Scene
     private readonly GameplayTargeting targeting;
     private readonly DungeonRenderer renderer;
     private readonly GameplayHud hud;
+    private readonly InventoryPanel inventoryPanel;
+    private readonly PauseMenu pauseMenu;
     private readonly IGameplayControls mouseFollow,mouseTopDown,gamepadFollow,gamepadTopDown;
     private IGameplayControls activeControls;
     private bool ignoreLook,wasTopDown;
@@ -19,14 +22,19 @@ public sealed class GameScene : Scene
     private float feedbackSeconds;
 
     public GameScene(SessionInput input,DungeonSettings settings,bool debug,
-        Action returnToMenu,GameplaySettings? gameplay=null)
+        Action returnToMenu,InputController menuInput,InputConfig bindings,
+        GameplaySettings? gameplay=null,ItemCatalogue? items=null,
+        IEnumerable<ItemStack>? chestContents=null)
     {
         this.input=input;
         this.settings=settings;
         this.returnToMenu=returnToMenu;
-        simulation=new(settings,gameplay);
+        items ??=new ItemCatalogue();
+        simulation=new(settings,gameplay,items,chestContents);
         targeting=new(simulation,settings);
-        renderer=new(simulation,debug);
+        inventoryPanel=new(items);
+        pauseMenu=new(menuInput,bindings);
+        renderer=new(simulation,items,debug);
         hud=new(input,simulation,targeting,debug);
         mouseFollow=new MouseFollowControls(input,simulation,targeting);
         mouseTopDown=new MouseTopDownControls(input,simulation,targeting);
@@ -46,6 +54,8 @@ public sealed class GameScene : Scene
     public override void Enter()
     {
         simulation.Reset();
+        inventoryPanel.Close();
+        pauseMenu.Close();
         targeting.Reset();
         feedback=null;
         feedbackSeconds=0;
@@ -58,11 +68,46 @@ public sealed class GameScene : Scene
 
     public override void Update(float seconds)
     {
+        if (pauseMenu.IsOpen)
+        {
+            if (!Raylib.IsWindowFocused()) return;
+            if (input.PausePressed() || input.ReturnPressed()) { ClosePauseMenu(); return; }
+            switch (pauseMenu.Update())
+            {
+                case "ResumeGame": ClosePauseMenu(); break;
+                case "ReturnToMainMenu": returnToMenu(); break;
+            }
+            return;
+        }
+        if (inventoryPanel.IsOpen)
+        {
+            if (!Raylib.IsWindowFocused()) return;
+            if (input.PausePressed())
+            {
+                inventoryPanel.Close();
+                OpenPauseMenu();
+            }
+            else if (input.ReturnPressed() || input.InventoryPressed())
+            {
+                inventoryPanel.Close();
+                activeControls.Enter();
+                ignoreLook=true;
+            }
+            else inventoryPanel.Update(input,simulation.Player);
+            return;
+        }
         if (activeControls.BeforeFrame()) ignoreLook=true;
         if (!Raylib.IsWindowFocused()) { activeControls.CancelPendingAction(); return; }
+        if (input.InventoryPressed())
+        {
+            activeControls.Exit();
+            inventoryPanel.OpenInventory();
+            ignoreLook=true;
+            return;
+        }
         feedbackSeconds=Math.Max(0,feedbackSeconds-seconds);
-        if (input.ReturnPressed()) { returnToMenu(); return; }
-        if (input.PausePressed())
+        if (input.PausePressed()) { OpenPauseMenu(); return; }
+        if (input.CombatPausePressed() && simulation.CombatStarted)
         {
             simulation.TogglePause();
             ignoreLook=true;
@@ -87,6 +132,12 @@ public sealed class GameScene : Scene
         bool combatBeforeFrame=simulation.CombatStarted;
         activeControls.Act(ignoreLook);
         simulation.UpdateCombat(seconds,controllerScheme:!input.UsesMouse);
+        if (simulation.ChestOpened is { } chest)
+        {
+            activeControls.Exit();
+            inventoryPanel.OpenChest(chest);
+            ignoreLook=true;
+        }
         if (!combatBeforeFrame && simulation.CombatStarted)
             targeting.OnCombatStarted(input.UsesMouse);
         if (simulation.InteractionMessage is { } interaction)
@@ -96,11 +147,32 @@ public sealed class GameScene : Scene
         ignoreLook=false;
     }
 
-    public override void Exit() => activeControls.Exit();
+    private void OpenPauseMenu()
+    {
+        activeControls.Exit();
+        pauseMenu.Open();
+        ignoreLook=true;
+    }
+
+    private void ClosePauseMenu()
+    {
+        pauseMenu.Close();
+        activeControls.Enter();
+        ignoreLook=true;
+    }
+
+    public override void Exit()
+    {
+        pauseMenu.Close();
+        inventoryPanel.Close();
+        activeControls.Exit();
+    }
 
     public override void Render()
     {
         renderer.Render();
         hud.Render(feedback,feedbackSeconds);
+        inventoryPanel.Render(simulation.Player);
+        pauseMenu.Render();
     }
 }

@@ -1,31 +1,61 @@
 using System.Numerics;
 namespace CCM.Game;
 
-public enum InteractionKind { Door, Box }
+public enum InteractionKind { Door, Chest }
 
-/// <summary>State and visible bounds for the two prototype interactables.</summary>
-public sealed class Interactable(InteractionKind kind)
+/// <summary>World objects expose only their common targeting and activation contract.</summary>
+public abstract class Interactable
 {
-    public InteractionKind Kind { get; } = kind;
-    public bool IsOpen { get; private set; }
-    public string Name => Kind == InteractionKind.Door ? "Door" : "Box";
-    public string Action => (IsOpen ? "Close " : "Open ") + Name.ToLowerInvariant();
-    public Block ClosedBounds => Kind == InteractionKind.Door
-        ? new(new(0,1.5f,-8.5f),new(4,3,0.3f))
-        : new(new(3.1f,0.6f,-7.2f),new(1.4f,1.2f,1.4f));
-    public Block Bounds => Kind == InteractionKind.Door && IsOpen
-        ? new(new(-1.85f,1.5f,-10.35f),new(0.3f,3,4))
-        : ClosedBounds;
-    public void Reset() => IsOpen = false;
-    public bool Activate(Vector3 playerFeet)
+    public abstract InteractionKind Kind { get; }
+    public bool IsOpen { get; protected set; }
+    public abstract string Name { get; }
+    public virtual string Action => (IsOpen ? "Close " : "Open ") + Name.ToLowerInvariant();
+    public abstract Block ClosedBounds { get; }
+    public abstract Block Bounds { get; }
+    public virtual void Reset() => IsOpen=false;
+    public abstract bool Activate(Vector3 playerFeet);
+}
+
+public sealed class DoorInteractable : Interactable
+{
+    public override InteractionKind Kind => InteractionKind.Door;
+    public override string Name => "Door";
+    public override Block ClosedBounds => new(new(0,1.5f,-8.5f),new(4,3,0.3f));
+    public override Block Bounds => IsOpen
+        ? new(new(-1.85f,1.5f,-10.35f),new(0.3f,3,4)) : ClosedBounds;
+    public override bool Activate(Vector3 playerFeet)
     {
-        // Both door poses must be clear before an instant open/close; never trap the player.
-        if (Kind == InteractionKind.Door)
-        {
-            Block destination = IsOpen ? ClosedBounds : new(new(-1.85f,1.5f,-10.35f),new(0.3f,3,4));
-            if (DungeonWorld.OverlapsPlayer(destination,playerFeet)) return false;
-        }
-        IsOpen = !IsOpen;
+        // Check the destination pose before opening or closing.
+        Block destination=IsOpen ? ClosedBounds
+            : new(new(-1.85f,1.5f,-10.35f),new(0.3f,3,4));
+        if (DungeonWorld.OverlapsPlayer(destination,playerFeet)) return false;
+        IsOpen=!IsOpen;
+        return true;
+    }
+}
+
+public sealed class ChestInteractable : Interactable
+{
+    private readonly ItemStack[] startingContents;
+    public ChestInteractable(IEnumerable<ItemStack>? contents=null)
+    {
+        startingContents=contents?.ToArray() ?? [];
+        Contents=new Inventory(startingContents);
+    }
+    public Inventory Contents { get; }
+    public override InteractionKind Kind => InteractionKind.Chest;
+    public override string Name => "Chest";
+    public override string Action => IsOpen ? "Search chest" : "Open chest";
+    public override Block ClosedBounds => new(new(3.1f,0.6f,-7.2f),new(1.4f,1.2f,1.4f));
+    public override Block Bounds => ClosedBounds;
+    public override void Reset()
+    {
+        base.Reset();
+        Contents.Reset(startingContents);
+    }
+    public override bool Activate(Vector3 playerFeet)
+    {
+        IsOpen=true;
         return true;
     }
 }

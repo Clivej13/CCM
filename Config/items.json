@@ -1,0 +1,10 @@
+{
+  "Items": [
+    { "Id": "iron-sword", "Name": "Iron sword", "Slot": "Weapon", "Visual": "Sword", "Stackable": false },
+    { "Id": "short-bow", "Name": "Short bow", "Slot": "Weapon", "Visual": "Bow", "Stackable": false },
+    { "Id": "leather-quiver", "Name": "Leather quiver", "Slot": "Quiver", "Visual": "Quiver", "Stackable": false },
+    { "Id": "arrow", "Name": "Arrow", "Slot": "None", "Visual": "Arrow", "Stackable": true },
+    { "Id": "leather-armour", "Name": "Leather armour", "Slot": "Body", "Visual": "Armour", "Stackable": false },
+    { "Id": "oak-staff", "Name": "Oak staff", "Slot": "Weapon", "Visual": "Staff", "Stackable": false }
+  ]
+}

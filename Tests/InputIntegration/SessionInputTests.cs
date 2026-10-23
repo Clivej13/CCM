@@ -162,21 +162,25 @@ public sealed class SessionInputTests
         Raylib.Mouse.UnionWith([MouseButton.Left,MouseButton.Right]);
         Raylib.Buttons.UnionWith([
             (0,GamepadButton.MiddleRight),
+            (0,GamepadButton.MiddleLeft),
             (0,GamepadButton.LeftTrigger1),
             (0,GamepadButton.RightTrigger1)
         ]);
         pad.Update();
         Assert.False(pad.PausePressed());
+        Assert.False(pad.CombatPausePressed());
         Assert.False(pad.SelectPressed());
         Assert.False(pad.AttackPressed());
         Assert.False(pad.AttackHeld);
         Raylib.Buttons.UnionWith([
             (2,GamepadButton.MiddleRight),
+            (2,GamepadButton.MiddleLeft),
             (2,GamepadButton.LeftTrigger1),
             (2,GamepadButton.RightTrigger1)
         ]);
         pad.Update();
         Assert.True(pad.PausePressed());
+        Assert.True(pad.CombatPausePressed());
         Assert.True(pad.CycleActionLeftPressed());
         Assert.True(pad.CycleActionRightPressed());
         Assert.False(pad.SelectPressed());
@@ -184,6 +188,7 @@ public sealed class SessionInputTests
         Assert.False(pad.AttackHeld);
         pad.Update();
         Assert.False(pad.PausePressed());
+        Assert.False(pad.CombatPausePressed());
         Assert.False(pad.CycleActionLeftPressed());
         Assert.False(pad.CycleActionRightPressed());
 
@@ -192,9 +197,47 @@ public sealed class SessionInputTests
         Raylib.Keys.Add(KeyboardKey.Space);
         Raylib.Mouse.UnionWith([MouseButton.Left,MouseButton.Right]);
         keyboard.Update();
-        Assert.True(keyboard.PausePressed());
+        Assert.False(keyboard.PausePressed());
+        Assert.True(keyboard.CombatPausePressed());
         Assert.True(keyboard.SelectPressed());
         Assert.True(keyboard.AttackPressed());
+        Raylib.Keys.Add(KeyboardKey.Escape);
+        keyboard.Update();
+        Assert.True(keyboard.PausePressed());
+    }
+
+    [Fact]
+    public void StartEscapeAndBackSpaceRemainSeparatePauseActions()
+    {
+        Raylib.Reset();
+        var pad=new SessionInput(Bindings(),Select(InputDeviceFamily.Gamepad,2),new());
+        Raylib.Connected.Add(2);
+        Raylib.Buttons.Add((2,GamepadButton.RightFaceRight));
+        pad.Update();
+        Assert.True(pad.ReturnPressed());
+        Assert.False(pad.PausePressed());
+        Assert.False(pad.CombatPausePressed());
+
+        Raylib.Buttons.Clear();
+        pad.Update();
+        Raylib.Buttons.Add((2,GamepadButton.MiddleRight));
+        pad.Update();
+        Assert.True(pad.PausePressed());
+        Assert.False(pad.CombatPausePressed());
+
+        Raylib.Buttons.Clear();
+        pad.Update();
+        Raylib.Buttons.Add((2,GamepadButton.MiddleLeft));
+        pad.Update();
+        Assert.False(pad.PausePressed());
+        Assert.True(pad.CombatPausePressed());
+
+        Raylib.Buttons.Clear();
+        pad.Update();
+        Raylib.Keys.Add(KeyboardKey.Escape);
+        pad.Update();
+        Assert.True(pad.PausePressed());
+        Assert.False(pad.CombatPausePressed());
     }
 
     [Fact]
@@ -271,5 +314,84 @@ public sealed class SessionInputTests
         Raylib.Axes[(1,GamepadAxis.LeftX)] = float.NaN;
         Raylib.Axes[(1,GamepadAxis.LeftY)] = 0;
         session.Update(); Assert.Equal(Vector2.Zero,session.Move);
+    }
+
+    [Fact]
+    public void LeftStickNavigatesMenusAndSelectedDeviceInventoryOnPressEdges()
+    {
+        Raylib.Reset();
+        var bindings=Bindings();
+        var menu=new InputController(bindings);
+        var inventory=new SessionInput(bindings,Select(InputDeviceFamily.Gamepad,2),new());
+        Raylib.Connected.UnionWith([0,2]);
+
+        Raylib.Axes[(0,GamepadAxis.LeftY)]=-1;
+        menu.Update(); inventory.Update();
+        Assert.True(menu.WasPressed("MenuUp"));
+        Assert.False(inventory.UiUpPressed());
+        menu.Update(); inventory.Update();
+        Assert.False(menu.WasPressed("MenuUp"));
+
+        Raylib.Axes[(0,GamepadAxis.LeftY)]=0;
+        Raylib.Axes[(2,GamepadAxis.LeftY)]=-.4f;
+        menu.Update(); inventory.Update();
+        Assert.False(inventory.UiUpPressed());
+        Raylib.Axes[(2,GamepadAxis.LeftY)]=-.8f;
+        menu.Update(); inventory.Update();
+        Assert.True(menu.WasPressed("MenuUp"));
+        Assert.True(inventory.UiUpPressed());
+        menu.Update(); inventory.Update();
+        Assert.False(inventory.UiUpPressed());
+
+        Raylib.Axes[(2,GamepadAxis.LeftY)]=.8f;
+        menu.Update(); inventory.Update();
+        Assert.True(menu.WasPressed("MenuDown"));
+        Assert.True(inventory.UiDownPressed());
+
+        Raylib.Axes[(2,GamepadAxis.LeftX)]=-.8f;
+        menu.Update();
+        Assert.True(menu.WasPressed("MenuLeft"));
+        Raylib.Axes[(2,GamepadAxis.LeftX)]=.8f;
+        menu.Update();
+        Assert.True(menu.WasPressed("MenuRight"));
+    }
+
+    [Fact]
+    public void InventoryNavigationUsesOnlyTheSelectedDeviceAndPressEdges()
+    {
+        Raylib.Reset();
+        var pad=new SessionInput(Bindings(),Select(InputDeviceFamily.Gamepad,2),new());
+        Raylib.Connected.UnionWith([0,2]);
+        Raylib.Keys.UnionWith([KeyboardKey.I,KeyboardKey.Enter,KeyboardKey.Down]);
+        Raylib.Buttons.Add((0,GamepadButton.RightFaceUp));
+        pad.Update();
+        Assert.False(pad.InventoryPressed());
+        Assert.False(pad.UiConfirmPressed());
+        Assert.False(pad.UiDownPressed());
+
+        Raylib.Buttons.UnionWith([
+            (2,GamepadButton.RightFaceUp),
+            (2,GamepadButton.RightFaceDown),
+            (2,GamepadButton.LeftFaceDown)
+        ]);
+        pad.Update();
+        Assert.True(pad.InventoryPressed());
+        Assert.True(pad.UiConfirmPressed());
+        Assert.True(pad.UiDownPressed());
+        pad.Update();
+        Assert.False(pad.InventoryPressed());
+        Assert.False(pad.UiConfirmPressed());
+
+        Raylib.Reset();
+        var keyboard=new SessionInput(Bindings(),Select(InputDeviceFamily.KeyboardMouse),new());
+        Raylib.Connected.Add(0);
+        Raylib.Buttons.Add((0,GamepadButton.RightFaceUp));
+        keyboard.Update();
+        Assert.False(keyboard.InventoryPressed());
+        Raylib.Keys.UnionWith([KeyboardKey.I,KeyboardKey.Enter,KeyboardKey.Up]);
+        keyboard.Update();
+        Assert.True(keyboard.InventoryPressed());
+        Assert.True(keyboard.UiConfirmPressed());
+        Assert.True(keyboard.UiUpPressed());
     }
 }
