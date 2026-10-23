@@ -19,7 +19,6 @@ public sealed class DungeonSimulation
     private Interactable? chosenContext;
     private bool chosenEnemy;
     private bool doorJustOpened;
-    private Vector3 freeCameraCentre;
     public DungeonWorld World { get; } = new();
     public PlayerEntity Player { get; private set; }
     public EnemyEntity Enemy { get; private set; }
@@ -33,17 +32,15 @@ public sealed class DungeonSimulation
     public bool EnemySelected { get; private set; }
     public bool AutoAttackEnabled => attackRequested;
     public bool ContextEnemySelected => chosenEnemy && EnemySelected && Enemy.Alive;
-    public float Yaw { get; private set; }
-    public float Pitch { get; private set; }
-    public float ZoomDistance { get; private set; }
-    public bool TopDown => ZoomDistance >= settings.TopDownThreshold;
-    public Vector3 FreeCameraCentre => freeCameraCentre;
+    public DungeonCamera Camera { get; }
+    public float Yaw => Camera.Yaw;
+    public float Pitch => Camera.Pitch;
+    public float ZoomDistance => Camera.ZoomDistance;
+    public bool TopDown => Camera.TopDown;
+    public Vector3 FreeCameraCentre => Camera.FreeCentre;
     private Vector3 CameraAnchor => Player.Position + new Vector3(0,1.2f,0);
-    public Vector3 CameraTarget => TopDown ? freeCameraCentre
-        : CameraAnchor + new Vector3(-MathF.Sin(Yaw),0,-MathF.Cos(Yaw)) * 1.5f - new Vector3(0,0.3f,0);
-    public Vector3 CameraPosition => TopDown ? freeCameraCentre + Vector3.UnitY * ZoomDistance
-        : World.CameraPosition(CameraAnchor, CameraAnchor +
-            new Vector3(MathF.Sin(Yaw)*MathF.Cos(Pitch), MathF.Sin(Pitch), MathF.Cos(Yaw)*MathF.Cos(Pitch)) * ZoomDistance);
+    public Vector3 CameraTarget => Camera.Target;
+    public Vector3 CameraPosition => Camera.Position;
 
     public DungeonSimulation(DungeonSettings settings, GameplaySettings? gameplay = null)
     {
@@ -52,6 +49,7 @@ public sealed class DungeonSimulation
         this.gameplay = gameplay ?? new GameplaySettings();
         Player = new(World.Spawn,settings.Combat);
         Enemy = new(new(0,0,-30),settings.Combat);
+        Camera = new DungeonCamera(settings,World,()=>Player.Position);
         Reset();
     }
     public void Reset()
@@ -66,10 +64,7 @@ public sealed class DungeonSimulation
         pendingInteraction = null;
         waypoint = 0;
         chaseRepathSeconds = 0;
-        freeCameraCentre = Player.Position;
-        ZoomDistance = settings.CameraDistance;
-        Yaw = 0;
-        Pitch = settings.CameraPitch;
+        Camera.Reset();
         aimOrigin = CameraPosition;
         aimDirection = CameraTarget-CameraPosition;
         contextualAim = false;
@@ -81,23 +76,18 @@ public sealed class DungeonSimulation
     public void ClearInteractionMessage() => InteractionMessage = null;
     public void CycleView()
     {
-        float next = ZoomDistance < settings.WideCameraDistance - 0.01f
-            ? settings.WideCameraDistance
-            : ZoomDistance < settings.TopDownThreshold - 0.01f
-                ? settings.TopDownCameraDistance : settings.CameraDistance;
-        AdjustZoom(ZoomDistance-next);
+        if (Camera.CycleView()) ClearOnCameraModeChange();
     }
     public void AdjustZoom(float amount)
     {
-        if (!float.IsFinite(amount) || amount == 0) return;
-        bool wasTopDown = TopDown;
-        ZoomDistance = Math.Clamp(ZoomDistance-amount,2f,settings.MaxZoomDistance);
-        if (TopDown == wasTopDown) return;
+        if (Camera.AdjustZoom(amount)) ClearOnCameraModeChange();
+    }
+    private void ClearOnCameraModeChange()
+    {
         movementPath.Clear();
         pendingInteraction = null;
         waypoint = 0;
         chaseRepathSeconds = 0;
-        freeCameraCentre = Player.Position;
         chosenContext = null;
         chosenEnemy = false;
         VisibleTarget = Target = null;
@@ -312,8 +302,7 @@ public sealed class DungeonSimulation
             !float.IsFinite(pan.X) || !float.IsFinite(pan.Y)) return;
         seconds = Math.Min(seconds,0.1f);
         if (pan.LengthSquared()>1) pan=Vector2.Normalize(pan);
-        freeCameraCentre.X = Math.Clamp(freeCameraCentre.X+pan.X*settings.FreeCameraSpeed*seconds,-10,10);
-        freeCameraCentre.Z = Math.Clamp(freeCameraCentre.Z-pan.Y*settings.FreeCameraSpeed*seconds,-40,8);
+        Camera.Pan(pan,seconds);
         UpdateChase(seconds);
         AdvancePath(seconds);
         if (pendingInteraction is { } item)
@@ -436,10 +425,7 @@ public sealed class DungeonSimulation
         seconds = Math.Min(seconds, 0.1f);
         if (!float.IsFinite(move.X) || !float.IsFinite(move.Y) ||
             !float.IsFinite(look.X) || !float.IsFinite(look.Y) || !float.IsFinite(turn)) return;
-        float sensitivity = mouseLook ? settings.MouseSensitivity : settings.ControllerLookSpeed * seconds;
-        Yaw = MathF.IEEERemainder(Yaw - look.X * sensitivity -
-            turn * settings.KeyboardTurnSpeed * seconds, 2 * MathF.PI);
-        Pitch = Math.Clamp(Pitch + look.Y * sensitivity, -0.18f, 1.25f);
+        Camera.Rotate(look,mouseLook,seconds,turn);
         if (move.LengthSquared() > 1) move = Vector2.Normalize(move);
         var forward = new Vector3(-MathF.Sin(Yaw),0,-MathF.Cos(Yaw));
         var right = new Vector3(MathF.Cos(Yaw),0,-MathF.Sin(Yaw));
