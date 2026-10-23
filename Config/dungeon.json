@@ -5,5 +5,6 @@
   "MoveDeadzone": 0.18,
   "LookDeadzone": 0.12,
   "CameraDistance": 5,
-  "CameraPitch": 0.45
+  "CameraPitch": 0.45,
+  "InteractionRange": 2.5
 }

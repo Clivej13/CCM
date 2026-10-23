@@ -149,6 +149,16 @@
       "Device": "MouseAxis",
       "Input": "MouseYPositive",
       "Action": "LookDown"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "E",
+      "Action": "Interact"
+    },
+    {
+      "Device": "GamepadButton",
+      "Input": "RightFaceDown",
+      "Action": "Interact"
     }
   ]
 }

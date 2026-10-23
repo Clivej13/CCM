@@ -112,6 +112,40 @@ public sealed class SessionInputTests
         Assert.True(session.ReturnPressed());
     }
     [Fact]
+    public void InteractionUsesOnlySelectedDeviceAndFiresOncePerPress()
+    {
+        Raylib.Reset();
+        var pad = new SessionInput(Bindings(),Select(InputDeviceFamily.Gamepad,2),new());
+        Raylib.Connected.UnionWith([0,2]);
+        Raylib.Buttons.Add((0,GamepadButton.RightFaceDown));
+        Raylib.Keys.Add(KeyboardKey.E);
+        pad.Update();
+        Assert.False(pad.InteractPressed());
+        Raylib.Buttons.Add((2,GamepadButton.RightFaceDown));
+        pad.Update();
+        Assert.True(pad.InteractPressed());
+        pad.Update();
+        Assert.False(pad.InteractPressed());
+        Raylib.Buttons.Remove((2,GamepadButton.RightFaceDown));
+        pad.Update();
+        Raylib.Buttons.Add((2,GamepadButton.RightFaceDown));
+        pad.Update();
+        Assert.True(pad.InteractPressed());
+
+        Raylib.Reset();
+        var keyboard = new SessionInput(Bindings(),Select(InputDeviceFamily.KeyboardMouse),new());
+        Raylib.Connected.Add(0);
+        Raylib.Buttons.Add((0,GamepadButton.RightFaceDown));
+        keyboard.Update();
+        Assert.False(keyboard.InteractPressed());
+        Raylib.Keys.Add(KeyboardKey.E);
+        keyboard.Update();
+        Assert.True(keyboard.InteractPressed());
+        keyboard.Update();
+        Assert.False(keyboard.InteractPressed());
+    }
+
+    [Fact]
     public void SignedBindingsDeadzoneAndDiagonalMagnitudeSurviveMigration()
     {
         Raylib.Reset();
