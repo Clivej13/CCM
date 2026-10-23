@@ -22,10 +22,12 @@ public sealed class InventoryTests
         Assert.True(chest.Contents.TransferTo(simulation.Player.Inventory,"iron-sword",1));
         Assert.True(simulation.Player.Equipment.Equip("iron-sword"));
         Assert.Equal("iron-sword",simulation.Player.Equipment.In(EquipmentSlot.Weapon));
+        Assert.Equal(0,simulation.Player.Inventory.Count("iron-sword"));
         Assert.True(chest.Contents.TransferTo(simulation.Player.Inventory,"short-bow",1));
         Assert.True(simulation.Player.Equipment.Equip("short-bow"));
         Assert.Equal("short-bow",simulation.Player.Equipment.In(EquipmentSlot.Weapon));
-        Assert.Equal(1,simulation.Player.Inventory.Count("iron-sword")); // replacing gear keeps it in the bag
+        Assert.Equal(0,simulation.Player.Inventory.Count("short-bow"));
+        Assert.Equal(1,simulation.Player.Inventory.Count("iron-sword")); // replaced gear returns to the bag
 
         foreach (string id in new[] { "leather-armour","leather-quiver","oak-staff" })
             Assert.True(chest.Contents.TransferTo(simulation.Player.Inventory,id,1));
@@ -35,6 +37,13 @@ public sealed class InventoryTests
         Assert.Equal("leather-armour",simulation.Player.Equipment.In(EquipmentSlot.Body));
         Assert.Equal("leather-quiver",simulation.Player.Equipment.In(EquipmentSlot.Quiver));
         Assert.Equal("oak-staff",simulation.Player.Equipment.In(EquipmentSlot.Weapon));
+        Assert.Equal(0,simulation.Player.Inventory.Count("oak-staff"));
+        Assert.Equal(0,simulation.Player.Inventory.Count("leather-armour"));
+        Assert.Equal(0,simulation.Player.Inventory.Count("leather-quiver"));
+        Assert.True(simulation.Player.Equipment.Unequip(EquipmentSlot.Quiver));
+        Assert.Null(simulation.Player.Equipment.In(EquipmentSlot.Quiver));
+        Assert.Equal(1,simulation.Player.Inventory.Count("leather-quiver"));
+        Assert.True(simulation.Player.Equipment.Equip("leather-quiver"));
         Assert.True(chest.Contents.TransferTo(simulation.Player.Inventory,"arrow",20));
         Assert.Equal(20,simulation.Player.Inventory.Count("arrow"));
         Assert.False(simulation.Player.Equipment.Equip("arrow"));
@@ -64,6 +73,47 @@ public sealed class InventoryTests
 
         items.Items.Add(new ItemDefinition
             { Id="iron-sword",Name="Duplicate",Slot="Weapon",Visual="Sword" });
+        Assert.Throws<InvalidDataException>(items.Validate);
+    }
+
+    [Fact]
+    public void CatalogueStatsFiltersAndEquipmentOwnershipAreConsistent()
+    {
+        var items=Settings.Required<ItemCatalogue>(Settings.ConfigPath("items.json"));
+        items.Validate();
+        var bag=new Inventory(items.Items.Select(item=>new ItemStack(item.Id,1)));
+        Assert.Equal(6,bag.Filter(items,ItemFilter.All).Count);
+        Assert.Equal(3,bag.Filter(items,ItemFilter.Weapons).Count);
+        Assert.Equal(2,bag.Filter(items,ItemFilter.Apparel).Count);
+        var sword=items.Get("iron-sword");
+        Assert.Equal(ItemType.Weapon,sword.ItemType);
+        Assert.Equal(EquipmentSlot.Weapon,sword.EquipmentSlot);
+        Assert.True(sword.Weight>0);
+        Assert.True(sword.AttackPower>0);
+        Assert.True(sword.Value>0);
+        Assert.False(string.IsNullOrWhiteSpace(sword.Description));
+
+        var equipment=new Equipment(bag,items);
+        Assert.True(equipment.Equip("iron-sword"));
+        Assert.Equal(2,bag.Filter(items,ItemFilter.Weapons).Count);
+        Assert.Equal(0,bag.Count("iron-sword"));
+        Assert.False(equipment.Equip("iron-sword"));
+        Assert.True(equipment.Unequip(EquipmentSlot.Weapon));
+        Assert.Equal(3,bag.Filter(items,ItemFilter.Weapons).Count);
+        Assert.False(equipment.Unequip(EquipmentSlot.Weapon));
+        Assert.False(equipment.Unequip(EquipmentSlot.None));
+        Assert.True(equipment.Equip("iron-sword"));
+        equipment.Clear();
+        Assert.Null(equipment.In(EquipmentSlot.Weapon));
+        Assert.Equal(1,bag.Count("iron-sword"));
+
+        sword.Weight=float.NaN;
+        Assert.Throws<InvalidDataException>(items.Validate);
+        sword.Weight=3.2f;
+        sword.Type="Apparel";
+        Assert.Throws<InvalidDataException>(items.Validate);
+        sword.Type="Weapon";
+        sword.Description="";
         Assert.Throws<InvalidDataException>(items.Validate);
     }
 

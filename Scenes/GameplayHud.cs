@@ -15,23 +15,16 @@ internal sealed class GameplayHud(SessionInput input,DungeonSimulation simulatio
         var enemy=simulation.Enemy;
         if (simulation.VisibleTarget is { } visible)
         {
-            string control = simulation.TopDown ? (input.UsesMouse ? "Left click" : "A")
-                : input.UsesMouse ? "Right click" : "A";
             string prompt = simulation.Target is not null
-                ? $"{control}: {visible.Item.Action}"
-                : simulation.TopDown
-                    ? $"{(input.UsesMouse ? "Right click" : "A")}: approach + {visible.Item.Action}"
-                    : $"{visible.Item.Name} - move closer";
-            if (!input.UsesMouse) prompt += " | LB/RB: choose";
+                ? $"{visible.Item.Name}: {visible.Item.Action}"
+                : $"{visible.Item.Name} - move closer";
             DrawPrompt(prompt,Raylib.GetScreenHeight()/2+60,
                 simulation.Target is not null ? Color.Gold : Color.RayWhite);
         }
         if (!input.UsesMouse && simulation.ContextEnemySelected)
-            DrawPrompt("A: attack selected enemy | LB/RB: choose",
+            DrawPrompt("Enemy selected",
                 Raylib.GetScreenHeight()/2+60,Color.Gold);
         if (!input.UsesMouse) DrawContextOptions();
-        Raylib.DrawText(input.UsesMouse ? "I: Inventory" : "Y: Inventory",
-            16,150,16,Color.RayWhite);
         if (simulation.TopDown && !input.UsesMouse && !targeting.ControllerContextMode)
             Raylib.DrawCircleV(targeting.ControllerCursor,6,Color.Gold);
         if (feedbackSeconds > 0 && feedback is not null)
@@ -45,28 +38,13 @@ internal sealed class GameplayHud(SessionInput input,DungeonSimulation simulatio
         if (simulation.CombatStarted && enemy.Alive)
             Raylib.DrawText($"Enemy: {enemy.Phase} {enemy.AttackProgress:P0}",
                 Raylib.GetScreenWidth()-236,116,16,Color.Red);
-        string hint1 = input.ControllerDisconnected ? "Controller disconnected - Esc: pause menu"
-            : input.UsesMouse
-                ? simulation.TopDown ? "WASD pan camera | Wheel zoom | LMB move / use / select"
-                    : "W/S move | A/D turn | Q/E strafe | RMB hold look"
-                : simulation.TopDown ? "Left stick pan | Right stick cursor | R3 view"
-                    : "Left stick move | Right stick look | R3 view";
-        string hint2 = input.ControllerDisconnected ? "" : input.UsesMouse
-            ? simulation.TopDown ? "RMB approach + use / attack | Space combat pause | Esc menu"
-                : "LMB select | RMB use / attack | F use | Wheel zoom"
-            : simulation.TopDown
-                ? "A use / move | LB/RB choose | Back combat pause | Start menu"
-                : "LB/RB choose | A use / attack | Back combat pause | Start menu";
-        Raylib.DrawRectangle(0,Raylib.GetScreenHeight()-56,Raylib.GetScreenWidth(),56,new Color(0,0,0,190));
-        Raylib.DrawText(hint1,16,Raylib.GetScreenHeight()-50,16,Color.RayWhite);
-        Raylib.DrawText(hint2,16,Raylib.GetScreenHeight()-27,16,Color.RayWhite);
         if (debug)
             Raylib.DrawText($"Position {player.Position.X:0.00}, {player.Position.Y:0.00}, {player.Position.Z:0.00} | Camera {Vector3.Distance(camera.Position,camera.Target):0.00}m",
                 8,50,16,Color.Lime);
         if (simulation.Paused)
         {
             Raylib.DrawRectangle(0,0,Raylib.GetScreenWidth(),Raylib.GetScreenHeight(),new Color(0,0,0,160));
-            DrawPrompt("COMBAT PAUSED - Space / Back to resume",Raylib.GetScreenHeight()/2,Color.RayWhite);
+            DrawPrompt("COMBAT PAUSED",Raylib.GetScreenHeight()/2,Color.RayWhite);
         }
     }
 

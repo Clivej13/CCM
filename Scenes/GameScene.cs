@@ -24,13 +24,14 @@ public sealed class GameScene : Scene
     public GameScene(SessionInput input,DungeonSettings settings,bool debug,
         Action returnToMenu,InputController menuInput,InputConfig bindings,
         GameplaySettings? gameplay=null,ItemCatalogue? items=null,
-        IEnumerable<ItemStack>? chestContents=null)
+        IEnumerable<ItemStack>? chestContents=null,
+        PlayerDefinition? playerDefinition=null,EnemyCatalogue? enemies=null)
     {
         this.input=input;
         this.settings=settings;
         this.returnToMenu=returnToMenu;
         items ??=new ItemCatalogue();
-        simulation=new(settings,gameplay,items,chestContents);
+        simulation=new(settings,gameplay,items,chestContents,playerDefinition,enemies);
         targeting=new(simulation,settings);
         inventoryPanel=new(items);
         pauseMenu=new(menuInput,bindings);
@@ -86,22 +87,32 @@ public sealed class GameScene : Scene
             {
                 inventoryPanel.Close();
                 OpenPauseMenu();
+                return;
             }
-            else if (input.ReturnPressed() || input.InventoryPressed())
+            if (input.ReturnPressed() || (!input.UsesMouse && input.InventoryPressed()) ||
+                inventoryPanel.CloseClicked(input))
             {
-                inventoryPanel.Close();
-                activeControls.Enter();
-                ignoreLook=true;
+                CloseInventoryPanel();
+                return;
             }
-            else inventoryPanel.Update(input,simulation.Player);
+            if (!inventoryPanel.IsChest)
+            {
+                if (inventoryPanel.SelectTabClicked(input)) return;
+                if (input.CharacterPressed() || input.PanelRightPressed())
+                    inventoryPanel.OpenCharacter();
+                else if (input.InventoryPressed() || input.PanelLeftPressed())
+                    inventoryPanel.OpenInventory();
+            }
+            inventoryPanel.Update(input,simulation.Player);
             return;
         }
         if (activeControls.BeforeFrame()) ignoreLook=true;
         if (!Raylib.IsWindowFocused()) { activeControls.CancelPendingAction(); return; }
-        if (input.InventoryPressed())
+        if (input.InventoryPressed() || input.CharacterPressed())
         {
             activeControls.Exit();
-            inventoryPanel.OpenInventory();
+            if (input.CharacterPressed()) inventoryPanel.OpenCharacter();
+            else inventoryPanel.OpenInventory();
             ignoreLook=true;
             return;
         }
@@ -147,6 +158,13 @@ public sealed class GameScene : Scene
         ignoreLook=false;
     }
 
+    private void CloseInventoryPanel()
+    {
+        inventoryPanel.Close();
+        activeControls.Enter();
+        ignoreLook=true;
+    }
+
     private void OpenPauseMenu()
     {
         activeControls.Exit();
@@ -172,7 +190,7 @@ public sealed class GameScene : Scene
     {
         renderer.Render();
         hud.Render(feedback,feedbackSeconds);
-        inventoryPanel.Render(simulation.Player);
+        inventoryPanel.Render(simulation.Player,input.UsesMouse);
         pauseMenu.Render();
     }
 }

@@ -81,8 +81,16 @@ public sealed class SessionInput
     public bool CycleActionLeftPressed() => gameplay?.WasPressed("CycleActionLeft") == true;
     public bool CycleActionRightPressed() => gameplay?.WasPressed("CycleActionRight") == true;
     public bool InventoryPressed() => gameplay?.WasPressed("Inventory") == true;
+    public bool CharacterPressed() => UsesMouse && gameplay?.WasPressed("Character") == true;
+    public bool PanelLeftPressed() => gameplay?.WasPressed("PanelLeft") == true;
+    public bool PanelRightPressed() => gameplay?.WasPressed("PanelRight") == true;
     public bool UiUpPressed() => gameplay?.WasPressed("MenuUp") == true;
     public bool UiDownPressed() => gameplay?.WasPressed("MenuDown") == true;
+    public bool UiLeftPressed() => gameplay?.WasPressed("MenuLeft") == true ||
+        UsesMouse && gameplay?.WasPressed("MoveLeft") == true;
+    public bool UiRightPressed() => gameplay?.WasPressed("MenuRight") == true ||
+        UsesMouse && gameplay?.WasPressed("MoveRight") == true;
+    public bool UiPanePressed() => gameplay?.WasPressed("InventoryPane") == true;
     public bool UiConfirmPressed() => gameplay?.WasPressed("MenuConfirm") == true;
     public string InteractionBinding => gameplay?.GetBinding("Interact",
         UsesMouse ? InputDeviceFamily.KeyboardMouse : InputDeviceFamily.Gamepad) is { } binding

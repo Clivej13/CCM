@@ -5,13 +5,13 @@ namespace CCM.Application;
 public sealed class AssetSession : IDisposable
 {
     public AssetManager? Manager { get; private set; }
-    public void Begin(string catalogueFile)
+    public void Begin(string catalogueFile,string[]? initialKeys=null)
     {
         if (Manager is not null) throw new InvalidOperationException("Asset session has already begun.");
         var catalogue = AssetConfigLoader.Load(Settings.ConfigPath(catalogueFile));
         if (catalogue.Assets.Count == 0) throw new InvalidDataException("The required asset catalogue is empty.");
         Manager = new AssetManager(catalogue);
-        Manager.SetRequiredAssets(catalogue.Assets.Select(a => a.Key).ToArray());
+        Manager.SetRequiredAssets(initialKeys ?? catalogue.Assets.Select(a => a.Key).ToArray());
     }
     public void Dispose() { Manager?.UnloadAll(); Manager = null; }
 }

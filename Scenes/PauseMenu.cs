@@ -34,7 +34,5 @@ internal sealed class PauseMenu
         Raylib.DrawRectangle(0,0,Raylib.GetScreenWidth(),Raylib.GetScreenHeight(),
             new Color(226,232,240,245));
         menus.Draw();
-        Raylib.DrawText("Start / Esc / B: resume",
-            16,Raylib.GetScreenHeight()-26,18,Color.DarkBlue);
     }
 }

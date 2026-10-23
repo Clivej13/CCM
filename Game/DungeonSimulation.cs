@@ -9,6 +9,8 @@ public sealed class DungeonSimulation
     private readonly DungeonSettings settings;
     private readonly GameplaySettings gameplay;
     private readonly ItemCatalogue items;
+    private readonly CharacterAttributes playerAttributes;
+    private readonly EnemyDefinition enemyDefinition;
     private readonly List<Vector3> movementPath = [];
     private Interactable? pendingInteraction;
     private int waypoint;
@@ -45,23 +47,30 @@ public sealed class DungeonSimulation
     public Vector3 CameraPosition => Camera.Position;
 
     public DungeonSimulation(DungeonSettings settings, GameplaySettings? gameplay = null,
-        ItemCatalogue? items=null,IEnumerable<ItemStack>? chestContents=null)
+        ItemCatalogue? items=null,IEnumerable<ItemStack>? chestContents=null,
+        PlayerDefinition? playerDefinition=null,EnemyCatalogue? enemies=null)
     {
         settings.Validate();
-        this.settings = settings;
-        this.gameplay = gameplay ?? new GameplaySettings();
+        this.settings=settings;
+        this.gameplay=gameplay ?? new GameplaySettings();
         this.items=items ?? new ItemCatalogue();
+        playerDefinition ??= new PlayerDefinition();
+        playerDefinition.Validate();
+        playerAttributes=playerDefinition.Attributes;
+        enemies ??= new EnemyCatalogue { Enemies=[new EnemyDefinition()] };
+        enemies.Validate(this.items);
+        enemyDefinition=enemies.Get(settings.EnemyId);
         World=new DungeonWorld(chestContents);
-        Player = new(World.Spawn,settings.Combat,this.items);
-        Enemy = new(new(0,0,-30),settings.Combat);
-        Camera = new DungeonCamera(settings,World,()=>Player.Position);
+        Player=new(World.Spawn,playerAttributes,this.items);
+        Enemy=new(new(0,0,-30),enemyDefinition,this.items);
+        Camera=new DungeonCamera(settings,World,()=>Player.Position);
         Reset();
     }
     public void Reset()
     {
         World.Reset();
-        Player = new(World.Spawn,settings.Combat,items);
-        Enemy = new(new(0,0,-30),settings.Combat);
+        Player=new(World.Spawn,playerAttributes,items);
+        Enemy=new(new(0,0,-30),enemyDefinition,items);
         ChestOpened=null;
         VisibleTarget = Target = null;
         InteractionMessage = CombatMessage = null;
@@ -351,7 +360,7 @@ public sealed class DungeonSimulation
             Vector3.DistanceSquared(chaseEnemyPosition,Enemy.Position) < 0.25f) return;
         chaseEnemyPosition = Enemy.Position;
         chaseRepathSeconds = 0.25f;
-        var route = DungeonNavigation.FindPathToRange(World,Player.Position,Enemy.Position,settings.Combat.Range);
+        var route = DungeonNavigation.FindPathToRange(World,Player.Position,Enemy.Position,Player.Profile.Range);
         movementPath.Clear();
         movementPath.AddRange(route);
         waypoint = 0;
@@ -393,7 +402,7 @@ public sealed class DungeonSimulation
             if (doorJustOpened) { doorJustOpened = false; return; }
             var enemyEye = Enemy.Position + Vector3.UnitY;
             var playerEye = Player.Position + Vector3.UnitY;
-            if (Vector3.Distance(enemyEye,playerEye) > settings.Combat.VisionRange ||
+            if (Vector3.Distance(enemyEye,playerEye) > Enemy.Definition.VisionRange ||
                 !World.ClearLine(enemyEye,playerEye)) return;
             CombatStarted = true;
             Paused = settings.Combat.AutoPauseOnCombatStart;
@@ -403,20 +412,18 @@ public sealed class DungeonSimulation
         }
         var distance = Vector2.Distance(new(Enemy.Position.X,Enemy.Position.Z),
             new(Player.Position.X,Player.Position.Z));
-        if (distance > settings.Combat.Range*0.85f)
+        if (distance > Enemy.Profile.Range*0.85f)
         {
             var offset = Player.Position-Enemy.Position;
             offset.Y = 0;
             if (offset.LengthSquared()>0.0001f)
-                Enemy.Position = World.Move(Enemy.Position,Vector3.Normalize(offset)*settings.Combat.EnemySpeed*seconds);
+                Enemy.Position = World.Move(Enemy.Position,Vector3.Normalize(offset)*Enemy.Definition.MoveSpeed*seconds);
         }
         bool clear = World.ClearLine(Player.Position+Vector3.UnitY,Enemy.Position+Vector3.UnitY);
-        bool playerCanHit = Player.InRange(Enemy) && clear;
-        bool enemyCanHit = Enemy.InRange(Player) && clear;
-        if (attackRequested && Player.UpdateAttack(seconds,Enemy,playerCanHit))
+        if (attackRequested && Player.UpdateAttack(seconds,Enemy,clear))
             CombatMessage = $"Enemy hit - {Enemy.Health}/{Enemy.MaxHealth} HP";
         else if (!attackRequested) Player.CancelAttack();
-        if (Enemy.Alive && Enemy.UpdateAttack(seconds,Player,enemyCanHit))
+        if (Enemy.Alive && Enemy.UpdateAttack(seconds,Player,clear))
             CombatMessage = $"Player hit - {Player.Health}/{Player.MaxHealth} HP";
         if (!Enemy.Alive)
         {
