@@ -5,7 +5,7 @@ using Raylib_cs;
 namespace CCM.Scenes;
 
 /// <summary>Looting and equipment share a modal panel; item data remains catalogue-owned.</summary>
-internal sealed class InventoryPanel(ItemCatalogue catalogue)
+internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? skills=null)
 {
     private static readonly EquipmentSlot[] Slots=
         [EquipmentSlot.Weapon,EquipmentSlot.Body,EquipmentSlot.Quiver];
@@ -399,7 +399,10 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue)
             $"Endurance       {attributes.Endurance}",
             $"Agility         {attributes.Agility}",
             $"Intelligence    {attributes.Intelligence}",
-            $"Willpower       {attributes.Willpower}"
+            $"Willpower       {attributes.Willpower}",
+            $"Speed           {attributes.Speed}",
+            $"Charisma        {attributes.Charisma}",
+            $"Luck            {attributes.Luck}"
         ];
         string[] derived=
         [
@@ -413,7 +416,7 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue)
             $"Resistance      {combat.ResistancePercent}%"
         ];
         for (int i=0;i<innate.Length;i++)
-            Raylib.DrawText(Fit(innate[i],columnWidth,18),x+24,y+108+i*27,18,Color.RayWhite);
+            Raylib.DrawText(Fit(innate[i],columnWidth,18),x+24,y+108+i*22,18,Color.RayWhite);
         for (int i=0;i<derived.Length;i++)
             Raylib.DrawText(Fit(derived[i],columnWidth,18),rightX,y+108+i*22,18,Color.RayWhite);
         Raylib.DrawText("EQUIPMENT",x+24,y+height-174,20,Color.Gold);
@@ -421,8 +424,15 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue)
         {
             var equipped=player.Equipment.In(Slots[i]);
             string name=equipped is null ? "[empty]" : catalogue.Get(equipped).Name;
-            Raylib.DrawText(Fit($"{Slots[i]}: {name}",width-48,18),
+            Raylib.DrawText(Fit($"{Slots[i]}: {name}",columnWidth,18),
                 x+24,y+height-143+i*27,18,Color.RayWhite);
+        }
+        Raylib.DrawText("SKILLS",rightX,y+height-174,20,Color.Gold);
+        for (int i=0;i<player.SkillIds.Count;i++)
+        {
+            string name=skills?.Get(player.SkillIds[i]).Name ?? player.SkillIds[i];
+            Raylib.DrawText(Fit(name,columnWidth,18),rightX,y+height-143+i*27,18,
+                Color.RayWhite);
         }
     }
 

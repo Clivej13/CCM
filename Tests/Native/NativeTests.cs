@@ -14,7 +14,7 @@ public sealed class NativeTests
     [Theory]
     [InlineData("regular.json", "MainMenu")]
     [InlineData("regular-debug.json", "MainMenu")]
-    [InlineData("test-level-debug.json", "Game")]
+    [InlineData("test-level-debug.json", "LevelUp")]
     public void RealWindowLoadsAssetsRoutesAndCleansUp(string profile, string destination)
     {
         string directory = Path.Combine(Path.GetTempPath(), "CCM-native-"+Guid.NewGuid());
@@ -43,7 +43,8 @@ public sealed class NativeTests
             }
             Assert.Contains("Loaded 1 assets.", log);
             Assert.Contains("State Loading -> "+destination, log);
-            Assert.Contains("State MainMenu -> Game", log);
+            Assert.Contains("State MainMenu -> LevelUp", log);
+            Assert.Contains("State LevelUp -> Game", log);
             Assert.Contains("State Game -> MainMenu", log);
             Assert.Contains("Clean shutdown.", log);
         }

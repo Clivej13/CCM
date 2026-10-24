@@ -78,11 +78,14 @@ public sealed class PlayerEntity : CombatEntity
     private readonly ItemCatalogue items;
     public Inventory Inventory { get; } = new();
     public Equipment Equipment { get; }
-    public PlayerEntity(Vector3 position,CharacterAttributes attributes,ItemCatalogue? items=null)
+    public IReadOnlyList<string> SkillIds { get; }
+    public PlayerEntity(Vector3 position,CharacterAttributes attributes,ItemCatalogue? items=null,
+        IEnumerable<string>? skillIds=null)
         : base(position,attributes)
     {
         this.items=items ?? new ItemCatalogue();
         Equipment=new Equipment(Inventory,this.items);
+        SkillIds=skillIds?.ToArray() ?? [];
     }
     public override CombatProfile Profile => CombatFormula.Calculate(Attributes,
         Equipped(EquipmentSlot.Weapon),Equipped(EquipmentSlot.Body),Equipped(EquipmentSlot.Quiver));

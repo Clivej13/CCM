@@ -1,0 +1,44 @@
+{
+  "Attributes": [
+    {
+      "Attribute": "Strength",
+      "Summary": "Melee damage",
+      "Details": "Each point adds one damage to an unarmed or weapon strike before armour and resistance. Weapon damage adds to this base value. Strength does not change melee reach."
+    },
+    {
+      "Attribute": "Endurance",
+      "Summary": "Health and armour",
+      "Details": "Each point adds six maximum health. Every five points add one armour. Armour reduces incoming damage before percentage resistance is applied."
+    },
+    {
+      "Attribute": "Agility",
+      "Summary": "Attack rate",
+      "Details": "Each point increases attack rate by 2.5 percent of the weapon's base rate. Faster attacks shorten both cast time and cooldown. The final rate is capped."
+    },
+    {
+      "Attribute": "Intelligence",
+      "Summary": "Resistance",
+      "Details": "Every two points add one percentage point of resistance. This combines with Willpower, up to a total of 60 percent resistance."
+    },
+    {
+      "Attribute": "Willpower",
+      "Summary": "Resistance",
+      "Details": "Each point adds one percentage point of resistance. This combines with half of Intelligence, up to a total of 60 percent resistance."
+    },
+    {
+      "Attribute": "Speed",
+      "Summary": "Movement speed",
+      "Details": "Each point adds one percent of base movement speed. Ten Speed uses the configured base speed. This affects character movement and path following, but not camera panning."
+    },
+    {
+      "Attribute": "Charisma",
+      "Summary": "Skill prerequisite",
+      "Details": "Charisma currently unlocks eligible skills. It has no direct social or combat effect yet; those systems are still being designed."
+    },
+    {
+      "Attribute": "Luck",
+      "Summary": "Skill prerequisite",
+      "Details": "Luck currently unlocks eligible skills. It has no direct loot or combat effect yet; those systems are still being designed."
+    }
+  ]
+}

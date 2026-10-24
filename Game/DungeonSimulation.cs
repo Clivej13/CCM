@@ -9,7 +9,7 @@ public sealed class DungeonSimulation
     private readonly DungeonSettings settings;
     private readonly GameplaySettings gameplay;
     private readonly ItemCatalogue items;
-    private readonly CharacterAttributes playerAttributes;
+    private readonly PlayerDefinition playerDefinition;
     private readonly EnemyDefinition enemyDefinition;
     private readonly List<Vector3> movementPath = [];
     private Interactable? pendingInteraction;
@@ -56,12 +56,13 @@ public sealed class DungeonSimulation
         this.items=items ?? new ItemCatalogue();
         playerDefinition ??= new PlayerDefinition();
         playerDefinition.Validate();
-        playerAttributes=playerDefinition.Attributes;
+        this.playerDefinition=playerDefinition;
         enemies ??= new EnemyCatalogue { Enemies=[new EnemyDefinition()] };
         enemies.Validate(this.items);
         enemyDefinition=enemies.Get(settings.EnemyId);
         World=new DungeonWorld(chestContents);
-        Player=new(World.Spawn,playerAttributes,this.items);
+        Player=new(World.Spawn,this.playerDefinition.Attributes,this.items,
+            this.playerDefinition.SkillIds);
         Enemy=new(new(0,0,-30),enemyDefinition,this.items);
         Camera=new DungeonCamera(settings,World,()=>Player.Position);
         Reset();
@@ -69,7 +70,7 @@ public sealed class DungeonSimulation
     public void Reset()
     {
         World.Reset();
-        Player=new(World.Spawn,playerAttributes,items);
+        Player=new(World.Spawn,playerDefinition.Attributes,items,playerDefinition.SkillIds);
         Enemy=new(new(0,0,-30),enemyDefinition,items);
         ChestOpened=null;
         VisibleTarget = Target = null;
@@ -379,7 +380,7 @@ public sealed class DungeonSimulation
             else { movementPath.Clear(); waypoint=0; }
             return;
         }
-        var delta=offset/distance*Math.Min(distance,settings.MoveSpeed*seconds);
+        var delta=offset/distance*Math.Min(distance,settings.MoveSpeed*Player.Attributes.MovementMultiplier*seconds);
         var moved=World.Move(Player.Position,delta);
         if (Vector3.DistanceSquared(moved,Player.Position)<0.000001f)
         {
@@ -417,7 +418,7 @@ public sealed class DungeonSimulation
             var offset = Player.Position-Enemy.Position;
             offset.Y = 0;
             if (offset.LengthSquared()>0.0001f)
-                Enemy.Position = World.Move(Enemy.Position,Vector3.Normalize(offset)*Enemy.Definition.MoveSpeed*seconds);
+                Enemy.Position = World.Move(Enemy.Position,Vector3.Normalize(offset)*Enemy.Definition.MoveSpeed*Enemy.Attributes.MovementMultiplier*seconds);
         }
         bool clear = World.ClearLine(Player.Position+Vector3.UnitY,Enemy.Position+Vector3.UnitY);
         if (attackRequested && Player.UpdateAttack(seconds,Enemy,clear))
@@ -451,7 +452,7 @@ public sealed class DungeonSimulation
         var forward = new Vector3(-MathF.Sin(Yaw),0,-MathF.Cos(Yaw));
         var right = new Vector3(MathF.Cos(Yaw),0,-MathF.Sin(Yaw));
         var direction = right * move.X + forward * move.Y;
-        Player.Position = World.Move(Player.Position,direction * (settings.MoveSpeed * seconds));
+        Player.Position = World.Move(Player.Position,direction * (settings.MoveSpeed * Player.Attributes.MovementMultiplier * seconds));
         if (faceCamera)
             Player.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY,Yaw);
         else if (direction.LengthSquared() > 0.0001f)

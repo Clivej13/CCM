@@ -1,8 +1,8 @@
 # CCM
 
 C# / .NET 9 / Raylib-cs 8.0.0 game foundation. One window, one game loop:
-Initial Loading → Splash → Title → Loading → MainMenu or Game → Shutdown. New Game and debug test-level
-startup share the same block-built dungeon test level. Escape / controller Start opens the pause menu.
+Initial Loading → Splash → Title → Loading → MainMenu or LevelUp → Game → Shutdown.
+New Game and debug test-level startup both open character setup before the same block-built dungeon. Escape / controller Start opens the pause menu.
 
 ## Build and launch
 
@@ -35,7 +35,7 @@ dotnet run --project CCM.csproj -- --debug-config test-level-debug.json
 | --- | --- | --- |
 | false | Menu or TestLevel | Main menu, no overlay |
 | true | Menu | Main menu with diagnostics |
-| true | TestLevel | Dungeon test level with diagnostics |
+| true | TestLevel | Level-up screen, then dungeon test level with diagnostics |
 
 ShowFPS controls the FPS portion of the debug overlay. Debug-off suppresses
 verbose application and native diagnostics while retaining event/error logging.
@@ -85,8 +85,8 @@ validated platform. Refresh rate remains Raylib/driver controlled.
 
 - Application/GameApplication owns window lifetime, the loop and centralized
   transitions. Lifecycle validates allowed transitions without native calls.
-- Scenes implement Enter, Update, Render and Exit. Settings is a framework
-  submenu of MainMenu, not an extra application state.
+- Scenes implement Enter, Update, Render and Exit. LevelUp is an application
+  state before Game; Settings is a framework submenu of MainMenu.
 - Separate AssetSessions own the presentation and destination AssetManagers.
   InitialLoading loads Config/presentation-assets.json (the title's OBJ mark).
   After title confirmation, Loading requires only the foundation verification
@@ -130,7 +130,7 @@ empty slots. Tab or controller X switches between bag and equipment; Up/Down
 selects a row, and Enter/A equips or unequips. On mouse and keyboard, left click
 selects a bag item, right click equips it, and the wheel or scrollbar scrolls the
 bag. The selected item's catalogue details appear in the bottom-left detail panel;
-character attributes and combat values are on the Character menu. Equipped items
+character attributes, selected skills and combat values are on the Character menu. Equipped items
 leave the bag, and replaced or unequipped items return to it. Arrows remain a bag stack.
 On keyboard and mouse, I opens Inventory and C opens Character. Q/E switches
 between their title tabs, which can also be clicked; A/D changes Inventory
@@ -145,9 +145,34 @@ new game. Equipping changes the player's block appearance and live
 combat values. Value is display-only. The bow currently uses a short melee range;
 projectiles and arrow consumption are not implemented. Arrows cannot be equipped.
 
+## Character setup and skills
+
+Config/player.json supplies the starting attributes, currently 4 in each of Strength,
+Endurance, Agility, Intelligence, Willpower, Speed, Charisma and Luck. Level Up has
+separate Attributes and Skills tabs. Each tab puts the selection list on the left
+and details on the right. Config/attributes.json owns the attribute descriptions;
+see docs/character-system-copy.md for the TODO to review them whenever the
+underlying systems change. Attribute values have no point budget and can be set
+from 1 to 10. Config/skills.json defines skill names, descriptions,
+up to three attribute prerequisites and two skill points. A skill cannot be selected
+until every requirement is met. The catalogue includes two- and three-attribute
+examples. Available skills appear above locked skills, with catalogue order retained within
+each group. Lowering an attribute below a selected skill's requirement refunds its point.
+Both points must be spent before Enter Dungeon is available. Skills are recorded on
+the player and shown on the Character panel; they have no gameplay effects yet.
+
+Use Up/Down to select a list entry. On Attributes, Left/Right or A/D changes
+the selected value; Enter/controller A increases it. The last list entry opens
+Skills. On Skills, Enter/controller A toggles a skill or activates Enter Dungeon.
+Tab/controller X swaps tabs; Q/E or controller LT/RT selects a tab directly.
+The tabs, plus/minus buttons and bottom action button are clickable. On the
+Skills tab, left click inspects a skill and right click selects or deselects it.
+The mouse wheel scrolls the skill list if it grows beyond eight entries.
+Escape/controller B returns to the main menu without creating a player.
+
 ## Dungeon test level
 
-New Game and Test Level Debug enter the same two-room dungeon. The second room
+New Game and Test Level Debug first open the same level-up screen, then enter the same two-room dungeon. The second room
 is wider and deeper, with one block-built melee enemy. Opening the corridor door
 reveals the enemy; combat begins when it sees the player within its configured
 vision range. A chest beside the first room's north wall remains a separate
@@ -210,12 +235,15 @@ interaction target. Entering the scene resets the player, enemy, door and chest.
 Config/dungeon.json controls movement and turn speed, sensitivities, deadzones, zoom threshold,
 top-down pan/cursor speeds, starting pitch, interaction range, the active enemy ID and
 AutoPauseOnCombatStart. Config/input.json contains the action bindings.
-Config/player.json defines player attributes; Config/enemies.json catalogues enemy types,
+Config/player.json defines starting player attributes; Config/attributes.json holds their
+Level Up descriptions; Config/skills.json defines selectable skills and prerequisites;
+Config/enemies.json catalogues enemy types,
 attributes, movement speed and vision range. The game instantiates the selected enemy
 only when entering the dungeon. CombatEntity shares health, mitigation, range, cast and
 cooldown rules for PlayerEntity and EnemyEntity. Strength raises base damage; Endurance
 raises health and armour; Agility raises attack rate; Intelligence and Willpower raise
-resistance. Equipped weapon damage adds to base damage, while its melee range and rate
+resistance. Speed raises movement speed for players and enemies. Charisma and Luck
+can unlock skills but have no gameplay effects yet. Equipped weapon damage adds to base damage, while its melee range and rate
 set the attack profile. Cast and cooldown divide the attack interval at a fixed ratio.
 Armour subtracts damage before percentage resistance, with a minimum of one damage
 for a successful hit. Enemy types can reference catalogue weapon and body-armour IDs. PlayerEntity composes an Inventory and Equipment; EnemyEntity
@@ -245,7 +273,7 @@ enemy instance is created only when the game scene is first entered.
 
 Executed successfully on Windows:
 - Release build, zero warnings/errors.
-- 81 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
+- 98 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
   return/new-game/shutdown transitions, invalid configs, persisted settings,
   bundled menu/input/catalogue validation, separate loading catalogues, title
   press/release selection and missing-asset diagnostics; dungeon movement,

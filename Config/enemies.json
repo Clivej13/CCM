@@ -8,7 +8,10 @@
         "Endurance": 3,
         "Agility": 10,
         "Intelligence": 6,
-        "Willpower": 8
+        "Willpower": 8,
+        "Speed": 10,
+        "Charisma": 5,
+        "Luck": 5
       },
       "MoveSpeed": 2.3,
       "VisionRange": 28
