@@ -1,0 +1,70 @@
+{
+  "SkillPoints": 2,
+  "Skills": [
+    {
+      "Id": "power-strike", "Name": "Power Strike",
+      "Description": "A forceful melee technique.",
+      "Requirements": [{ "Attribute": "Strength", "Minimum": 3 }]
+    },
+    {
+      "Id": "iron-skin", "Name": "Iron Skin",
+      "Description": "Training to withstand heavy blows.",
+      "Requirements": [{ "Attribute": "Endurance", "Minimum": 3 }]
+    },
+    {
+      "Id": "quickstep", "Name": "Quickstep",
+      "Description": "A practiced evasive step.",
+      "Requirements": [{ "Attribute": "Agility", "Minimum": 3 }]
+    },
+    {
+      "Id": "arcane-spark", "Name": "Arcane Spark",
+      "Description": "The first lesson in channeling magic.",
+      "Requirements": [{ "Attribute": "Intelligence", "Minimum": 3 }]
+    },
+    {
+      "Id": "steady-mind", "Name": "Steady Mind",
+      "Description": "Mental discipline under pressure.",
+      "Requirements": [{ "Attribute": "Willpower", "Minimum": 3 }]
+    },
+    {
+      "Id": "fleet-foot", "Name": "Fleet Foot",
+      "Description": "Quick movement through danger.",
+      "Requirements": [{ "Attribute": "Speed", "Minimum": 3 }]
+    },
+    {
+      "Id": "silver-tongue", "Name": "Silver Tongue",
+      "Description": "Persuasion through careful words.",
+      "Requirements": [{ "Attribute": "Charisma", "Minimum": 3 }]
+    },
+    {
+      "Id": "fortunate-find", "Name": "Fortunate Find",
+      "Description": "An eye for unexpected opportunity.",
+      "Requirements": [{ "Attribute": "Luck", "Minimum": 3 }]
+    },
+    {
+      "Id": "vanguards-edge", "Name": "Vanguard's Edge",
+      "Description": "A fighting style built on force and precise footwork.",
+      "Requirements": [
+        { "Attribute": "Strength", "Minimum": 5 },
+        { "Attribute": "Agility", "Minimum": 4 }
+      ]
+    },
+    {
+      "Id": "battle-scholar", "Name": "Battle Scholar",
+      "Description": "Apply study and physical training together in a fight.",
+      "Requirements": [
+        { "Attribute": "Strength", "Minimum": 3 },
+        { "Attribute": "Intelligence", "Minimum": 3 }
+      ]
+    },
+    {
+      "Id": "fortune-favors", "Name": "Fortune Favors",
+      "Description": "Read the moment, win trust and seize an opening.",
+      "Requirements": [
+        { "Attribute": "Speed", "Minimum": 4 },
+        { "Attribute": "Charisma", "Minimum": 3 },
+        { "Attribute": "Luck", "Minimum": 3 }
+      ]
+    }
+  ]
+}

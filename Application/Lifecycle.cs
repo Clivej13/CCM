@@ -1,12 +1,12 @@
 namespace CCM.Application;
 
-public enum AppState { InitialLoading, Splash, Title, Loading, MainMenu, Game, Shutdown }
+public enum AppState { InitialLoading, Splash, Title, Loading, MainMenu, LevelUp, Game, Shutdown }
 
 public sealed class Lifecycle
 {
     public AppState State { get; private set; } = AppState.InitialLoading;
     public static AppState Destination(DebugSettings debug) =>
-        debug.Enabled && debug.StartupScene == "TestLevel" ? AppState.Game : AppState.MainMenu;
+        debug.Enabled && debug.StartupScene == "TestLevel" ? AppState.LevelUp : AppState.MainMenu;
     public event Action<AppState, AppState>? Changed;
     public void Transition(AppState next)
     {
@@ -16,8 +16,9 @@ public sealed class Lifecycle
             (AppState.InitialLoading, AppState.Splash) => true,
             (AppState.Splash, AppState.Title) => true,
             (AppState.Title, AppState.Loading) => true,
-            (AppState.Loading, AppState.MainMenu or AppState.Game) => true,
-            (AppState.MainMenu, AppState.Game) => true,
+            (AppState.Loading, AppState.MainMenu or AppState.LevelUp) => true,
+            (AppState.MainMenu, AppState.LevelUp) => true,
+            (AppState.LevelUp, AppState.Game or AppState.MainMenu) => true,
             (AppState.Game, AppState.MainMenu) => true,
             _ => false
         };

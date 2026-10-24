@@ -3,27 +3,67 @@ namespace CCM.Game;
 /// <summary>Shared innate attributes for players and enemies.</summary>
 public sealed class CharacterAttributes
 {
+    public const int MinimumValue=1;
+    public const int MaximumValue=10;
+    public static bool IsValid(int value) => value is >=MinimumValue and <=MaximumValue;
     public int Strength { get; init; } = 10;
     public int Endurance { get; init; } = 10;
     public int Agility { get; init; } = 10;
     public int Intelligence { get; init; } = 10;
     public int Willpower { get; init; } = 10;
+    public int Speed { get; init; } = 10;
+    public int Charisma { get; init; } = 10;
+    public int Luck { get; init; } = 10;
+    public float MovementMultiplier => 0.9f+Speed*0.01f;
+    public int Get(AttributeKind kind) => kind switch
+    {
+        AttributeKind.Strength => Strength,
+        AttributeKind.Endurance => Endurance,
+        AttributeKind.Agility => Agility,
+        AttributeKind.Intelligence => Intelligence,
+        AttributeKind.Willpower => Willpower,
+        AttributeKind.Speed => Speed,
+        AttributeKind.Charisma => Charisma,
+        AttributeKind.Luck => Luck,
+        _ => throw new ArgumentOutOfRangeException(nameof(kind))
+    };
+    public CharacterAttributes With(AttributeKind kind,int value) => new()
+    {
+        Strength=kind==AttributeKind.Strength ? value : Strength,
+        Endurance=kind==AttributeKind.Endurance ? value : Endurance,
+        Agility=kind==AttributeKind.Agility ? value : Agility,
+        Intelligence=kind==AttributeKind.Intelligence ? value : Intelligence,
+        Willpower=kind==AttributeKind.Willpower ? value : Willpower,
+        Speed=kind==AttributeKind.Speed ? value : Speed,
+        Charisma=kind==AttributeKind.Charisma ? value : Charisma,
+        Luck=kind==AttributeKind.Luck ? value : Luck
+    };
+    public CharacterAttributes Copy() => new()
+    {
+        Strength=Strength, Endurance=Endurance, Agility=Agility,
+        Intelligence=Intelligence, Willpower=Willpower,
+        Speed=Speed, Charisma=Charisma, Luck=Luck
+    };
     public void Validate()
     {
-        if (Strength is < 1 or > 100 || Endurance is < 1 or > 100 ||
-            Agility is < 1 or > 100 || Intelligence is < 1 or > 100 ||
-            Willpower is < 1 or > 100)
-            throw new InvalidDataException("Character attributes must be between 1 and 100.");
+        if (!IsValid(Strength) || !IsValid(Endurance) || !IsValid(Agility) ||
+            !IsValid(Intelligence) || !IsValid(Willpower) || !IsValid(Speed) ||
+            !IsValid(Charisma) || !IsValid(Luck))
+            throw new InvalidDataException($"Character attributes must be between {MinimumValue} and {MaximumValue}.");
     }
 }
 
 public sealed class PlayerDefinition
 {
     public CharacterAttributes Attributes { get; set; } = new();
+    public List<string> SkillIds { get; set; } = [];
     public void Validate()
     {
         if (Attributes is null) throw new InvalidDataException("Player attributes are required.");
         Attributes.Validate();
+        if (SkillIds is null || SkillIds.Any(string.IsNullOrWhiteSpace) ||
+            SkillIds.Distinct(StringComparer.Ordinal).Count()!=SkillIds.Count)
+            throw new InvalidDataException("Player skill IDs must be unique and non-empty.");
     }
 }
 

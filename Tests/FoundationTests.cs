@@ -13,7 +13,7 @@ public sealed class FoundationTests
     [InlineData(false, "Menu", AppState.MainMenu)]
     [InlineData(false, "TestLevel", AppState.MainMenu)]
     [InlineData(true, "Menu", AppState.MainMenu)]
-    [InlineData(true, "TestLevel", AppState.Game)]
+    [InlineData(true, "TestLevel", AppState.LevelUp)]
     public void EveryModeMustPassBothLoadsSplashAndTitle(bool enabled, string scene, AppState expected)
     {
         var state = new Lifecycle();
@@ -34,21 +34,40 @@ public sealed class FoundationTests
         var state = new Lifecycle();
         state.Transition(AppState.Splash); state.Transition(AppState.Title);
         state.Transition(AppState.Loading); state.Transition(AppState.MainMenu);
-        state.Transition(AppState.Game); state.Transition(AppState.MainMenu);
+        state.Transition(AppState.LevelUp); state.Transition(AppState.Game);
+        state.Transition(AppState.MainMenu);
         state.Transition(AppState.Shutdown);
         Assert.Throws<InvalidOperationException>(() => state.Transition(AppState.MainMenu));
     }
+    [Fact]
+    public void SetupCanBeCancelledButGameplayRequiresCompletion()
+    {
+        var state=new Lifecycle();
+        state.Transition(AppState.Splash);
+        state.Transition(AppState.Title);
+        state.Transition(AppState.Loading);
+        state.Transition(AppState.MainMenu);
+        Assert.Throws<InvalidOperationException>(()=>state.Transition(AppState.Game));
+        state.Transition(AppState.LevelUp);
+        state.Transition(AppState.MainMenu);
+        state.Transition(AppState.LevelUp);
+        state.Transition(AppState.Game);
+        Assert.Equal(AppState.Game,state.State);
+    }
+
     [Theory]
     [InlineData(AppState.InitialLoading)]
     [InlineData(AppState.Title)]
     [InlineData(AppState.Splash)]
     [InlineData(AppState.Loading)]
     [InlineData(AppState.MainMenu)]
+    [InlineData(AppState.LevelUp)]
     [InlineData(AppState.Game)]
     public void CanCloseFromEveryState(AppState target)
     {
         var state = new Lifecycle();
-        foreach (var next in new[] { AppState.Splash, AppState.Title, AppState.Loading, target })
+        foreach (var next in new[] { AppState.Splash, AppState.Title, AppState.Loading,
+                     target==AppState.Game ? AppState.LevelUp : target, target })
         {
             if (state.State == target) break;
             state.Transition(next);
@@ -59,7 +78,7 @@ public sealed class FoundationTests
     [Theory]
     [InlineData("regular.json", false, AppState.MainMenu)]
     [InlineData("regular-debug.json", true, AppState.MainMenu)]
-    [InlineData("test-level-debug.json", true, AppState.Game)]
+    [InlineData("test-level-debug.json", true, AppState.LevelUp)]
     public void BundledProfilesResolveCorrectly(string file, bool enabled, AppState destination)
     {
         var config = Settings.Required<DebugConfig>(Settings.ConfigPath(file));

@@ -39,6 +39,12 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
             itemCatalogue.Validate();
             var playerDefinition=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json"));
             playerDefinition.Validate();
+            var skillCatalogue=Settings.Required<SkillCatalogue>(Settings.ConfigPath("skills.json"));
+            skillCatalogue.Validate();
+            var attributeDescriptions=Settings.Required<AttributeDescriptionCatalogue>(
+                Settings.ConfigPath("attributes.json"));
+            attributeDescriptions.Validate();
+            var selectedPlayer=playerDefinition;
             var enemyCatalogue=Settings.Required<EnemyCatalogue>(Settings.ConfigPath("enemies.json"));
             enemyCatalogue.Validate(itemCatalogue);
             enemyCatalogue.Get(dungeon.EnemyId);
@@ -70,17 +76,23 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
             scenes[AppState.Loading] = new LoadingScene(assets, diagnostics, input,
                 () => Transition(Lifecycle.Destination(debug)), () => Transition(AppState.Shutdown),
                 initialKeys:["foundation-triangle"]);
+            var levelUp=new LevelUpScene(sessionInput,playerDefinition,skillCatalogue,
+                attributeDescriptions,
+                chosen => { selectedPlayer=chosen; Transition(AppState.Game); },
+                () => Transition(AppState.MainMenu));
+            scenes[AppState.LevelUp]=levelUp;
             scenes[AppState.MainMenu] = new MenuScene(input, bindings, display, store, diagnostics,
-                () => Transition(AppState.Game), () => Transition(AppState.Shutdown), gameplaySave, gameplay);
+                () => Transition(AppState.LevelUp), () => Transition(AppState.Shutdown), gameplaySave, gameplay);
             lifecycle.Changed += (previous, next) =>
             {
                 active?.Exit();
                 diagnostics.Event($"State {previous} -> {next}");
-                // Build the dungeon and its catalogue enemy only when gameplay is entered.
-                if (next==AppState.Game && !scenes.ContainsKey(AppState.Game))
+                // Rebuild the dungeon from the completed character build on every entry.
+                if (next==AppState.Game)
                     scenes[AppState.Game]=new GameScene(sessionInput,dungeon,debug.Enabled,
                         () => Transition(AppState.MainMenu),input,bindings,gameplay,
-                        itemCatalogue,starterChest.Contents,playerDefinition,enemyCatalogue);
+                        itemCatalogue,starterChest.Contents,selectedPlayer,enemyCatalogue,
+                        skillCatalogue);
                 active = scenes.GetValueOrDefault(next);
                 active?.Enter();
             };
@@ -109,14 +121,34 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
                 if (smoke)
                 {
                     if (++frames > 1200) throw new InvalidOperationException("Smoke run did not reach its destination.");
-                    if (lifecycle.State is AppState.MainMenu or AppState.Game)
+                    if (lifecycle.State is AppState.MainMenu or AppState.LevelUp or AppState.Game)
                     {
                         destinationFrames++;
                         if (destinationFrames == 1 && lifecycle.State != Lifecycle.Destination(debug))
                             throw new InvalidOperationException("Incorrect startup destination.");
-                        if (destinationFrames is 10 or 20)
-                            Transition(lifecycle.State == AppState.Game ? AppState.MainMenu : AppState.Game);
+                        if (destinationFrames == 10)
+                        {
+                            if (lifecycle.State==AppState.LevelUp) levelUp.CompleteForSmoke();
+                            else Transition(AppState.LevelUp);
+                        }
+                        if (destinationFrames == 20)
+                        {
+                            if (lifecycle.State==AppState.LevelUp) levelUp.CompleteForSmoke();
+                            else Transition(AppState.MainMenu);
+                        }
+                        if (destinationFrames == 25)
+                        {
+                            if (lifecycle.State==AppState.Game) Transition(AppState.MainMenu);
+                            else Transition(AppState.LevelUp);
+                        }
                         if (destinationFrames == 30)
+                        {
+                            if (lifecycle.State==AppState.LevelUp) levelUp.CompleteForSmoke();
+                            else Transition(AppState.LevelUp);
+                        }
+                        if (destinationFrames == 35 && lifecycle.State==AppState.LevelUp)
+                            levelUp.CompleteForSmoke();
+                        if (destinationFrames == 40)
                         {
                             if (assets.Manager?.LoadedCount != assets.Manager?.RequiredCount)
                                 throw new InvalidOperationException("Required assets are not resident.");

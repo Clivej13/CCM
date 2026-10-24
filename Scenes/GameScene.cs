@@ -25,7 +25,8 @@ public sealed class GameScene : Scene
         Action returnToMenu,InputController menuInput,InputConfig bindings,
         GameplaySettings? gameplay=null,ItemCatalogue? items=null,
         IEnumerable<ItemStack>? chestContents=null,
-        PlayerDefinition? playerDefinition=null,EnemyCatalogue? enemies=null)
+        PlayerDefinition? playerDefinition=null,EnemyCatalogue? enemies=null,
+        SkillCatalogue? skills=null)
     {
         this.input=input;
         this.settings=settings;
@@ -33,7 +34,7 @@ public sealed class GameScene : Scene
         items ??=new ItemCatalogue();
         simulation=new(settings,gameplay,items,chestContents,playerDefinition,enemies);
         targeting=new(simulation,settings);
-        inventoryPanel=new(items);
+        inventoryPanel=new(items,skills);
         pauseMenu=new(menuInput,bindings);
         renderer=new(simulation,items,debug);
         hud=new(input,simulation,targeting,debug);

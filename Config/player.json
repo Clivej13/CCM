@@ -1,9 +1,12 @@
 {
   "Attributes": {
-    "Strength": 10,
-    "Endurance": 10,
-    "Agility": 10,
-    "Intelligence": 10,
-    "Willpower": 10
+    "Strength": 4,
+    "Endurance": 4,
+    "Agility": 4,
+    "Intelligence": 4,
+    "Willpower": 4,
+    "Speed": 4,
+    "Charisma": 4,
+    "Luck": 4
   }
 }
