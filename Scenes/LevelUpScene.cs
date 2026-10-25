@@ -7,6 +7,7 @@ namespace CCM.Scenes;
 /// <summary>Collects a player build before the dungeon is created.</summary>
 public sealed class LevelUpScene : Scene
 {
+    private enum SetupTab { Attributes, Skills, Abilities }
     private static readonly AttributeKind[] AttributeKinds=Enum.GetValues<AttributeKind>();
     private const int VisibleRows=8;
     private const int RowTop=128;
@@ -14,167 +15,273 @@ public sealed class LevelUpScene : Scene
     private readonly SessionInput input;
     private readonly PlayerDefinition startingPlayer;
     private readonly SkillCatalogue skills;
+    private readonly AbilityCatalogue abilities;
     private readonly AttributeDescriptionCatalogue descriptions;
     private readonly Action<PlayerDefinition> completed;
     private readonly Action cancelled;
     private CharacterBuild build;
-    private bool skillTab;
-    private int attributeIndex,skillIndex,skillScroll;
+    private SetupTab tab;
+    private int attributeIndex,skillIndex,skillScroll,abilityIndex,abilityScroll;
 
     public LevelUpScene(SessionInput input,PlayerDefinition startingPlayer,SkillCatalogue skills,
-        AttributeDescriptionCatalogue descriptions,Action<PlayerDefinition> completed,Action cancelled)
+        AbilityCatalogue abilities,AttributeDescriptionCatalogue descriptions,
+        Action<PlayerDefinition> completed,Action cancelled)
     {
         this.input=input;
         this.startingPlayer=startingPlayer;
         this.skills=skills;
+        this.abilities=abilities;
         this.descriptions=descriptions;
         this.completed=completed;
         this.cancelled=cancelled;
-        build=new CharacterBuild(startingPlayer.Attributes,skills);
+        build=new CharacterBuild(startingPlayer.Attributes,skills,abilities);
     }
 
     public override void Enter()
     {
-        build=new CharacterBuild(startingPlayer.Attributes,skills);
-        skillTab=false;
-        attributeIndex=skillIndex=skillScroll=0;
+        build=new CharacterBuild(startingPlayer.Attributes,skills,abilities);
+        tab=SetupTab.Attributes;
+        attributeIndex=skillIndex=skillScroll=abilityIndex=abilityScroll=0;
     }
 
     public override void Update(float seconds)
     {
         if (!Raylib.IsWindowFocused()) return;
-        if (input.ReturnPressed() || input.PausePressed()) { cancelled(); return; }
+        if (!input.UsesMouse && input.ReturnPressed())
+        {
+            RemoveSelectedPoint();
+            return;
+        }
+        if (input.ReturnPressed() || input.PausePressed())
+        {
+            if (tab==SetupTab.Attributes) cancelled();
+            else tab=(SetupTab)((int)tab-1);
+            return;
+        }
         if (input.UsesMouse)
         {
             if (input.SelectPressed() && HandleClick(false)) return;
-            if (skillTab && input.AttackPressed() && HandleClick(true)) return;
+            if (tab!=SetupTab.Attributes && input.AttackPressed() && HandleClick(true)) return;
         }
-        if (input.UiPanePressed()) skillTab=!skillTab;
-        if (input.PanelLeftPressed()) skillTab=false;
-        if (input.PanelRightPressed()) skillTab=true;
-        if (skillTab && input.UsesMouse && input.Zoom!=0) ScrollSkills();
+        if (input.UiPanePressed()) CycleTab(1);
+        if (input.PanelLeftPressed()) CycleTab(-1);
+        if (input.PanelRightPressed()) CycleTab(1);
+        if (tab!=SetupTab.Attributes && input.UsesMouse && input.Zoom!=0)
+            ScrollList();
 
-        if (input.UiUpPressed())
+        if (input.UiUpPressed()) MoveSelection(-1);
+        if (input.UiDownPressed()) MoveSelection(1);
+        switch (tab)
         {
-            if (skillTab)
-            {
-                skillIndex=(skillIndex+skills.Skills.Count)%(skills.Skills.Count+1);
-                KeepSkillVisible();
-            }
-            else attributeIndex=(attributeIndex+AttributeKinds.Length)%(AttributeKinds.Length+1);
-        }
-        if (input.UiDownPressed())
-        {
-            if (skillTab)
-            {
-                skillIndex=(skillIndex+1)%(skills.Skills.Count+1);
-                KeepSkillVisible();
-            }
-            else attributeIndex=(attributeIndex+1)%(AttributeKinds.Length+1);
-        }
-
-        if (skillTab)
-        {
-            if (!input.UiConfirmPressed()) return;
-            if (skillIndex==skills.Skills.Count) TryComplete();
-            else build.ToggleSkill(OrderedSkills()[skillIndex].Id);
-        }
-        else if (attributeIndex==AttributeKinds.Length)
-        {
-            if (input.UiConfirmPressed()) skillTab=true;
-        }
-        else
-        {
-            var kind=AttributeKinds[attributeIndex];
-            int value=build.Attributes.Get(kind);
-            if (input.UiLeftPressed()) ChangeAttribute(kind,value-1);
-            if (input.UiRightPressed() || input.UiConfirmPressed())
-                ChangeAttribute(kind,value+1);
+            case SetupTab.Skills:
+                if (!input.UiConfirmPressed()) return;
+                if (skillIndex==skills.Skills.Count) tab=SetupTab.Abilities;
+                else ChangeSkill(OrderedSkills()[skillIndex].Id);
+                break;
+            case SetupTab.Abilities:
+                if (!input.UiConfirmPressed()) return;
+                if (abilityIndex==abilities.Abilities.Count) TryComplete();
+                else build.ToggleAbility(OrderedAbilities()[abilityIndex].Id);
+                break;
+            default:
+                if (attributeIndex==AttributeKinds.Length)
+                {
+                    if (input.UiConfirmPressed()) tab=SetupTab.Skills;
+                    return;
+                }
+                var kind=AttributeKinds[attributeIndex];
+                int value=build.Attributes.Get(kind);
+                if (input.UiLeftPressed()) ChangeAttribute(kind,value-1);
+                if (input.UiRightPressed() || input.UiConfirmPressed())
+                    ChangeAttribute(kind,value+1);
+                break;
         }
     }
 
-    private void ScrollSkills()
+    private void RemoveSelectedPoint()
+    {
+        switch (tab)
+        {
+            case SetupTab.Attributes when attributeIndex<AttributeKinds.Length:
+                var kind=AttributeKinds[attributeIndex];
+                ChangeAttribute(kind,build.Attributes.Get(kind)-1);
+                break;
+            case SetupTab.Skills when skillIndex<skills.Skills.Count:
+                var skill=OrderedSkills()[skillIndex];
+                if (build.SelectedSkills.Contains(skill.Id)) ChangeSkill(skill.Id);
+                break;
+            case SetupTab.Abilities when abilityIndex<abilities.Abilities.Count:
+                var ability=OrderedAbilities()[abilityIndex];
+                if (build.SelectedAbilities.Contains(ability.Id)) build.ToggleAbility(ability.Id);
+                break;
+        }
+    }
+
+    private void CycleTab(int direction) =>
+        tab=(SetupTab)(((int)tab+direction+3)%3);
+
+    private void MoveSelection(int direction)
+    {
+        switch (tab)
+        {
+            case SetupTab.Attributes:
+                attributeIndex=(attributeIndex+direction+AttributeKinds.Length+1)%
+                    (AttributeKinds.Length+1);
+                break;
+            case SetupTab.Skills:
+                skillIndex=(skillIndex+direction+skills.Skills.Count+1)%
+                    (skills.Skills.Count+1);
+                KeepSkillVisible();
+                break;
+            case SetupTab.Abilities:
+                abilityIndex=(abilityIndex+direction+abilities.Abilities.Count+1)%
+                    (abilities.Abilities.Count+1);
+                KeepAbilityVisible();
+                break;
+        }
+    }
+
+    private void ScrollList()
     {
         var pointer=Raylib.GetMousePosition();
         var (x,y,width)=Layout();
         if (pointer.X<x+16 || pointer.X>=x+width/2 ||
             pointer.Y<y+RowTop || pointer.Y>=y+RowTop+VisibleRows*RowStep) return;
-        skillScroll=Math.Clamp(skillScroll-Math.Sign(input.Zoom),
-            0,Math.Max(0,skills.Skills.Count-VisibleRows));
-        skillIndex=Math.Clamp(skillIndex,skillScroll,
-            Math.Min(skillScroll+VisibleRows-1,skills.Skills.Count-1));
+        if (tab==SetupTab.Skills)
+        {
+            skillScroll=Math.Clamp(skillScroll-Math.Sign(input.Zoom),
+                0,Math.Max(0,skills.Skills.Count-VisibleRows));
+            skillIndex=Math.Clamp(skillIndex,skillScroll,
+                Math.Min(skillScroll+VisibleRows-1,skills.Skills.Count-1));
+        }
+        else
+        {
+            abilityScroll=Math.Clamp(abilityScroll-Math.Sign(input.Zoom),
+                0,Math.Max(0,abilities.Abilities.Count-VisibleRows));
+            abilityIndex=Math.Clamp(abilityIndex,abilityScroll,
+                Math.Min(abilityScroll+VisibleRows-1,abilities.Abilities.Count-1));
+        }
     }
 
-    private bool HandleClick(bool activateSkill)
+    private bool HandleClick(bool activate)
     {
         var pointer=Raylib.GetMousePosition();
         var (x,y,width)=Layout();
         int middle=x+width/2;
-        if (!activateSkill && pointer.Y>=y+64 && pointer.Y<y+98)
+        if (!activate && pointer.Y>=y+64 && pointer.Y<y+98)
         {
-            if (pointer.X>=x+20 && pointer.X<x+180) { skillTab=false; return true; }
-            if (pointer.X>=x+188 && pointer.X<x+348) { skillTab=true; return true; }
+            for (int i=0;i<3;i++)
+                if (pointer.X>=x+20+i*168 && pointer.X<x+180+i*168)
+                {
+                    tab=(SetupTab)i;
+                    return true;
+                }
         }
-        if (pointer.X>=x+16 && pointer.X<middle-8)
+        if (pointer.X<x+16 || pointer.X>=middle-8) return false;
+        if (tab==SetupTab.Attributes && !activate)
         {
-            if (!skillTab && !activateSkill)
+            for (int i=0;i<AttributeKinds.Length;i++)
             {
-                for (int i=0;i<AttributeKinds.Length;i++)
-                {
-                    int row=y+RowTop+i*RowStep;
-                    if (pointer.Y<row || pointer.Y>=row+30) continue;
-                    attributeIndex=i;
-                    int value=build.Attributes.Get(AttributeKinds[i]);
-                    if (pointer.X>=middle-94 && pointer.X<middle-68)
-                        ChangeAttribute(AttributeKinds[i],value-1);
-                    else if (pointer.X>=middle-45 && pointer.X<middle-19)
-                        ChangeAttribute(AttributeKinds[i],value+1);
-                    return true;
-                }
-            }
-            else if (skillTab)
-            {
-                var ordered=OrderedSkills();
-                for (int i=skillScroll;i<Math.Min(ordered.Count,skillScroll+VisibleRows);i++)
-                {
-                    int row=y+RowTop+(i-skillScroll)*RowStep;
-                    if (pointer.Y<row || pointer.Y>=row+30) continue;
-                    skillIndex=i;
-                    if (activateSkill) build.ToggleSkill(ordered[i].Id);
-                    return true;
-                }
-            }
-            if (!activateSkill && pointer.Y>=y+408 && pointer.Y<y+446)
-            {
-                if (skillTab)
-                {
-                    skillIndex=skills.Skills.Count;
-                    TryComplete();
-                }
-                else
-                {
-                    attributeIndex=AttributeKinds.Length;
-                    skillTab=true;
-                }
+                int row=y+RowTop+i*RowStep;
+                if (pointer.Y<row || pointer.Y>=row+30) continue;
+                attributeIndex=i;
+                int value=build.Attributes.Get(AttributeKinds[i]);
+                if (pointer.X>=middle-94 && pointer.X<middle-68)
+                    ChangeAttribute(AttributeKinds[i],value-1);
+                else if (pointer.X>=middle-45 && pointer.X<middle-19)
+                    ChangeAttribute(AttributeKinds[i],value+1);
                 return true;
             }
+        }
+        else if (tab==SetupTab.Skills)
+        {
+            var ordered=OrderedSkills();
+            for (int i=skillScroll;i<Math.Min(ordered.Count,skillScroll+VisibleRows);i++)
+            {
+                int row=y+RowTop+(i-skillScroll)*RowStep;
+                if (pointer.Y<row || pointer.Y>=row+30) continue;
+                skillIndex=i;
+                if (activate) ChangeSkill(ordered[i].Id);
+                return true;
+            }
+        }
+        else if (tab==SetupTab.Abilities)
+        {
+            var ordered=OrderedAbilities();
+            for (int i=abilityScroll;i<Math.Min(ordered.Count,abilityScroll+VisibleRows);i++)
+            {
+                int row=y+RowTop+(i-abilityScroll)*RowStep;
+                if (pointer.Y<row || pointer.Y>=row+30) continue;
+                abilityIndex=i;
+                if (activate) build.ToggleAbility(ordered[i].Id);
+                return true;
+            }
+        }
+        if (!activate && pointer.Y>=y+408 && pointer.Y<y+446)
+        {
+            switch (tab)
+            {
+                case SetupTab.Attributes:
+                    attributeIndex=AttributeKinds.Length;
+                    tab=SetupTab.Skills;
+                    break;
+                case SetupTab.Skills:
+                    skillIndex=skills.Skills.Count;
+                    tab=SetupTab.Abilities;
+                    break;
+                case SetupTab.Abilities:
+                    abilityIndex=abilities.Abilities.Count;
+                    TryComplete();
+                    break;
+            }
+            return true;
         }
         return false;
     }
 
     private IReadOnlyList<SkillDefinition> OrderedSkills() => skills.OrderedFor(build.Attributes);
+    private IReadOnlyList<AbilityDefinition> OrderedAbilities() =>
+        abilities.OrderedFor(build.Attributes,build.SelectedSkills);
+
+    private void ChangeSkill(string id)
+    {
+        string? selectedAbility=abilityIndex<abilities.Abilities.Count
+            ? OrderedAbilities()[abilityIndex].Id : null;
+        if (!build.ToggleSkill(id)) return;
+        if (selectedAbility is not null) FocusAbility(selectedAbility);
+        KeepAbilityVisible();
+    }
 
     private void ChangeAttribute(AttributeKind kind,int value)
     {
-        string? selectedId=skillIndex<skills.Skills.Count ? OrderedSkills()[skillIndex].Id : null;
+        string? selectedSkill=skillIndex<skills.Skills.Count ? OrderedSkills()[skillIndex].Id : null;
+        string? selectedAbility=abilityIndex<abilities.Abilities.Count
+            ? OrderedAbilities()[abilityIndex].Id : null;
         if (!build.SetAttribute(kind,value)) return;
-        if (selectedId is not null)
+        if (selectedSkill is not null)
         {
             var ordered=OrderedSkills();
             for (int i=0;i<ordered.Count;i++)
-                if (ordered[i].Id==selectedId) { skillIndex=i; break; }
+                if (ordered[i].Id==selectedSkill) { skillIndex=i; break; }
         }
+        if (selectedAbility is not null) FocusAbility(selectedAbility);
         KeepSkillVisible();
+        KeepAbilityVisible();
+    }
+
+    private void FocusAbility(string id)
+    {
+        var ordered=OrderedAbilities();
+        for (int i=0;i<ordered.Count;i++)
+            if (ordered[i].Id==id) { abilityIndex=i; break; }
+    }
+
+    private void KeepAbilityVisible()
+    {
+        if (abilityIndex>=abilities.Abilities.Count) return;
+        if (abilityIndex<abilityScroll) abilityScroll=abilityIndex;
+        else if (abilityIndex>=abilityScroll+VisibleRows)
+            abilityScroll=abilityIndex-VisibleRows+1;
     }
 
     private void KeepSkillVisible()
@@ -200,6 +307,12 @@ public sealed class LevelUpScene : Scene
                     Math.Max(build.Attributes.Get(requirement.Kind),requirement.Minimum));
             build.ToggleSkill(skill.Id);
         }
+        foreach (var ability in OrderedAbilities())
+        {
+            if (build.RemainingAbilityPoints==0) break;
+            if (ability.MeetsRequirements(build.Attributes,build.SelectedSkills))
+                build.ToggleAbility(ability.Id);
+        }
         TryComplete();
     }
 
@@ -211,11 +324,16 @@ public sealed class LevelUpScene : Scene
         Raylib.DrawRectangle(x,y,width,456,new Color(30,34,42,255));
         Raylib.DrawRectangleLines(x,y,width,456,Color.Gold);
         Raylib.DrawText("LEVEL UP",x+20,y+16,30,Color.Gold);
-        DrawTab("ATTRIBUTES",x+20,y+64,!skillTab);
-        DrawTab("SKILLS",x+188,y+64,skillTab);
+        DrawTab("ATTRIBUTES",x+20,y+64,tab==SetupTab.Attributes);
+        DrawTab("SKILLS",x+188,y+64,tab==SetupTab.Skills);
+        DrawTab("ABILITIES",x+356,y+64,tab==SetupTab.Abilities);
         Raylib.DrawRectangle(middle,y+112,1,334,Color.DarkGray);
-        if (skillTab) RenderSkills(x,y,width);
-        else RenderAttributes(x,y,width);
+        switch (tab)
+        {
+            case SetupTab.Attributes: RenderAttributes(x,y,width); break;
+            case SetupTab.Skills: RenderSkills(x,y,width); break;
+            case SetupTab.Abilities: RenderAbilities(x,y,width); break;
+        }
     }
 
     private static void DrawTab(string label,int x,int y,bool selected)
@@ -284,9 +402,8 @@ public sealed class LevelUpScene : Scene
             Raylib.DrawRectangle(middle-15,y+RowTop,4,trackHeight,Color.DarkGray);
             Raylib.DrawRectangle(middle-15,thumbY,4,thumbHeight,Color.Gold);
         }
-        DrawAction(x+16,y+408,middle-x-24,
-            build.CanComplete ? "ENTER DUNGEON" : $"CHOOSE {skills.SkillPoints} SKILLS",
-            skillIndex==skills.Skills.Count,build.CanComplete);
+        DrawAction(x+16,y+408,middle-x-24,"VIEW ABILITIES",
+            skillIndex==skills.Skills.Count,true);
         var skillDetail=ordered[Math.Min(skillIndex,ordered.Count-1)];
         DrawDetailsPanel(middle+8,y+124,width/2-24,322);
         int textX=middle+20,contentWidth=width/2-48;
@@ -306,6 +423,69 @@ public sealed class LevelUpScene : Scene
             Raylib.DrawText(Fit(line,contentWidth,16),textX,y+317+i*22,16,
                 current>=requirement.Minimum ? Color.RayWhite : Color.Gray);
         }
+        Raylib.DrawText("Effect not implemented yet",textX,y+416,14,Color.Gray);
+    }
+
+    private void RenderAbilities(int x,int y,int width)
+    {
+        int middle=x+width/2;
+        Raylib.DrawText($"ABILITIES - {build.RemainingAbilityPoints} points left",
+            x+20,y+107,18,Color.RayWhite);
+        var ordered=OrderedAbilities();
+        for (int i=abilityScroll;i<Math.Min(ordered.Count,abilityScroll+VisibleRows);i++)
+        {
+            var ability=ordered[i];
+            int row=y+RowTop+(i-abilityScroll)*RowStep;
+            bool available=ability.MeetsRequirements(build.Attributes,build.SelectedSkills);
+            bool chosen=build.SelectedAbilities.Contains(ability.Id);
+            Raylib.DrawRectangle(x+16,row,middle-x-24,30,
+                chosen ? new Color(70,81,44,255)
+                    : abilityIndex==i ? new Color(88,74,39,255) : new Color(45,50,59,255));
+            if (abilityIndex==i)
+                Raylib.DrawRectangleLines(x+16,row,middle-x-24,30,Color.Gold);
+            Raylib.DrawText(Fit($"{(chosen ? "[x]" : "[ ]")} {ability.Name}",
+                middle-x-42,16),x+24,row+7,16,available ? Color.RayWhite : Color.Gray);
+        }
+        if (ordered.Count>VisibleRows)
+        {
+            int trackHeight=VisibleRows*RowStep-4;
+            int thumbHeight=Math.Max(24,trackHeight*VisibleRows/ordered.Count);
+            int thumbY=y+RowTop+(trackHeight-thumbHeight)*abilityScroll/
+                (ordered.Count-VisibleRows);
+            Raylib.DrawRectangle(middle-15,y+RowTop,4,trackHeight,Color.DarkGray);
+            Raylib.DrawRectangle(middle-15,thumbY,4,thumbHeight,Color.Gold);
+        }
+        DrawAction(x+16,y+408,middle-x-24,
+            build.CanComplete ? "ENTER DUNGEON" : "SPEND ALL POINTS",
+            abilityIndex==abilities.Abilities.Count,build.CanComplete);
+        var detail=ordered[Math.Min(abilityIndex,ordered.Count-1)];
+        DrawDetailsPanel(middle+8,y+124,width/2-24,322);
+        int textX=middle+20,contentWidth=width/2-48;
+        Raylib.DrawText(Fit(detail.Name,contentWidth,24),textX,y+140,24,Color.Gold);
+        bool eligible=detail.MeetsRequirements(build.Attributes,build.SelectedSkills);
+        string status=build.SelectedAbilities.Contains(detail.Id) ? "Selected"
+            : eligible ? "Available" : "Locked";
+        Raylib.DrawText(Fit($"{detail.Path} | {status}",contentWidth,17),
+            textX,y+178,17,eligible ? Color.Gold : Color.Gray);
+        DrawWrapped(detail.Description,textX,y+211,contentWidth,16,3);
+        Raylib.DrawText("REQUIREMENTS",textX,y+288,18,Color.Gold);
+        int line=0;
+        foreach (var requirement in detail.Attributes)
+        {
+            int current=build.Attributes.Get(requirement.Kind);
+            Raylib.DrawText(Fit($"{requirement.Attribute}: {current} / {requirement.Minimum}",
+                contentWidth,16),textX,y+317+line++*22,16,
+                current>=requirement.Minimum ? Color.RayWhite : Color.Gray);
+        }
+        foreach (var id in detail.RequiredSkills)
+        {
+            bool learned=build.SelectedSkills.Contains(id);
+            Raylib.DrawText(Fit($"Skill: {skills.Get(id).Name}",contentWidth,16),
+                textX,y+317+line++*22,16,learned ? Color.RayWhite : Color.Gray);
+        }
+        if (detail.RequiredEquipmentSlot is { } slot)
+            Raylib.DrawText(Fit($"Use with: {slot}",contentWidth,16),
+                textX,y+317+line*22,16,Color.RayWhite);
         Raylib.DrawText("Effect not implemented yet",textX,y+416,14,Color.Gray);
     }
 

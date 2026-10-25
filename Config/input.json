@@ -272,6 +272,11 @@
     },
     {
       "Device": "Keyboard",
+      "Input": "K",
+      "Action": "Abilities"
+    },
+    {
+      "Device": "Keyboard",
       "Input": "I",
       "Action": "Inventory"
     },

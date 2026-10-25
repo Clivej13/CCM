@@ -1,0 +1,49 @@
+{
+  "StartingAbilityPoints": 2,
+  "Abilities": [
+    {
+      "Id": "second-wind",
+      "Name": "Second Wind",
+      "Description": "Steady yourself and recover your footing. Gameplay effect is not implemented yet.",
+      "Path": "General",
+      "Attributes": [{ "Attribute": "Endurance", "Minimum": 4 }],
+      "RequiredSkills": []
+    },
+    {
+      "Id": "clear-mind",
+      "Name": "Clear Mind",
+      "Description": "Regain focus under pressure. Gameplay effect is not implemented yet.",
+      "Path": "General",
+      "Attributes": [{ "Attribute": "Willpower", "Minimum": 4 }],
+      "RequiredSkills": []
+    },
+    {
+      "Id": "guard-break",
+      "Name": "Guard Break",
+      "Description": "A trained weapon strike that disrupts an opponent's guard. Combat effect is not implemented yet.",
+      "Path": "Vanguard",
+      "Attributes": [{ "Attribute": "Strength", "Minimum": 5 }],
+      "RequiredSkills": ["power-strike"],
+      "RequiredEquipmentSlot": "Weapon"
+    },
+    {
+      "Id": "arcane-pulse",
+      "Name": "Arcane Pulse",
+      "Description": "Release a short pulse of magical force. Combat effect is not implemented yet.",
+      "Path": "Arcanist",
+      "Attributes": [{ "Attribute": "Intelligence", "Minimum": 4 }],
+      "RequiredSkills": ["arcane-spark"]
+    },
+    {
+      "Id": "swift-step",
+      "Name": "Swift Step",
+      "Description": "Make a sudden evasive movement. Combat effect is not implemented yet.",
+      "Path": "Skirmisher",
+      "Attributes": [
+        { "Attribute": "Agility", "Minimum": 4 },
+        { "Attribute": "Speed", "Minimum": 4 }
+      ],
+      "RequiredSkills": ["quickstep"]
+    }
+  ]
+}

@@ -57,6 +57,7 @@ public sealed class PlayerDefinition
 {
     public CharacterAttributes Attributes { get; set; } = new();
     public List<string> SkillIds { get; set; } = [];
+    public List<string> AbilityIds { get; set; } = [];
     public void Validate()
     {
         if (Attributes is null) throw new InvalidDataException("Player attributes are required.");
@@ -64,6 +65,9 @@ public sealed class PlayerDefinition
         if (SkillIds is null || SkillIds.Any(string.IsNullOrWhiteSpace) ||
             SkillIds.Distinct(StringComparer.Ordinal).Count()!=SkillIds.Count)
             throw new InvalidDataException("Player skill IDs must be unique and non-empty.");
+        if (AbilityIds is null || AbilityIds.Any(string.IsNullOrWhiteSpace) ||
+            AbilityIds.Distinct(StringComparer.Ordinal).Count()!=AbilityIds.Count)
+            throw new InvalidDataException("Player ability IDs must be unique and non-empty.");
     }
 }
 

@@ -29,6 +29,24 @@
       "Id": "oak-staff", "Name": "Oak staff", "Type": "Weapon", "Slot": "Weapon",
       "Visual": "Staff", "Description": "A sturdy staff for close-range strikes.",
       "Weight": 2.0, "AttackPower": 5, "AttackRange": 2.2, "AttackSpeed": 0.80, "Protection": 0, "Value": 18, "Stackable": false
+    },
+    {
+      "Id": "tome-guard-break", "Name": "Tome of Guard Break", "Type": "Tome", "Slot": "None",
+      "Visual": "Tome", "AbilityId": "guard-break",
+      "Description": "Teaches Guard Break once its training and Strength requirements are met.",
+      "Weight": 0.4, "Value": 60, "Stackable": false
+    },
+    {
+      "Id": "tome-arcane-pulse", "Name": "Tome of Arcane Pulse", "Type": "Tome", "Slot": "None",
+      "Visual": "Tome", "AbilityId": "arcane-pulse",
+      "Description": "Teaches Arcane Pulse once its training and Intelligence requirements are met.",
+      "Weight": 0.4, "Value": 60, "Stackable": false
+    },
+    {
+      "Id": "tome-swift-step", "Name": "Tome of Swift Step", "Type": "Tome", "Slot": "None",
+      "Visual": "Tome", "AbilityId": "swift-step",
+      "Description": "Teaches Swift Step once its training and attribute requirements are met.",
+      "Weight": 0.4, "Value": 60, "Stackable": false
     }
   ]
 }

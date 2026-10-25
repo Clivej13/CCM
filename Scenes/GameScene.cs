@@ -26,7 +26,7 @@ public sealed class GameScene : Scene
         GameplaySettings? gameplay=null,ItemCatalogue? items=null,
         IEnumerable<ItemStack>? chestContents=null,
         PlayerDefinition? playerDefinition=null,EnemyCatalogue? enemies=null,
-        SkillCatalogue? skills=null)
+        SkillCatalogue? skills=null,AbilityCatalogue? abilities=null)
     {
         this.input=input;
         this.settings=settings;
@@ -34,7 +34,7 @@ public sealed class GameScene : Scene
         items ??=new ItemCatalogue();
         simulation=new(settings,gameplay,items,chestContents,playerDefinition,enemies);
         targeting=new(simulation,settings);
-        inventoryPanel=new(items,skills);
+        inventoryPanel=new(items,skills,abilities);
         pauseMenu=new(menuInput,bindings);
         renderer=new(simulation,items,debug);
         hud=new(input,simulation,targeting,debug);
@@ -99,20 +99,22 @@ public sealed class GameScene : Scene
             if (!inventoryPanel.IsChest)
             {
                 if (inventoryPanel.SelectTabClicked(input)) return;
-                if (input.CharacterPressed() || input.PanelRightPressed())
-                    inventoryPanel.OpenCharacter();
-                else if (input.InventoryPressed() || input.PanelLeftPressed())
-                    inventoryPanel.OpenInventory();
+                if (input.AbilityPressed()) inventoryPanel.OpenAbilities();
+                else if (input.CharacterPressed()) inventoryPanel.OpenCharacter();
+                else if (input.InventoryPressed()) inventoryPanel.OpenInventory();
+                else if (input.PanelRightPressed()) inventoryPanel.CycleTab(1);
+                else if (input.PanelLeftPressed()) inventoryPanel.CycleTab(-1);
             }
             inventoryPanel.Update(input,simulation.Player);
             return;
         }
         if (activeControls.BeforeFrame()) ignoreLook=true;
         if (!Raylib.IsWindowFocused()) { activeControls.CancelPendingAction(); return; }
-        if (input.InventoryPressed() || input.CharacterPressed())
+        if (input.InventoryPressed() || input.CharacterPressed() || input.AbilityPressed())
         {
             activeControls.Exit();
-            if (input.CharacterPressed()) inventoryPanel.OpenCharacter();
+            if (input.AbilityPressed()) inventoryPanel.OpenAbilities();
+            else if (input.CharacterPressed()) inventoryPanel.OpenCharacter();
             else inventoryPanel.OpenInventory();
             ignoreLook=true;
             return;
