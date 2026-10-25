@@ -1,9 +1,9 @@
 namespace CCM.Game;
 
 public enum EquipmentSlot { None, Weapon, Body, Quiver }
-public enum ItemVisual { Sword, Bow, Staff, Armour, Quiver, Arrow }
-public enum ItemType { Weapon, Apparel, Ammunition }
-public enum ItemFilter { All, Weapons, Apparel }
+public enum ItemVisual { Sword, Bow, Staff, Armour, Quiver, Arrow, Tome }
+public enum ItemType { Weapon, Apparel, Ammunition, Tome }
+public enum ItemFilter { All, Weapons, Apparel, Tomes }
 
 public sealed class ItemDefinition
 {
@@ -20,6 +20,7 @@ public sealed class ItemDefinition
     public int Protection { get; set; }
     public int Value { get; set; }
     public bool Stackable { get; set; }
+    public string? AbilityId { get; set; }
     public EquipmentSlot EquipmentSlot =>
         Enum.TryParse<EquipmentSlot>(Slot,true,out var slot) ? slot : EquipmentSlot.None;
     public ItemVisual VisualKind => Enum.Parse<ItemVisual>(Visual,true);
@@ -29,7 +30,8 @@ public sealed class ItemDefinition
 public sealed class ItemCatalogue
 {
     public List<ItemDefinition> Items { get; set; } = [];
-    public void Validate()
+    public void Validate() => Validate(null);
+    public void Validate(AbilityCatalogue? abilities)
     {
         if (Items is null || Items.Count==0) throw new InvalidDataException("Item catalogue is empty.");
         var ids=new HashSet<string>(StringComparer.Ordinal);
@@ -53,12 +55,22 @@ public sealed class ItemCatalogue
                 throw new InvalidDataException($"Equippable item {item.Id} cannot be stackable.");
             if (type==ItemType.Weapon && slot!=EquipmentSlot.Weapon ||
                 type==ItemType.Apparel && slot is not (EquipmentSlot.Body or EquipmentSlot.Quiver) ||
-                type==ItemType.Ammunition && slot!=EquipmentSlot.None)
+                (type is ItemType.Ammunition or ItemType.Tome) && slot!=EquipmentSlot.None)
                 throw new InvalidDataException($"Item {item.Id} has an incompatible type and slot.");
             if (type==ItemType.Weapon && (item.AttackRange is < 0.5f or > 5f ||
                     item.AttackSpeed is < 0.2f or > 4f) ||
                 type!=ItemType.Weapon && (item.AttackRange!=0 || item.AttackSpeed!=0))
                 throw new InvalidDataException($"Item {item.Id} has invalid weapon range or speed.");
+            if (type==ItemType.Tome)
+            {
+                if (visual!=ItemVisual.Tome || item.Stackable ||
+                    string.IsNullOrWhiteSpace(item.AbilityId) ||
+                    item.AttackPower!=0 || item.Protection!=0)
+                    throw new InvalidDataException($"Invalid ability tome: {item.Id}");
+                abilities?.Get(item.AbilityId);
+            }
+            else if (item.AbilityId is not null)
+                throw new InvalidDataException($"Only a tome can reference an ability: {item.Id}");
         }
     }
     public ItemDefinition Get(string id) =>
@@ -124,6 +136,7 @@ public sealed class Inventory
         ItemFilter.All => stacks,
         ItemFilter.Weapons => stacks.Where(stack=>catalogue.Get(stack.ItemId).ItemType==ItemType.Weapon).ToArray(),
         ItemFilter.Apparel => stacks.Where(stack=>catalogue.Get(stack.ItemId).ItemType==ItemType.Apparel).ToArray(),
+        ItemFilter.Tomes => stacks.Where(stack=>catalogue.Get(stack.ItemId).ItemType==ItemType.Tome).ToArray(),
         _ => throw new ArgumentOutOfRangeException(nameof(filter))
     };
     public void Add(string id,int quantity)

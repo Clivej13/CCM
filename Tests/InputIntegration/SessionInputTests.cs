@@ -386,15 +386,17 @@ public sealed class SessionInputTests
     {
         Raylib.Reset();
         var keyboard=new SessionInput(Bindings(),Select(InputDeviceFamily.KeyboardMouse),new());
-        Raylib.Keys.UnionWith([KeyboardKey.C,KeyboardKey.D,KeyboardKey.Q]);
+        Raylib.Keys.UnionWith([KeyboardKey.C,KeyboardKey.K,KeyboardKey.D,KeyboardKey.Q]);
         keyboard.Update();
         Assert.True(keyboard.CharacterPressed());
+        Assert.True(keyboard.AbilityPressed());
         Assert.True(keyboard.UiRightPressed());
         Assert.False(keyboard.UiLeftPressed());
         Assert.True(keyboard.PanelLeftPressed());
         Assert.False(keyboard.PanelRightPressed());
         keyboard.Update();
         Assert.False(keyboard.CharacterPressed());
+        Assert.False(keyboard.AbilityPressed());
         Assert.False(keyboard.UiRightPressed());
         Assert.False(keyboard.PanelLeftPressed());
         Raylib.Keys.Clear();
@@ -409,10 +411,11 @@ public sealed class SessionInputTests
         Raylib.Reset();
         var pad=new SessionInput(Bindings(),Select(InputDeviceFamily.Gamepad,2),new());
         Raylib.Connected.Add(2);
-        Raylib.Keys.UnionWith([KeyboardKey.C,KeyboardKey.A,KeyboardKey.D,
+        Raylib.Keys.UnionWith([KeyboardKey.C,KeyboardKey.K,KeyboardKey.A,KeyboardKey.D,
             KeyboardKey.Q,KeyboardKey.E]);
         pad.Update();
         Assert.False(pad.CharacterPressed());
+        Assert.False(pad.AbilityPressed());
         Assert.False(pad.PanelLeftPressed());
         Assert.False(pad.PanelRightPressed());
         Assert.False(pad.UiLeftPressed());

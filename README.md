@@ -124,7 +124,7 @@ separately loaded asset instance.
 Open the chest through the normal interaction controls to display its contents.
 Up/Down, controller D-pad or left stick selects a stack; Enter/A or a mouse click transfers
 it to the player's bag. Press I or controller Y to open the inventory. The bag is
-on the left, with All, Weapons and Apparel filters changed by A/D, Left/Right,
+on the left, with All, Weapons, Apparel and Tomes filters changed by A/D, Left/Right,
 controller left stick or a mouse click. Equipped Weapon, Body and Quiver slots are on the right, including
 empty slots. Tab or controller X switches between bag and equipment; Up/Down
 selects a row, and Enter/A equips or unequips. On mouse and keyboard, left click
@@ -132,24 +132,40 @@ selects a bag item, right click equips it, and the wheel or scrollbar scrolls th
 bag. The selected item's catalogue details appear in the bottom-left detail panel;
 character attributes, selected skills and combat values are on the Character menu. Equipped items
 leave the bag, and replaced or unequipped items return to it. Arrows remain a bag stack.
-On keyboard and mouse, I opens Inventory and C opens Character. Q/E switches
-between their title tabs, which can also be clicked; A/D changes Inventory
-filters. Character displays innate attributes, current health, derived combat
-values and equipped gear. The top-right X closes any of the
-Inventory, Character or chest panels. Movement does not close a panel, and I
-does not close Inventory. On controller, LT switches to Inventory and RT switches
-to Character while either screen is open. Y or B closes Inventory, Character or
-the chest; the X close button is hidden. Escape/Start opens the pause menu. Open panels
+On keyboard and mouse, I opens Inventory, C opens Character and K opens
+Abilities. Q/E cycles their title tabs, which can also be clicked; A/D changes
+Inventory filters. Character displays innate attributes, current health,
+derived combat values and equipped gear. Abilities lists catalogue abilities
+with their path, learning requirements and learned status. The top-right X
+closes any panel. Movement does not close a panel, and I does not close
+Inventory. On controller, LT/RT cycles backward/forward across the three tabs.
+Y or B closes the panel or chest; the X close button is hidden. Escape/Start opens the pause menu. Open panels
 suspend dungeon updates; the chest and player inventory reset when entering a
 new game. Equipping changes the player's block appearance and live
 combat values. Value is display-only. The bow currently uses a short melee range;
 projectiles and arrow consumption are not implemented. Arrows cannot be equipped.
 
+Config/abilities.json defines two starting ability points, ability IDs, paths,
+attribute and skill prerequisites,
+and optional equipment requirements. Paths describe a direction of training;
+they do not lock the character to a class. Two general abilities are available
+at the starting attributes; advanced paths require their matching skills.
+Three single-use tomes are in the
+starter chest and reference catalogue abilities through Config/items.json. Move
+a tome to the bag, then press Enter/controller A or right click it to learn its
+ability once the requirements are met. An unavailable or already learned tome
+is retained. Learning does not require the eventual equipment; a learned ability
+remains known if equipment changes, but its use requirements may no longer be
+met. Starting ability picks and tome-learned abilities share the same collection.
+The Abilities tab lists learned and unlearned entries for inspection.
+Ability effects and activation are future work; learning currently changes only
+the character's learned-ability collection.
+
 ## Character setup and skills
 
 Config/player.json supplies the starting attributes, currently 4 in each of Strength,
 Endurance, Agility, Intelligence, Willpower, Speed, Charisma and Luck. Level Up has
-separate Attributes and Skills tabs. Each tab puts the selection list on the left
+Attributes, Skills and Abilities tabs. Each tab puts the selection list on the left
 and details on the right. Config/attributes.json owns the attribute descriptions;
 see docs/character-system-copy.md for the TODO to review them whenever the
 underlying systems change. Attribute values have no point budget and can be set
@@ -158,17 +174,25 @@ up to three attribute prerequisites and two skill points. A skill cannot be sele
 until every requirement is met. The catalogue includes two- and three-attribute
 examples. Available skills appear above locked skills, with catalogue order retained within
 each group. Lowering an attribute below a selected skill's requirement refunds its point.
-Both points must be spent before Enter Dungeon is available. Skills are recorded on
-the player and shown on the Character panel; they have no gameplay effects yet.
+Both skill points and both starting ability points must be spent before Enter
+Dungeon is available. Skills are recorded on the player and shown on the
+Character panel; they have no gameplay effects yet. Selected abilities are
+shown as learned in the dungeon's Abilities tab. Lowering an attribute or
+removing a prerequisite skill during setup refunds any invalid ability pick.
 
 Use Up/Down to select a list entry. On Attributes, Left/Right or A/D changes
 the selected value; Enter/controller A increases it. The last list entry opens
-Skills. On Skills, Enter/controller A toggles a skill or activates Enter Dungeon.
-Tab/controller X swaps tabs; Q/E or controller LT/RT selects a tab directly.
+Skills. On Skills, Enter/controller A toggles a skill or opens Abilities. On
+Abilities, Enter/controller A toggles a starting ability or enters the dungeon
+when all points are spent. Tab/controller X cycles tabs; Q/E or controller
+LT/RT moves backward/forward through them.
 The tabs, plus/minus buttons and bottom action button are clickable. On the
-Skills tab, left click inspects a skill and right click selects or deselects it.
-The mouse wheel scrolls the skill list if it grows beyond eight entries.
-Escape/controller B returns to the main menu without creating a player.
+Skills and Abilities tabs, left click inspects an entry and right click selects
+or deselects it. The mouse wheel scrolls either list beyond eight entries.
+Controller B removes the highlighted skill or ability pick, or lowers the highlighted
+attribute; it does nothing on an unselected row. Escape/Start returns to the
+previous setup tab. From Attributes, Escape/Start returns to the main menu
+without creating a player.
 
 ## Dungeon test level
 
@@ -273,7 +297,7 @@ enemy instance is created only when the game scene is first entered.
 
 Executed successfully on Windows:
 - Release build, zero warnings/errors.
-- 98 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
+- 104 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
   return/new-game/shutdown transitions, invalid configs, persisted settings,
   bundled menu/input/catalogue validation, separate loading catalogues, title
   press/release selection and missing-asset diagnostics; dungeon movement,
@@ -310,7 +334,10 @@ Still check interactively:
 1. Visually inspect splash centring, loading progress and the debug overlay in
    each mode. Each tiny asset may finish in just two loading frames.
 2. Use keyboard, mouse and a physical controller for every menu action; verify
-   New Game opens the dungeon and the selected device moves, looks and returns.
+   New Game opens the three setup tabs, available abilities move above locked
+   ones as attributes and skills change, both starting ability points must be
+   spent, and the chosen abilities appear as learned in the dungeon. Verify
+   the selected device moves, looks and returns.
    Hold splash skip, release, and verify the title needs a second press. Confirm
    with a controller and check another controller cannot control the player. Walk against walls, through
    the doorway and around obstacles; aim at the door and chest to verify the gold
@@ -329,7 +356,7 @@ Still check interactively:
    controller cursor, and zoom in to
    reattach the camera. Confirm distant enemy selection works while a distant
    door/chest left click cannot instantly activate it. Open the chest in each
-   camera view, take all six stacks, equip each weapon in turn plus armour and
+   camera view, take all nine stacks, equip each weapon in turn plus armour and
    quiver, and verify the block visuals and arrow count. Reopen the emptied
    chest, then start a new game and verify its contents reset. In inventory, use
    Left/Right or the left stick to cycle filters, Tab/X to switch panes, and
@@ -337,11 +364,14 @@ Still check interactively:
    bottom-left details, right click it to equip, then scroll with the wheel and
    scrollbar; ensure scrolling does not change the selected item's details.
    Check empty slot labels and that equipped items disappear from the bag, while
-   replaced items return to it. On keyboard and mouse, press C to open Character,
-   use Q/E or the title tabs to switch it with Inventory, A/D to change bag
-   filters, and click X to close Character, Inventory and the chest. Check that movement does not
-   close any panel. On controller, confirm LT/RT switches Inventory and Character,
-   B closes either screen and the chest, and no X close button appears. In follow view,
+   replaced items return to it. In the Tomes filter, try a tome without its
+   required skill and confirm it stays in the bag; choose that skill on a new
+   character, read the tome, and confirm it moves to learned Abilities. Test
+   Guard Break with and without an equipped weapon. On keyboard and mouse, press C to open Character and K to open Abilities;
+   use Q/E or the title tabs to cycle all three, A/D to change bag
+   filters, and click X to close Character, Inventory, Abilities and the chest. Check that movement does not
+   close any panel. On controller, confirm LT/RT cycles Inventory, Character and Abilities,
+   B closes any panel and the chest, and no X close button appears. In follow view,
    right-click an enemy,
    right-drag the camera and verify the pointer returns on release. Check A/D turning,
    Q/E strafing, A/D strafing during right drag, and short right-click interaction.

@@ -82,6 +82,7 @@ public sealed class SessionInput
     public bool CycleActionRightPressed() => gameplay?.WasPressed("CycleActionRight") == true;
     public bool InventoryPressed() => gameplay?.WasPressed("Inventory") == true;
     public bool CharacterPressed() => UsesMouse && gameplay?.WasPressed("Character") == true;
+    public bool AbilityPressed() => UsesMouse && gameplay?.WasPressed("Abilities") == true;
     public bool PanelLeftPressed() => gameplay?.WasPressed("PanelLeft") == true;
     public bool PanelRightPressed() => gameplay?.WasPressed("PanelRight") == true;
     public bool UiUpPressed() => gameplay?.WasPressed("MenuUp") == true;

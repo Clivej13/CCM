@@ -36,11 +36,15 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
             var dungeon = Settings.Required<CCM.Game.DungeonSettings>(Settings.ConfigPath("dungeon.json"));
             dungeon.Validate();
             var itemCatalogue=Settings.Required<ItemCatalogue>(Settings.ConfigPath("items.json"));
-            itemCatalogue.Validate();
             var playerDefinition=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json"));
             playerDefinition.Validate();
             var skillCatalogue=Settings.Required<SkillCatalogue>(Settings.ConfigPath("skills.json"));
             skillCatalogue.Validate();
+            var abilityCatalogue=Settings.Required<AbilityCatalogue>(Settings.ConfigPath("abilities.json"));
+            abilityCatalogue.Validate(skillCatalogue);
+            foreach (var id in playerDefinition.SkillIds) skillCatalogue.Get(id);
+            foreach (var id in playerDefinition.AbilityIds) abilityCatalogue.Get(id);
+            itemCatalogue.Validate(abilityCatalogue);
             var attributeDescriptions=Settings.Required<AttributeDescriptionCatalogue>(
                 Settings.ConfigPath("attributes.json"));
             attributeDescriptions.Validate();
@@ -77,7 +81,7 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
                 () => Transition(Lifecycle.Destination(debug)), () => Transition(AppState.Shutdown),
                 initialKeys:["foundation-triangle"]);
             var levelUp=new LevelUpScene(sessionInput,playerDefinition,skillCatalogue,
-                attributeDescriptions,
+                abilityCatalogue,attributeDescriptions,
                 chosen => { selectedPlayer=chosen; Transition(AppState.Game); },
                 () => Transition(AppState.MainMenu));
             scenes[AppState.LevelUp]=levelUp;
@@ -92,7 +96,7 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
                     scenes[AppState.Game]=new GameScene(sessionInput,dungeon,debug.Enabled,
                         () => Transition(AppState.MainMenu),input,bindings,gameplay,
                         itemCatalogue,starterChest.Contents,selectedPlayer,enemyCatalogue,
-                        skillCatalogue);
+                        skillCatalogue,abilityCatalogue);
                 active = scenes.GetValueOrDefault(next);
                 active?.Enter();
             };

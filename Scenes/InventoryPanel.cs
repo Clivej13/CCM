@@ -5,20 +5,22 @@ using Raylib_cs;
 namespace CCM.Scenes;
 
 /// <summary>Looting and equipment share a modal panel; item data remains catalogue-owned.</summary>
-internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? skills=null)
+internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? skills=null,
+    AbilityCatalogue? abilities=null)
 {
     private static readonly EquipmentSlot[] Slots=
         [EquipmentSlot.Weapon,EquipmentSlot.Body,EquipmentSlot.Quiver];
     private static readonly ItemFilter[] Filters=
-        [ItemFilter.All,ItemFilter.Weapons,ItemFilter.Apparel];
-    private const int SectionTabWidth=168;
+        [ItemFilter.All,ItemFilter.Weapons,ItemFilter.Apparel,ItemFilter.Tomes];
+    private const int SectionTabWidth=150;
     private const int SectionTabGap=8;
-    private enum PanelMode { Closed, Chest, Inventory, Character }
+    private enum PanelMode { Closed, Chest, Inventory, Character, Abilities }
     private PanelMode mode;
     private ChestInteractable? chest;
     private int selected;
     private int bagScroll;
     private int selectedSlot;
+    private int abilityIndex,abilityScroll;
     private bool equipmentFocused;
     private ItemFilter filter=ItemFilter.All;
     private string? notice;
@@ -52,6 +54,12 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
             OpenCharacter();
             return true;
         }
+        int abilityLeft=characterLeft+SectionTabWidth+SectionTabGap;
+        if (pointer.X>=abilityLeft && pointer.X<abilityLeft+SectionTabWidth)
+        {
+            OpenAbilities();
+            return true;
+        }
         return false;
     }
 
@@ -65,7 +73,7 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
     public void OpenInventory()
     {
         if (mode==PanelMode.Inventory) return;
-        bool returningFromCharacter=mode==PanelMode.Character;
+        bool returningFromCharacter=mode is PanelMode.Character or PanelMode.Abilities;
         chest=null;
         mode=PanelMode.Inventory;
         if (!returningFromCharacter)
@@ -83,6 +91,26 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
         mode=PanelMode.Character;
         notice=null;
     }
+    public void OpenAbilities()
+    {
+        if (mode==PanelMode.Abilities) return;
+        chest=null;
+        mode=PanelMode.Abilities;
+        abilityIndex=abilityScroll=0;
+        notice=null;
+    }
+    public void CycleTab(int direction)
+    {
+        if (mode is PanelMode.Closed or PanelMode.Chest) return;
+        PanelMode[] tabs=[PanelMode.Inventory,PanelMode.Character,PanelMode.Abilities];
+        int index=Array.IndexOf(tabs,mode);
+        switch (tabs[(index+direction+tabs.Length)%tabs.Length])
+        {
+            case PanelMode.Inventory: OpenInventory(); break;
+            case PanelMode.Character: OpenCharacter(); break;
+            case PanelMode.Abilities: OpenAbilities(); break;
+        }
+    }
     public void Close()
     {
         mode=PanelMode.Closed;
@@ -94,6 +122,27 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
     {
         if (mode==PanelMode.Chest) UpdateChest(input,player);
         else if (mode==PanelMode.Inventory) UpdateInventory(input,player);
+        else if (mode==PanelMode.Abilities) UpdateAbilities(input);
+    }
+
+    private void UpdateAbilities(SessionInput input)
+    {
+        if (abilities is null || abilities.Abilities.Count==0) return;
+        int count=abilities.Abilities.Count,rows=InventoryRows();
+        if (input.UiUpPressed()) abilityIndex=(abilityIndex+count-1)%count;
+        if (input.UiDownPressed()) abilityIndex=(abilityIndex+1)%count;
+        abilityScroll=Math.Clamp(abilityScroll,0,Math.Max(0,count-rows));
+        if (abilityIndex<abilityScroll) abilityScroll=abilityIndex;
+        if (abilityIndex>=abilityScroll+rows) abilityScroll=abilityIndex-rows+1;
+        if (!input.UsesMouse) return;
+        var pointer=Raylib.GetMousePosition();
+        int left=PanelLeft(),divider=left+PanelWidth()/2;
+        if (pointer.X>=left+14 && pointer.X<divider && input.Zoom!=0)
+            abilityScroll=Math.Clamp(abilityScroll-Math.Sign(input.Zoom),0,Math.Max(0,count-rows));
+        if (input.SelectPressed() &&
+            RowAt(pointer,left+14,divider-left-36,RowTop(),count,abilityScroll,rows)
+                is { } index)
+            abilityIndex=index;
     }
 
     private void UpdateChest(SessionInput input,PlayerEntity player)
@@ -168,8 +217,10 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
             {
                 if (pointer.Y>=y+62 && pointer.Y<y+94)
                 {
+                    int filterWidth=FilterWidth();
                     for (int i=0;i<Filters.Length;i++)
-                        if (pointer.X>=x+18+i*90 && pointer.X<x+18+(i+1)*90)
+                        if (pointer.X>=x+18+i*filterWidth &&
+                            pointer.X<x+18+(i+1)*filterWidth)
                         {
                             SetFilter(Filters[i]);
                             return;
@@ -227,8 +278,23 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
     private void EquipSelected(PlayerEntity player,IReadOnlyList<ItemStack> entries)
     {
         var item=catalogue.Get(entries[selected].ItemId);
-        notice=item.EquipmentSlot==EquipmentSlot.None
-            ? $"{item.Name} is ammunition and cannot be equipped"
+        if (item.ItemType==ItemType.Tome)
+        {
+            if (abilities is null || item.AbilityId is null)
+                notice="Ability catalogue unavailable";
+            else if (player.Abilities.Knows(item.AbilityId))
+                notice="Ability already learned";
+            else if (!abilities.Get(item.AbilityId)
+                .MeetsRequirements(player.Attributes,player.SkillIds))
+                notice="Ability requirements not met";
+            else
+                notice=player.Abilities.TryLearnFromTome(item.Id,player.Inventory,catalogue,
+                    abilities,player.Attributes,player.SkillIds)
+                    ? $"Learned {abilities.Get(item.AbilityId).Name}"
+                    : "Could not read tome";
+        }
+        else notice=item.EquipmentSlot==EquipmentSlot.None
+            ? $"{item.Name} cannot be equipped"
             : player.Equipment.Equip(item.Id)
                 ? $"Equipped {item.Name}"
                 : $"{item.Name} cannot be equipped";
@@ -268,8 +334,10 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
         Raylib.DrawRectangleLines(x,y,width,height,Color.Gold);
         if (mode==PanelMode.Chest) RenderChest();
         else if (mode==PanelMode.Inventory) RenderInventory(player);
-        else RenderCharacter(player);
-        if (mode is PanelMode.Inventory or PanelMode.Character) RenderSectionTabs(usesMouse);
+        else if (mode==PanelMode.Character) RenderCharacter(player);
+        else RenderAbilities(player);
+        if (mode is PanelMode.Inventory or PanelMode.Character or PanelMode.Abilities)
+            RenderSectionTabs(usesMouse);
         if (usesMouse)
         {
             int left=x+width-46,top=y+14;
@@ -285,11 +353,11 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
     {
         int left=PanelLeft()+16,top=PanelTop()+12;
         var pointer=usesMouse ? Raylib.GetMousePosition() : default;
-        string[] labels=["INVENTORY","CHARACTER"];
+        string[] labels=["INVENTORY","CHARACTER","ABILITIES"];
         for (int i=0;i<labels.Length;i++)
         {
             int tabX=left+i*(SectionTabWidth+SectionTabGap);
-            bool active=i==0 ? mode==PanelMode.Inventory : mode==PanelMode.Character;
+            bool active=mode==(PanelMode)((int)PanelMode.Inventory+i);
             bool hovered=usesMouse && pointer.X>=tabX && pointer.X<tabX+SectionTabWidth &&
                 pointer.Y>=top && pointer.Y<top+36;
             Color background=active ? Color.Gold
@@ -329,9 +397,10 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
         Raylib.DrawText("EQUIPPED",rightX,y+66,20,Color.RayWhite);
         for (int i=0;i<Filters.Length;i++)
         {
-            int tabX=x+18+i*90;
-            Raylib.DrawRectangle(tabX,y+62,86,30,filter==Filters[i] ? Color.Gold : Color.DarkGray);
-            Raylib.DrawText(Filters[i].ToString(),tabX+6,y+68,16,
+            int tabX=x+18+i*FilterWidth();
+            Raylib.DrawRectangle(tabX,y+62,FilterWidth()-4,30,
+                filter==Filters[i] ? Color.Gold : Color.DarkGray);
+            Raylib.DrawText(Fit(Filters[i].ToString(),FilterWidth()-12,16),tabX+6,y+68,16,
                 filter==Filters[i] ? Color.Black : Color.RayWhite);
         }
         var entries=player.Inventory.Filter(catalogue,filter);
@@ -381,6 +450,72 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
             equipmentFocused ? "Empty slot" : "Select an item");
         if (notice is not null)
             Raylib.DrawText(Fit(notice,rightWidth,16),rightX,y+height-76,16,Color.Gold);
+    }
+
+    private void RenderAbilities(PlayerEntity player)
+    {
+        int x=PanelLeft(),y=PanelTop(),width=PanelWidth(),height=PanelHeight();
+        int divider=x+width/2,rightX=divider+16,rightWidth=width/2-40;
+        Raylib.DrawRectangle(divider,y+64,1,height-116,Color.DarkGray);
+        Raylib.DrawText("ABILITIES",x+24,y+68,20,Color.Gold);
+        Raylib.DrawText("DETAILS",rightX,y+68,20,Color.Gold);
+        if (abilities is null || abilities.Abilities.Count==0)
+        {
+            Raylib.DrawText("No abilities defined.",x+24,RowTop(),18,Color.RayWhite);
+            return;
+        }
+        int count=abilities.Abilities.Count,rows=InventoryRows();
+        int first=Math.Clamp(abilityScroll,0,Math.Max(0,count-rows));
+        for (int i=first;i<Math.Min(count,first+rows);i++)
+        {
+            var ability=abilities.Abilities[i];
+            int rowY=RowTop()+(i-first)*32;
+            bool focused=i==abilityIndex,known=player.Abilities.Knows(ability.Id);
+            if (focused) Raylib.DrawRectangle(x+14,rowY-3,divider-x-36,30,
+                new Color(90,75,40,255));
+            Raylib.DrawText(Fit($"{(known ? "[x]" : "[ ]")} {ability.Name}",
+                divider-x-56,18),x+20,rowY,18,focused ? Color.Gold : Color.RayWhite);
+        }
+        if (count>rows)
+        {
+            int trackY=RowTop()-3,trackHeight=rows*32;
+            int thumbHeight=Math.Max(20,trackHeight*rows/count);
+            int thumbY=trackY+(trackHeight-thumbHeight)*first/(count-rows);
+            Raylib.DrawRectangle(divider-18,trackY,6,trackHeight,Color.DarkGray);
+            Raylib.DrawRectangle(divider-18,thumbY,6,thumbHeight,Color.Gold);
+        }
+        var selectedAbility=abilities.Abilities[Math.Clamp(abilityIndex,0,count-1)];
+        bool learned=player.Abilities.Knows(selectedAbility.Id);
+        bool eligible=selectedAbility.MeetsRequirements(player.Attributes,player.SkillIds);
+        bool usable=player.Abilities.CanUse(selectedAbility,player);
+        Raylib.DrawText(Fit(selectedAbility.Name,rightWidth,24),rightX,y+110,24,Color.Gold);
+        Raylib.DrawText(Fit($"{selectedAbility.Path}  |  " +
+            (usable ? "Learned, requirements met" : learned ? "Learned, unavailable" :
+             eligible ? "Can learn from tome" : "Requirements unmet"),rightWidth,16),
+            rightX,y+142,16,Color.RayWhite);
+        DrawWrapped(selectedAbility.Description,rightX,y+178,rightWidth,17,4);
+        Raylib.DrawText("REQUIREMENTS",rightX,y+270,18,Color.Gold);
+        int line=0;
+        foreach (var requirement in selectedAbility.Attributes)
+        {
+            int current=player.Attributes.Get(requirement.Kind);
+            Raylib.DrawText(Fit($"{requirement.Kind}: {current} / {requirement.Minimum}",
+                rightWidth,16),rightX,y+300+line++*24,16,
+                current>=requirement.Minimum ? Color.RayWhite : Color.Gray);
+        }
+        foreach (var skillId in selectedAbility.RequiredSkills)
+        {
+            bool hasSkill=player.SkillIds.Contains(skillId);
+            string name=skills?.Get(skillId).Name ?? skillId;
+            Raylib.DrawText(Fit($"Skill: {name}",rightWidth,16),
+                rightX,y+300+line++*24,16,hasSkill ? Color.RayWhite : Color.Gray);
+        }
+        if (selectedAbility.RequiredEquipmentSlot is { } slot)
+        {
+            bool equipped=selectedAbility.HasRequiredEquipment(player.Equipment);
+            Raylib.DrawText(Fit($"Equipped: {slot}",rightWidth,16),
+                rightX,y+300+line*24,16,equipped ? Color.RayWhite : Color.Gray);
+        }
     }
 
     private void RenderCharacter(PlayerEntity player)
@@ -451,7 +586,9 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
             x,y+60,14,Color.RayWhite);
         string attack=item.ItemType==ItemType.Weapon
             ? $"Range: {item.AttackRange:0.0} m  Speed: {item.AttackSpeed:0.00}/s"
-            : item.ItemType==ItemType.Ammunition ? "Ammunition - cannot equip" : "Apparel";
+            : item.ItemType==ItemType.Tome
+                ? $"Teaches: {abilities?.Get(item.AbilityId!).Name ?? item.AbilityId}"
+                : item.ItemType==ItemType.Ammunition ? "Ammunition - cannot equip" : "Apparel";
         Raylib.DrawText(Fit(attack,width,14),x,y+78,14,Color.RayWhite);
         DrawWrapped(item.Description,x,y+97,width,14,2);
     }
@@ -489,6 +626,7 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
         int index=first+(int)((pointer.Y-top)/rowHeight);
         return index<count ? index : null;
     }
+    private int FilterWidth() => (PanelWidth()/2-36)/Filters.Length;
     private int PanelWidth() => Math.Min(mode==PanelMode.Chest ? 640 : 1000,Raylib.GetScreenWidth()-24);
     private static int PanelHeight() => Math.Min(600,Raylib.GetScreenHeight()-24);
     private int PanelLeft() => (Raylib.GetScreenWidth()-PanelWidth())/2;

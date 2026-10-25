@@ -62,7 +62,7 @@ public sealed class DungeonSimulation
         enemyDefinition=enemies.Get(settings.EnemyId);
         World=new DungeonWorld(chestContents);
         Player=new(World.Spawn,this.playerDefinition.Attributes,this.items,
-            this.playerDefinition.SkillIds);
+            this.playerDefinition.SkillIds,this.playerDefinition.AbilityIds);
         Enemy=new(new(0,0,-30),enemyDefinition,this.items);
         Camera=new DungeonCamera(settings,World,()=>Player.Position);
         Reset();
@@ -70,7 +70,8 @@ public sealed class DungeonSimulation
     public void Reset()
     {
         World.Reset();
-        Player=new(World.Spawn,playerDefinition.Attributes,items,playerDefinition.SkillIds);
+        Player=new(World.Spawn,playerDefinition.Attributes,items,playerDefinition.SkillIds,
+            playerDefinition.AbilityIds);
         Enemy=new(new(0,0,-30),enemyDefinition,items);
         ChestOpened=null;
         VisibleTarget = Target = null;

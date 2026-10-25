@@ -70,20 +70,27 @@ public sealed class SkillCatalogue
         Skills.OrderByDescending(skill => skill.IsAvailable(attributes)).ToArray();
 }
 
-/// <summary>A temporary level-up draft. Attributes have no point budget; skills do.</summary>
+/// <summary>A temporary setup draft. Attributes are free; skills and abilities use separate points.</summary>
 public sealed class CharacterBuild
 {
     private readonly SkillCatalogue catalogue;
+    private readonly AbilityCatalogue? abilities;
     private readonly HashSet<string> selected = new(StringComparer.Ordinal);
+    private readonly HashSet<string> selectedAbilities = new(StringComparer.Ordinal);
     public CharacterAttributes Attributes { get; private set; }
     public IReadOnlyCollection<string> SelectedSkills => selected;
+    public IReadOnlyCollection<string> SelectedAbilities => selectedAbilities;
     public int RemainingSkillPoints => catalogue.SkillPoints - selected.Count;
-    public bool CanComplete => RemainingSkillPoints == 0;
+    public int RemainingAbilityPoints => (abilities?.StartingAbilityPoints ?? 0) - selectedAbilities.Count;
+    public bool CanComplete => RemainingSkillPoints == 0 && RemainingAbilityPoints == 0;
 
-    public CharacterBuild(CharacterAttributes initial, SkillCatalogue catalogue)
+    public CharacterBuild(CharacterAttributes initial, SkillCatalogue catalogue,
+        AbilityCatalogue? abilities=null)
     {
         this.catalogue = catalogue;
+        this.abilities = abilities;
         catalogue.Validate();
+        abilities?.Validate(catalogue);
         initial.Validate();
         Attributes = initial.Copy();
     }
@@ -93,25 +100,49 @@ public sealed class CharacterBuild
         if (!CharacterAttributes.IsValid(value)) return false;
         Attributes = Attributes.With(kind, value);
         selected.RemoveWhere(id => !catalogue.Get(id).IsAvailable(Attributes));
+        RefundUnavailableAbilities();
         return true;
     }
 
     public bool ToggleSkill(string id)
     {
         var skill = catalogue.Get(id);
-        if (selected.Remove(id)) return true;
+        if (selected.Remove(id))
+        {
+            RefundUnavailableAbilities();
+            return true;
+        }
         if (RemainingSkillPoints == 0 || !skill.IsAvailable(Attributes)) return false;
         return selected.Add(id);
     }
 
+    public bool ToggleAbility(string id)
+    {
+        if (abilities is null) return false;
+        var ability=abilities.Get(id);
+        if (selectedAbilities.Remove(id)) return true;
+        if (RemainingAbilityPoints==0 || !ability.MeetsRequirements(Attributes,selected))
+            return false;
+        return selectedAbilities.Add(id);
+    }
+
+    private void RefundUnavailableAbilities()
+    {
+        if (abilities is not null)
+            selectedAbilities.RemoveWhere(id=>
+                !abilities.Get(id).MeetsRequirements(Attributes,selected));
+    }
+
     public PlayerDefinition Complete()
     {
-        if (!CanComplete) throw new InvalidOperationException("Spend all skill points before entering the dungeon.");
+        if (!CanComplete) throw new InvalidOperationException("Spend all skill and ability points before entering the dungeon.");
         return new PlayerDefinition
         {
             Attributes = Attributes.Copy(),
             SkillIds = catalogue.Skills.Where(skill => selected.Contains(skill.Id))
-                .Select(skill => skill.Id).ToList()
+                .Select(skill => skill.Id).ToList(),
+            AbilityIds = abilities?.Abilities.Where(ability=>selectedAbilities.Contains(ability.Id))
+                .Select(ability=>ability.Id).ToList() ?? []
         };
     }
 }

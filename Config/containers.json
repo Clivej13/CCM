@@ -8,7 +8,10 @@
         { "ItemId": "leather-quiver", "Quantity": 1 },
         { "ItemId": "arrow", "Quantity": 20 },
         { "ItemId": "leather-armour", "Quantity": 1 },
-        { "ItemId": "oak-staff", "Quantity": 1 }
+        { "ItemId": "oak-staff", "Quantity": 1 },
+        { "ItemId": "tome-guard-break", "Quantity": 1 },
+        { "ItemId": "tome-arcane-pulse", "Quantity": 1 },
+        { "ItemId": "tome-swift-step", "Quantity": 1 }
       ]
     }
   ]
