@@ -77,6 +77,7 @@ public sealed class AbilityCatalogue
 public sealed class AbilityBook
 {
     private readonly HashSet<string> learned=new(StringComparer.Ordinal);
+    public AbilityLoadout Loadout { get; } = new();
     public AbilityBook(IEnumerable<string>? initial=null)
     {
         if (initial is not null)
@@ -103,4 +104,29 @@ public sealed class AbilityBook
         Knows(ability.Id) &&
         ability.MeetsRequirements(player.Attributes,player.SkillIds) &&
         ability.HasRequiredEquipment(player.Equipment);
+}
+
+/// <summary>Player-owned assignments shared by the keyboard bar and controller wheel.</summary>
+public sealed class AbilityLoadout
+{
+    public const int SlotCount=12;
+    public const int WheelSlotCount=8;
+    private static readonly string[] KeyLabels=
+        ["1","2","3","4","5","6","7","8","9","0","-","="];
+    private readonly string?[] slots=new string?[SlotCount];
+    public string? In(int index) => slots[Valid(index)];
+    public static string KeyLabel(int index) => KeyLabels[Valid(index)];
+
+    public bool Assign(int index,string abilityId,AbilityBook book)
+    {
+        Valid(index);
+        if (!book.Knows(abilityId)) return false;
+        slots[index]=abilityId;
+        return true;
+    }
+
+    public void Clear(int index) => slots[Valid(index)]=null;
+
+    private static int Valid(int index) =>
+        index>=0 && index<SlotCount ? index : throw new ArgumentOutOfRangeException(nameof(index));
 }

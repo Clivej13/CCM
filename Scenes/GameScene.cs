@@ -13,6 +13,7 @@ public sealed class GameScene : Scene
     private readonly GameplayTargeting targeting;
     private readonly DungeonRenderer renderer;
     private readonly GameplayHud hud;
+    private readonly AbilityLoadoutUi abilityUi;
     private readonly InventoryPanel inventoryPanel;
     private readonly PauseMenu pauseMenu;
     private readonly IGameplayControls mouseFollow,mouseTopDown,gamepadFollow,gamepadTopDown;
@@ -38,6 +39,7 @@ public sealed class GameScene : Scene
         pauseMenu=new(menuInput,bindings);
         renderer=new(simulation,items,debug);
         hud=new(input,simulation,targeting,debug);
+        abilityUi=new(input,abilities);
         mouseFollow=new MouseFollowControls(input,simulation,targeting);
         mouseTopDown=new MouseTopDownControls(input,simulation,targeting);
         gamepadFollow=new GamepadFollowControls(input,simulation);
@@ -59,6 +61,7 @@ public sealed class GameScene : Scene
         inventoryPanel.Close();
         pauseMenu.Close();
         targeting.Reset();
+        abilityUi.Reset();
         feedback=null;
         feedbackSeconds=0;
         ignoreLook=true;
@@ -113,6 +116,7 @@ public sealed class GameScene : Scene
         if (input.InventoryPressed() || input.CharacterPressed() || input.AbilityPressed())
         {
             activeControls.Exit();
+            abilityUi.Reset();
             if (input.AbilityPressed()) inventoryPanel.OpenAbilities();
             else if (input.CharacterPressed()) inventoryPanel.OpenCharacter();
             else inventoryPanel.OpenInventory();
@@ -126,7 +130,25 @@ public sealed class GameScene : Scene
             simulation.TogglePause();
             ignoreLook=true;
         }
+        string? abilityFeedback=abilityUi.Update(simulation.Player);
+        if (abilityFeedback is not null)
+        {
+            feedback=abilityFeedback;
+            feedbackSeconds=1.5f;
+        }
         if (simulation.Paused) { activeControls.CancelPendingAction(); return; }
+        if (abilityUi.PointerConsumed || abilityUi.WheelSelectionCommitted)
+        {
+            activeControls.CancelPendingAction();
+            simulation.UpdateCombat(seconds,controllerScheme:!input.UsesMouse);
+            return;
+        }
+        if (abilityUi.WheelOpen)
+        {
+            activeControls.CancelPendingAction();
+            simulation.UpdateCombat(seconds,controllerScheme:true);
+            return;
+        }
 
         simulation.AdjustZoom(input.Zoom*settings.MouseZoomStep);
         if (!input.UsesMouse && input.CycleViewPressed()) simulation.CycleView();
@@ -164,6 +186,7 @@ public sealed class GameScene : Scene
     private void CloseInventoryPanel()
     {
         inventoryPanel.Close();
+        abilityUi.Reset();
         activeControls.Enter();
         ignoreLook=true;
     }
@@ -171,6 +194,7 @@ public sealed class GameScene : Scene
     private void OpenPauseMenu()
     {
         activeControls.Exit();
+        abilityUi.Reset();
         pauseMenu.Open();
         ignoreLook=true;
     }
@@ -186,6 +210,7 @@ public sealed class GameScene : Scene
     {
         pauseMenu.Close();
         inventoryPanel.Close();
+        abilityUi.Reset();
         activeControls.Exit();
     }
 
@@ -193,6 +218,8 @@ public sealed class GameScene : Scene
     {
         renderer.Render();
         hud.Render(feedback,feedbackSeconds);
+        if (!inventoryPanel.IsOpen && !pauseMenu.IsOpen)
+            abilityUi.Render(simulation.Player);
         inventoryPanel.Render(simulation.Player,input.UsesMouse);
         pauseMenu.Render();
     }

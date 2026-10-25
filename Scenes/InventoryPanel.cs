@@ -20,7 +20,7 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
     private int selected;
     private int bagScroll;
     private int selectedSlot;
-    private int abilityIndex,abilityScroll;
+    private int abilityIndex,abilityScroll,abilitySlot;
     private bool equipmentFocused;
     private ItemFilter filter=ItemFilter.All;
     private string? notice;
@@ -122,18 +122,33 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
     {
         if (mode==PanelMode.Chest) UpdateChest(input,player);
         else if (mode==PanelMode.Inventory) UpdateInventory(input,player);
-        else if (mode==PanelMode.Abilities) UpdateAbilities(input);
+        else if (mode==PanelMode.Abilities) UpdateAbilities(input,player);
     }
 
-    private void UpdateAbilities(SessionInput input)
+    private void UpdateAbilities(SessionInput input,PlayerEntity player)
     {
         if (abilities is null || abilities.Abilities.Count==0) return;
         int count=abilities.Abilities.Count,rows=InventoryRows();
+        int slotCount=input.UsesMouse ? AbilityLoadout.SlotCount : AbilityLoadout.WheelSlotCount;
         if (input.UiUpPressed()) abilityIndex=(abilityIndex+count-1)%count;
         if (input.UiDownPressed()) abilityIndex=(abilityIndex+1)%count;
+        if (input.UiLeftPressed()) abilitySlot=(abilitySlot+slotCount-1)%slotCount;
+        if (input.UiRightPressed()) abilitySlot=(abilitySlot+1)%slotCount;
         abilityScroll=Math.Clamp(abilityScroll,0,Math.Max(0,count-rows));
         if (abilityIndex<abilityScroll) abilityScroll=abilityIndex;
         if (abilityIndex>=abilityScroll+rows) abilityScroll=abilityIndex-rows+1;
+        int keySlot=input.AbilitySlotPressed();
+        if (keySlot>=0)
+        {
+            abilitySlot=keySlot;
+            AssignSelectedAbility(player);
+        }
+        if (input.UiPanePressed())
+        {
+            player.Abilities.Loadout.Clear(abilitySlot);
+            notice=$"Cleared slot {AbilityLoadout.KeyLabel(abilitySlot)}";
+        }
+        if (input.UiConfirmPressed()) AssignSelectedAbility(player);
         if (!input.UsesMouse) return;
         var pointer=Raylib.GetMousePosition();
         int left=PanelLeft(),divider=left+PanelWidth()/2;
@@ -143,6 +158,45 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
             RowAt(pointer,left+14,divider-left-36,RowTop(),count,abilityScroll,rows)
                 is { } index)
             abilityIndex=index;
+        int slotWidth=(PanelWidth()-28)/AbilityLoadout.SlotCount;
+        int slotY=PanelTop()+PanelHeight()-74;
+        if (pointer.X>=left+14 && pointer.X<left+14+slotWidth*AbilityLoadout.SlotCount &&
+            pointer.Y>=slotY && pointer.Y<slotY+48)
+        {
+            int slot=(int)(pointer.X-left-14)/slotWidth;
+            if (input.SelectPressed())
+            {
+                abilitySlot=slot;
+                AssignSelectedAbility(player);
+            }
+            else if (input.AttackPressed())
+            {
+                abilitySlot=slot;
+                player.Abilities.Loadout.Clear(slot);
+                notice=$"Cleared slot {AbilityLoadout.KeyLabel(slot)}";
+            }
+        }
+    }
+
+    private void AssignSelectedAbility(PlayerEntity player)
+    {
+        if (abilities is null) return;
+        var ability=abilities.Abilities[abilityIndex];
+        if (!player.Abilities.Knows(ability.Id))
+        {
+            notice="Learn this ability before assigning it";
+            return;
+        }
+        if (player.Abilities.Loadout.In(abilitySlot)==ability.Id)
+        {
+            player.Abilities.Loadout.Clear(abilitySlot);
+            notice=$"Cleared slot {AbilityLoadout.KeyLabel(abilitySlot)}";
+        }
+        else
+        {
+            player.Abilities.Loadout.Assign(abilitySlot,ability.Id,player.Abilities);
+            notice=$"Assigned {ability.Name} to {AbilityLoadout.KeyLabel(abilitySlot)}";
+        }
     }
 
     private void UpdateChest(SessionInput input,PlayerEntity player)
@@ -335,7 +389,7 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
         if (mode==PanelMode.Chest) RenderChest();
         else if (mode==PanelMode.Inventory) RenderInventory(player);
         else if (mode==PanelMode.Character) RenderCharacter(player);
-        else RenderAbilities(player);
+        else RenderAbilities(player,usesMouse);
         if (mode is PanelMode.Inventory or PanelMode.Character or PanelMode.Abilities)
             RenderSectionTabs(usesMouse);
         if (usesMouse)
@@ -452,7 +506,7 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
             Raylib.DrawText(Fit(notice,rightWidth,16),rightX,y+height-76,16,Color.Gold);
     }
 
-    private void RenderAbilities(PlayerEntity player)
+    private void RenderAbilities(PlayerEntity player,bool usesMouse)
     {
         int x=PanelLeft(),y=PanelTop(),width=PanelWidth(),height=PanelHeight();
         int divider=x+width/2,rightX=divider+16,rightWidth=width/2-40;
@@ -516,6 +570,24 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
             Raylib.DrawText(Fit($"Equipped: {slot}",rightWidth,16),
                 rightX,y+300+line*24,16,equipped ? Color.RayWhite : Color.Gray);
         }
+        int slotY=y+height-74;
+        int slotCount=usesMouse ? AbilityLoadout.SlotCount : AbilityLoadout.WheelSlotCount;
+        int slotWidth=(width-28)/slotCount;
+        for (int i=0;i<slotCount;i++)
+        {
+            int slotX=x+14+i*slotWidth;
+            string? id=player.Abilities.Loadout.In(i);
+            bool focused=i==abilitySlot;
+            Raylib.DrawRectangle(slotX,slotY,slotWidth-3,48,
+                focused ? new Color(96,78,36,255) : new Color(45,50,59,255));
+            if (focused) Raylib.DrawRectangleLines(slotX,slotY,slotWidth-3,48,Color.Gold);
+            Raylib.DrawText(AbilityLoadout.KeyLabel(i),slotX+5,slotY+3,16,Color.Gold);
+            if (id is not null)
+                Raylib.DrawText(Fit(abilities.Get(id).Name,slotWidth-9,12),
+                    slotX+4,slotY+26,12,Color.RayWhite);
+        }
+        if (notice is not null)
+            Raylib.DrawText(Fit(notice,width-32,16),x+16,slotY-24,16,Color.Gold);
     }
 
     private void RenderCharacter(PlayerEntity player)

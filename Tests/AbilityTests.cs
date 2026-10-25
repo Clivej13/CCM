@@ -145,6 +145,27 @@ public sealed class AbilityTests
     }
 
     [Fact]
+    public void LoadoutAcceptsOnlyLearnedAbilitiesAndResetsWithPlayer()
+    {
+        var (_,_,items,_)=Bundled();
+        var definition=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json"));
+        definition.AbilityIds=["second-wind"];
+        var simulation=new DungeonSimulation(new DungeonSettings(),items:items,
+            playerDefinition:definition);
+        var player=simulation.Player;
+        Assert.False(player.Abilities.Loadout.Assign(0,"clear-mind",player.Abilities));
+        Assert.True(player.Abilities.Loadout.Assign(0,"second-wind",player.Abilities));
+        Assert.True(player.Abilities.Loadout.Assign(11,"second-wind",player.Abilities));
+        Assert.Equal("second-wind",player.Abilities.Loadout.In(0));
+        Assert.Equal("second-wind",player.Abilities.Loadout.In(11));
+        player.Abilities.Loadout.Clear(0);
+        Assert.Null(player.Abilities.Loadout.In(0));
+        Assert.Throws<ArgumentOutOfRangeException>(()=>player.Abilities.Loadout.In(12));
+        simulation.Reset();
+        Assert.Null(simulation.Player.Abilities.Loadout.In(11));
+    }
+
+    [Fact]
     public void InvalidAbilityAndTomeReferencesFailValidation()
     {
         var (skills,abilities,items,_)=Bundled();

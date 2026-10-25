@@ -284,6 +284,66 @@
       "Device": "GamepadButton",
       "Input": "RightFaceUp",
       "Action": "Inventory"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "One",
+      "Action": "AbilitySlot1"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Two",
+      "Action": "AbilitySlot2"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Three",
+      "Action": "AbilitySlot3"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Four",
+      "Action": "AbilitySlot4"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Five",
+      "Action": "AbilitySlot5"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Six",
+      "Action": "AbilitySlot6"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Seven",
+      "Action": "AbilitySlot7"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Eight",
+      "Action": "AbilitySlot8"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Nine",
+      "Action": "AbilitySlot9"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Zero",
+      "Action": "AbilitySlot10"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Minus",
+      "Action": "AbilitySlot11"
+    },
+    {
+      "Device": "Keyboard",
+      "Input": "Equal",
+      "Action": "AbilitySlot12"
     }
   ]
 }

@@ -1,6 +1,6 @@
 using System.Numerics;
 namespace Raylib_cs;
-public enum KeyboardKey { Null, W, A, S, D, Q, E, F, I, C, K, Tab, Up, Down, Left, Right, Enter, Escape, Space }
+public enum KeyboardKey { Null, W, A, S, D, Q, E, F, I, C, K, Tab, Up, Down, Left, Right, Enter, Escape, Space, One, Two, Three, Four, Five, Six, Seven, Eight, Nine, Zero, Minus, Equal }
 public enum MouseButton { Left, Right }
 public enum GamepadButton { Unknown, RightFaceDown, RightFaceRight, RightFaceUp, RightFaceLeft, LeftFaceUp, LeftFaceDown, LeftFaceLeft, LeftFaceRight, LeftTrigger1, RightTrigger1, MiddleLeft, MiddleRight, RightThumb }
 public enum GamepadAxis { LeftX, LeftY, RightX, RightY, LeftTrigger, RightTrigger }
