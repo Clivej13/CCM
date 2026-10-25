@@ -93,6 +93,15 @@ public sealed class SessionInput
         UsesMouse && gameplay?.WasPressed("MoveRight") == true;
     public bool UiPanePressed() => gameplay?.WasPressed("InventoryPane") == true;
     public bool UiConfirmPressed() => gameplay?.WasPressed("MenuConfirm") == true;
+    public bool AbilityWheelHeld => !UsesMouse && !ControllerDisconnected &&
+        gameplay?.IsDown("PanelLeft") == true;
+    public int AbilitySlotPressed()
+    {
+        if (!UsesMouse || gameplay is null) return -1;
+        for (int slot=0;slot<12;slot++)
+            if (gameplay.WasPressed($"AbilitySlot{slot+1}")) return slot;
+        return -1;
+    }
     public string InteractionBinding => gameplay?.GetBinding("Interact",
         UsesMouse ? InputDeviceFamily.KeyboardMouse : InputDeviceFamily.Gamepad) is { } binding
         ? InputController.GetInputDisplayName(binding.Device,binding.Input) : "Unbound";

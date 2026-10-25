@@ -28,7 +28,7 @@ internal sealed class GameplayHud(SessionInput input,DungeonSimulation simulatio
         if (simulation.TopDown && !input.UsesMouse && !targeting.ControllerContextMode)
             Raylib.DrawCircleV(targeting.ControllerCursor,6,Color.Gold);
         if (feedbackSeconds > 0 && feedback is not null)
-            DrawPrompt(feedback,Raylib.GetScreenHeight()-70,Color.RayWhite);
+            DrawPrompt(feedback,Raylib.GetScreenHeight()-(input.UsesMouse ? 110 : 70),Color.RayWhite);
         DrawHealthBar(16,78,player.Health,player.MaxHealth,"Player",Color.SkyBlue);
         if (simulation.CombatStarted)
             DrawHealthBar(Raylib.GetScreenWidth()-236,78,enemy.Health,enemy.MaxHealth,

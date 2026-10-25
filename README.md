@@ -158,8 +158,20 @@ is retained. Learning does not require the eventual equipment; a learned ability
 remains known if equipment changes, but its use requirements may no longer be
 met. Starting ability picks and tome-learned abilities share the same collection.
 The Abilities tab lists learned and unlearned entries for inspection.
-Ability effects and activation are future work; learning currently changes only
-the character's learned-ability collection.
+The Abilities tab assigns learned abilities to a player-owned loadout. On keyboard,
+select an ability and press 1-9, 0, - or = to assign that slot, or click a slot at
+the bottom of the tab. Pressing the same slot again with the same ability clears
+it; right-clicking a slot also clears it. In the dungeon the 12-slot bar stays
+at the bottom of the screen; its keys or a mouse click select an assigned ability.
+On controller, the Abilities tab shows the first eight slots. Left/right selects
+a wheel slot, A assigns or clears the highlighted learned ability, and X clears
+the slot. Hold LT in the dungeon to open the eight-way wheel, aim with the right
+stick, and release LT to select. LT continues to switch tabs while a panel is
+open. The bar and wheel share the same first eight assignments. Unlearned abilities
+cannot be assigned; learned abilities with unmet current requirements appear
+disabled. Assignments belong to the current player and reset with a new dungeon.
+Ability effects and activation remain future work; selection currently shows
+feedback without casting an effect.
 
 ## Character setup and skills
 
@@ -367,7 +379,11 @@ Still check interactively:
    replaced items return to it. In the Tomes filter, try a tome without its
    required skill and confirm it stays in the bag; choose that skill on a new
    character, read the tome, and confirm it moves to learned Abilities. Test
-   Guard Break with and without an equipped weapon. On keyboard and mouse, press C to open Character and K to open Abilities;
+   Guard Break with and without an equipped weapon. Assign learned abilities to
+   the 1 through = bar slots, use those keys and click the bar, then check that
+   controller A/X assigns and clears the first eight slots and LT plus right
+   stick selects from the wheel without issuing a dungeon action. Confirm
+   unlearned abilities cannot be assigned. On keyboard and mouse, press C to open Character and K to open Abilities;
    use Q/E or the title tabs to cycle all three, A/D to change bag
    filters, and click X to close Character, Inventory, Abilities and the chest. Check that movement does not
    close any panel. On controller, confirm LT/RT cycles Inventory, Character and Abilities,

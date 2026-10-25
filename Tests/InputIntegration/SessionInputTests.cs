@@ -241,6 +241,40 @@ public sealed class SessionInputTests
     }
 
     [Fact]
+    public void AbilityBarKeysAndWheelBelongToSelectedDevice()
+    {
+        Raylib.Reset();
+        var keyboard=new SessionInput(Bindings(),Select(InputDeviceFamily.KeyboardMouse),new());
+        Raylib.Keys.Add(KeyboardKey.One);
+        keyboard.Update();
+        Assert.Equal(0,keyboard.AbilitySlotPressed());
+        keyboard.Update();
+        Assert.Equal(-1,keyboard.AbilitySlotPressed());
+        Raylib.Keys.Clear();
+        keyboard.Update();
+        Raylib.Keys.Add(KeyboardKey.Equal);
+        keyboard.Update();
+        Assert.Equal(11,keyboard.AbilitySlotPressed());
+
+        Raylib.Reset();
+        var pad=new SessionInput(Bindings(),Select(InputDeviceFamily.Gamepad,2),new());
+        Raylib.Connected.UnionWith([0,2]);
+        Raylib.Keys.Add(KeyboardKey.Two);
+        Raylib.Axes[(0,GamepadAxis.LeftTrigger)]=1;
+        pad.Update();
+        Assert.Equal(-1,pad.AbilitySlotPressed());
+        Assert.False(pad.AbilityWheelHeld);
+        Raylib.Axes[(2,GamepadAxis.LeftTrigger)]=1;
+        Raylib.Axes[(2,GamepadAxis.RightX)]=1;
+        pad.Update();
+        Assert.True(pad.AbilityWheelHeld);
+        Assert.True(pad.Look.X>0);
+        Raylib.Connected.Remove(2);
+        pad.Update();
+        Assert.False(pad.AbilityWheelHeld);
+    }
+
+    [Fact]
     public void MouseWheelZoomDoesNotUseControllerTriggers()
     {
         Raylib.Reset();
