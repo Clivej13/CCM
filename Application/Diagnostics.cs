@@ -14,6 +14,7 @@ public sealed class Diagnostics(DebugSettings settings, RotatingFileLogger logge
         string text = $"DEBUG | {state} | Startup: {settings.StartupScene}";
         if (settings.ShowFPS) text += $" | {Raylib.GetFPS()} FPS";
         Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), 24, new Color(0, 0, 0, 210));
-        Raylib.DrawText(text, 8, 4, 16, Color.Lime);
+        int x=(Raylib.GetScreenWidth()-Raylib.MeasureText(text,16))/2;
+        Raylib.DrawText(text, x, 4, 16, Color.Lime);
     }
 }

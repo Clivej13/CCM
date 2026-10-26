@@ -44,13 +44,13 @@ public sealed class SkillTests
     {
         var (skills,attributes)=Bundled();
         var build=new CharacterBuild(attributes,skills);
-        Assert.Equal(new[] { "sword-novice","sword-adept" },
+        Assert.Equal(new[] { "sword-novice","bow-novice","sword-adept" },
             skills.OrderedFor(build.Attributes,build.SelectedSkills).Select(s=>s.Id));
         Assert.True(build.SetAttribute(AttributeKind.Strength,5));
         Assert.False(skills.Get("sword-adept").IsAvailable(build.Attributes,build.SelectedSkills));
         Assert.True(build.ToggleSkill("sword-novice"));
         Assert.True(skills.Get("sword-adept").IsAvailable(build.Attributes,build.SelectedSkills));
-        Assert.Equal(new[] { "sword-novice","sword-adept" },
+        Assert.Equal(new[] { "sword-novice","sword-adept","bow-novice" },
             skills.OrderedFor(build.Attributes,build.SelectedSkills).Select(s=>s.Id));
     }
 

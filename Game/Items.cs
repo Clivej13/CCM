@@ -1,9 +1,9 @@
 namespace CCM.Game;
 
-public enum EquipmentSlot { None, Weapon, Body, Quiver }
+public enum EquipmentSlot { None, Weapon, Body, Quiver, Ammo }
 public enum ItemVisual { Sword, Bow, Staff, Armour, Quiver, Arrow, Tome }
 public enum ItemType { Weapon, Apparel, Ammunition, Tome }
-public enum ItemFilter { All, Weapons, Apparel, Tomes }
+public enum ItemFilter { All, Weapons, Apparel, Ammunition, Tomes }
 
 public sealed class ItemDefinition
 {
@@ -51,13 +51,14 @@ public sealed class ItemCatalogue
                 !float.IsFinite(item.AttackSpeed) || item.Protection<0 || item.Value<0 ||
                 !ids.Add(item.Id))
                 throw new InvalidDataException("Invalid or duplicate item definition.");
-            if (item.Stackable && slot!=EquipmentSlot.None)
+            if (item.Stackable && slot is not (EquipmentSlot.None or EquipmentSlot.Ammo))
                 throw new InvalidDataException($"Equippable item {item.Id} cannot be stackable.");
             if (type==ItemType.Weapon && slot!=EquipmentSlot.Weapon ||
                 type==ItemType.Apparel && slot is not (EquipmentSlot.Body or EquipmentSlot.Quiver) ||
-                (type is ItemType.Ammunition or ItemType.Tome) && slot!=EquipmentSlot.None)
+                type==ItemType.Ammunition && slot!=EquipmentSlot.Ammo ||
+                type==ItemType.Tome && slot!=EquipmentSlot.None)
                 throw new InvalidDataException($"Item {item.Id} has an incompatible type and slot.");
-            if (type==ItemType.Weapon && (item.AttackRange is < 0.5f or > 5f ||
+            if (type==ItemType.Weapon && (item.AttackRange is < 0.5f or > 40f ||
                     item.AttackSpeed is < 0.2f or > 4f) ||
                 type!=ItemType.Weapon && (item.AttackRange!=0 || item.AttackSpeed!=0))
                 throw new InvalidDataException($"Item {item.Id} has invalid weapon range or speed.");
@@ -136,6 +137,7 @@ public sealed class Inventory
         ItemFilter.All => stacks,
         ItemFilter.Weapons => stacks.Where(stack=>catalogue.Get(stack.ItemId).ItemType==ItemType.Weapon).ToArray(),
         ItemFilter.Apparel => stacks.Where(stack=>catalogue.Get(stack.ItemId).ItemType==ItemType.Apparel).ToArray(),
+        ItemFilter.Ammunition => stacks.Where(stack=>catalogue.Get(stack.ItemId).ItemType==ItemType.Ammunition).ToArray(),
         ItemFilter.Tomes => stacks.Where(stack=>catalogue.Get(stack.ItemId).ItemType==ItemType.Tome).ToArray(),
         _ => throw new ArgumentOutOfRangeException(nameof(filter))
     };
@@ -169,13 +171,35 @@ public sealed class Inventory
 public sealed class Equipment(Inventory inventory,ItemCatalogue catalogue)
 {
     private readonly Dictionary<EquipmentSlot,string> equipped=[];
+    private int ammoCount;
     public string? In(EquipmentSlot slot) => equipped.GetValueOrDefault(slot);
+    public int AmmoCount => ammoCount;
+    public bool ConsumeAmmo()
+    {
+        if (In(EquipmentSlot.Quiver) is null || ammoCount<=0) return false;
+        if (--ammoCount==0) equipped.Remove(EquipmentSlot.Ammo);
+        return true;
+    }
     public bool Equip(string id)
     {
-        if (inventory.Count(id)==0) return false;
+        int quantity=inventory.Count(id);
+        if (quantity==0) return false;
         var slot=catalogue.Get(id).EquipmentSlot;
         if (slot==EquipmentSlot.None) return false;
         string? previous=In(slot);
+        if (slot==EquipmentSlot.Ammo)
+        {
+            if (In(EquipmentSlot.Quiver) is null ||
+                (previous==id && ammoCount>int.MaxValue-quantity) ||
+                (previous is not null && previous!=id &&
+                 inventory.Count(previous)>int.MaxValue-ammoCount))
+                return false;
+            if (!inventory.Remove(id,quantity)) return false;
+            if (previous is not null && previous!=id) inventory.Add(previous,ammoCount);
+            ammoCount=previous==id ? ammoCount+quantity : quantity;
+            equipped[slot]=id;
+            return true;
+        }
         if (previous is not null && inventory.Count(previous)==int.MaxValue) return false;
         if (!inventory.Remove(id,1)) return false;
         if (previous is not null) inventory.Add(previous,1);
@@ -184,16 +208,20 @@ public sealed class Equipment(Inventory inventory,ItemCatalogue catalogue)
     }
     public bool Unequip(EquipmentSlot slot)
     {
-        if (slot==EquipmentSlot.None || In(slot) is not { } id ||
-            inventory.Count(id)==int.MaxValue) return false;
-        inventory.Add(id,1);
+        if (slot==EquipmentSlot.None || In(slot) is not { } id) return false;
+        if (slot==EquipmentSlot.Quiver && In(EquipmentSlot.Ammo) is not null &&
+            !Unequip(EquipmentSlot.Ammo)) return false;
+        int quantity=slot==EquipmentSlot.Ammo ? ammoCount : 1;
+        if (inventory.Count(id)>int.MaxValue-quantity) return false;
+        inventory.Add(id,quantity);
         equipped.Remove(slot);
+        if (slot==EquipmentSlot.Ammo) ammoCount=0;
         return true;
     }
     public void Clear()
     {
         foreach (var slot in equipped.Keys.ToArray())
-            if (!Unequip(slot))
+            if (In(slot) is not null && !Unequip(slot))
                 throw new InvalidOperationException($"Could not return equipped item in {slot} to the bag.");
     }
 }

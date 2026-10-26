@@ -108,6 +108,7 @@ validated platform. Refresh rate remains Raylib/driver controlled.
 
 Framework dependencies and source provenance are in [vendor/PROVENANCE.md](vendor/PROVENANCE.md).
 The dungeon uses flat-floor collision, block characters and one melee enemy.
+The player starts the test fight with a bow, a quiver and loaded arrows.
 Jumping, animation and procedural generation are not included.
 
 ## Inventory and equipment
@@ -124,14 +125,15 @@ separately loaded asset instance.
 Open the chest through the normal interaction controls to display its contents.
 Up/Down, controller D-pad or left stick selects a stack; Enter/A or a mouse click transfers
 it to the player's bag. Press I or controller Y to open the inventory. The bag is
-on the left, with All, Weapons, Apparel and Tomes filters changed by A/D, Left/Right,
-controller left stick or a mouse click. Equipped Weapon, Body and Quiver slots are on the right, including
+on the left, with All, Weapons, Apparel, Ammunition and Tomes filters changed by A/D, Left/Right,
+controller left stick or a mouse click. Equipped Weapon, Body, Quiver and Ammo slots are on the right, including
 empty slots. Tab or controller X switches between bag and equipment; Up/Down
 selects a row, and Enter/A equips or unequips. On mouse and keyboard, left click
 selects a bag item, right click equips it, and the wheel or scrollbar scrolls the
 bag. The selected item's catalogue details appear in the bottom-left detail panel;
 character attributes, selected skills and combat values are on the Character menu. Equipped items
-leave the bag, and replaced or unequipped items return to it. Arrows remain a bag stack.
+leave the bag, and replaced or unequipped items return to it. Equipping arrows loads their stack
+into an equipped quiver; shots consume them, and unloading returns the remainder to the bag.
 On keyboard and mouse, I opens Inventory, C opens Character and K opens
 Abilities. Q/E cycles their title tabs, which can also be clicked; A/D changes
 Inventory filters. Character displays innate attributes, current health,
@@ -142,17 +144,18 @@ Inventory. On controller, LT/RT cycles backward/forward across the three tabs.
 Y or B closes the panel or chest; the X close button is hidden. Escape/Start opens the pause menu. Open panels
 suspend dungeon updates; the chest and player inventory reset when entering a
 new game. Equipping changes the player's block appearance and live
-combat values. Value is display-only. The bow currently uses a short melee range;
-projectiles and arrow consumption are not implemented. Arrows cannot be equipped.
+combat values. Value is display-only. The bow uses ranged line of sight and consumes
+one loaded arrow per released shot.
 
 Config/abilities.json defines two starting ability points, ability IDs, paths,
 attribute and skill prerequisites, equipment requirements, stamina costs, cast
 and recovery times, and optional status effects. Paths describe a direction of
 training; they do not lock the character to a class. The catalogue contains
-only four implemented iron sword attacks. Sword Novice unlocks Opening Break and
+four iron sword attacks and two archer attacks. Sword Novice unlocks Opening Break and
 Quick Cut; Sword Adept requires Novice and unlocks Driving Cut and Finishing Cut.
+Bow Novice unlocks Quick Shot and Aimed Shot.
 Adept also requires Strength 5 and Agility 4. Each attack needs an equipped sword
-when used. Four single-use tomes are in the starter chest and reference catalogue abilities through Config/items.json. Move
+when used. Bow abilities require a bow with loaded arrows. Six single-use tomes are in the starter chest and reference catalogue abilities through Config/items.json. Move
 a tome to the bag, then press Enter/controller A or right click it to learn its
 ability once the requirements are met. An unavailable or already learned tome
 is retained. Learning does not require the eventual equipment; a learned ability
@@ -180,11 +183,15 @@ Pressured, or consumes Shaken to apply Exposed. Driving Cut consumes Exposed to
 apply Staggered, and Finishing Cut consumes Staggered for a larger hit. Quick Cut
 followed by Opening Break consumes Pressured for a cheaper, moderate bonus.
 These interactions use ability and status IDs rather than bar numbers. The guard
-applies Shaken on a landed attack, so the right-side player portrait displays a
+applies Shaken on a landed attack, so the left-side player portrait displays a
 real incoming status next to health and regenerating stamina. Staggered and
-Stunned block movement and attacks briefly. Auto-attacks cost no stamina and
-resume after an ability's cast and recovery. Sword ability requests need a
-selected enemy, line of sight, weapon range and sufficient stamina.
+Stunned block movement and attacks briefly. Melee attacks and sword abilities
+land immediately; bow attacks and abilities have a visible cast that takes longer
+each time the player is hit. Moving interrupts attack windups and stops auto-attacking;
+it also cancels an ability cast without spending an arrow. Quick Shot marks a target and Aimed Shot consumes
+Marked for extra damage and a brief pin. Attacks can miss or be dodged. Auto-attacks
+cost no stamina and resume after an ability's cast. Ability requests need a selected
+enemy, line of sight, weapon range and sufficient stamina.
 
 ## Character setup and skills
 
@@ -198,9 +205,9 @@ see docs/character-system-copy.md for the TODO to review them whenever the
 underlying systems change. Attribute values have no point budget and can be set
 from 1 to 10. Config/skills.json defines skill names, descriptions,
 up to three attribute prerequisites, skill prerequisites and two skill points.
-The bundled catalogue now contains Sword Novice and Sword Adept. Adept requires
-Novice, Strength 5 and Agility 4; both skills must be selected to spend the two
-starting points. Available skills appear above locked skills, with catalogue order
+The bundled catalogue contains Sword Novice, Sword Adept and Bow Novice. Adept requires
+Novice, Strength 5 and Agility 4; selecting Sword Novice and Sword Adept
+spends both starting skill points. Available skills appear above locked skills, with catalogue order
 retained within each group. Lowering an attribute or removing Novice refunds
 Adept and any starting abilities that no longer meet their requirements.
 Finish Level Up is available even with unspent points. The remaining skill and
@@ -209,8 +216,8 @@ Open the pause menu with Escape/Start and choose Level Up to spend them later;
 returning to the dungeon keeps inventory, equipment, camera, enemy state and
 combat pause. Tome-learned abilities remain known and do not consume starting
 ability points. Starting a New Game begins a fresh build. Skills are recorded
-on the player and shown on the Character panel; they unlock the matching sword
-abilities but have no direct combat effect. Selected abilities are shown as
+on the player and shown on the Character panel; they unlock matching sword
+and bow abilities but have no direct combat effect. Selected abilities are shown as
 learned in the dungeon's Abilities tab. Lowering an attribute or removing a
 prerequisite skill during setup refunds any invalid starting ability pick.
 
@@ -275,11 +282,12 @@ interaction target. Entering the scene resets the player, enemy, door and chest.
   AutoPauseOnCombatStart enabled, pauses until Space or Back resumes it.
   The enemy advances and attacks automatically
   in melee range. In follow view, left click selects the enemy and right click
-  starts repeating melee attacks; with an Xbox controller, LB/RB chooses the
+  starts repeating attacks with the equipped weapon; with an Xbox controller, LB/RB chooses the
   enemy and A attacks. The Auto attack selected enemy menu option starts attacks
   as soon as an enemy is selected. In follow view, move into range to land hits;
   top-down attack moves the player into range automatically. Both combatants use
-  a cast time, cooldown, health and line-of-sight checks. Defeat ends combat;
+  a cooldown, health and line-of-sight checks; bow attacks also have a cast time.
+  Defeat ends combat;
   use Return to Main Menu in the pause menu to leave. Resuming the pause menu preserves any combat pause.
 - Title selection determines the gameplay device. Other controllers cannot move
   the player. If the selected controller disconnects, movement/look stop and
@@ -288,22 +296,26 @@ interaction target. Entering the scene resets the player, enemy, door and chest.
   gameplay. Releasing it restores the pointer to its original position; focus
   loss and scene exit restore it as well. The first look sample after capture is
   discarded. Top-down mouse and controller behavior is unchanged.
-- Debug mode draws collision bounds, facing direction, player position and
-  camera distance.
+- Debug mode draws collision bounds and facing direction, with diagnostics,
+  controls, player position and camera distance centred at the top. The player
+  panel stays on the left and the enemy panel on the right.
 
 Config/dungeon.json controls movement and turn speed, sensitivities, deadzones, zoom threshold,
 top-down pan/cursor speeds, starting pitch, interaction range, the active enemy ID and
 AutoPauseOnCombatStart. Config/input.json contains the action bindings.
-Config/player.json defines starting player attributes; Config/attributes.json holds their
+Config/player.json defines starting attributes and archer abilities; Config/attributes.json holds their
 Level Up descriptions; Config/skills.json defines selectable skills and prerequisites;
 Config/enemies.json catalogues enemy types,
 attributes, movement speed and vision range. The game instantiates the selected enemy
-only when entering the dungeon. CombatEntity shares health, mitigation, range, cast and
+only when entering the dungeon. Config/dungeon.json also supplies the starting bow,
+quiver and arrows. CombatEntity shares health, mitigation, range, cast and
 cooldown rules for PlayerEntity and EnemyEntity. Strength raises base damage; Endurance
 raises health and armour; Agility raises attack rate; Intelligence and Willpower raise
 resistance. Speed raises movement speed for players and enemies. Charisma and Luck
-can unlock skills but have no gameplay effects yet. Equipped weapon damage adds to base damage, while its melee range and rate
-set the attack profile. Cast and cooldown divide the attack interval at a fixed ratio.
+can unlock skills; Luck also affects dodge chance. Equipped weapon damage adds to base
+damage, while bow damage also uses loaded ammunition. Weapon range and rate set
+the attack profile. Melee attacks land immediately; bow attacks have a windup
+that takes longer when the attacker is hit.
 Armour subtracts damage before percentage resistance, with a minimum of one damage
 for a successful hit. Enemy types can reference catalogue weapon and body-armour IDs. PlayerEntity composes an Inventory and Equipment; EnemyEntity
 does not carry player equipment. DoorInteractable and ChestInteractable share
@@ -332,7 +344,7 @@ enemy instance is created only when the game scene is first entered.
 
 Executed successfully on Windows:
 - Release build, zero warnings/errors.
-- 111 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
+- 118 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
   return/new-game/shutdown transitions, invalid configs, persisted settings,
   bundled menu/input/catalogue validation, separate loading catalogues, title
   press/release selection and missing-asset diagnostics; dungeon movement,
@@ -411,7 +423,7 @@ Still check interactively:
    tomes, and try Opening Break, Quick Cut, Driving Cut, Finishing Cut in that
    order; compare with Quick Cut then Opening Break. Watch the enemy statuses
    change and the stamina cost. Let the guard land a hit and check Shaken beside
-   the right-side player portrait, health and stamina. Pause combat and confirm
+   the left-side player portrait, health and stamina. Pause combat and confirm
    status timers stop. On keyboard and mouse, press C to open Character and K to open Abilities;
    use Q/E or the title tabs to cycle all three, A/D to change bag
    filters, and click X to close Character, Inventory, Abilities and the chest. Check that movement does not

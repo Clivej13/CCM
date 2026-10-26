@@ -124,6 +124,8 @@ public sealed class EnemyCatalogue
 }
 
 /// <summary>Live values calculated from innate attributes and equipped catalogue items.</summary>
+public enum AttackOutcome { None, Hit, Miss, Dodged }
+
 public readonly record struct CombatProfile(
     int MaxHealth,int Damage,float Range,float AttacksPerSecond,
     float CastSeconds,float CooldownSeconds,int Armour,int ResistancePercent);
@@ -133,22 +135,38 @@ public static class CombatFormula
     public const float UnarmedRange=1.8f;
 
     public static CombatProfile Calculate(CharacterAttributes attributes,
-        ItemDefinition? weapon=null,ItemDefinition? armour=null,ItemDefinition? quiver=null)
+        ItemDefinition? weapon=null,ItemDefinition? armour=null,ItemDefinition? quiver=null,
+        ItemDefinition? ammo=null)
     {
         ArgumentNullException.ThrowIfNull(attributes);
         attributes.Validate();
         int health=(50+attributes.Endurance*6)*10;
-        int damage=2+attributes.Strength+(weapon?.AttackPower ?? 0);
+        bool ranged=weapon?.VisualKind==ItemVisual.Bow;
+        int damage=2+attributes.Strength+(weapon?.AttackPower ?? 0)+
+            (ranged ? ammo?.AttackPower ?? 0 : 0);
         float speed=(weapon?.AttackSpeed ?? 0.7f)*(0.75f+attributes.Agility*0.025f);
         speed=Math.Clamp(speed,0.2f,4f);
         float interval=1f/speed;
-        float cast=interval*0.42f;
+        float cast=ranged ? interval*0.6f : 0;
         float cooldown=interval-cast;
         float range=weapon?.AttackRange ?? UnarmedRange;
         int defence=attributes.Endurance/5+
             (armour?.Protection ?? 0)+(quiver?.Protection ?? 0);
         int resistance=Math.Min(60,attributes.Willpower+attributes.Intelligence/2);
         return new(health,damage,range,speed,cast,cooldown,defence,resistance);
+    }
+
+    public static AttackOutcome RollAttack(CharacterAttributes attacker,
+        CharacterAttributes defender,bool ranged,float accuracyRoll,float dodgeRoll,
+        bool defenderCanDodge=true)
+    {
+        float missChance=(ranged ? 0.14f : 0.04f)+
+            Math.Max(0,defender.Speed-attacker.Agility)*0.01f;
+        float dodgeChance=defenderCanDodge
+            ? Math.Clamp(0.05f+(defender.Agility-attacker.Agility)*0.02f+
+                defender.Luck*0.005f,0.02f,0.3f) : 0;
+        if (accuracyRoll<missChance) return AttackOutcome.Miss;
+        return dodgeRoll<dodgeChance ? AttackOutcome.Dodged : AttackOutcome.Hit;
     }
 
     public static int DamageAfterDefence(int raw,CombatProfile defender)

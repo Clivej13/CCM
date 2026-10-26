@@ -8,7 +8,7 @@
       "Attributes": [{ "Attribute": "Strength", "Minimum": 4 }],
       "RequiredSkills": ["sword-adept"], "RequiredEquipmentSlot": "Weapon", "RequiredWeaponVisual": "Sword",
       "Combat": {
-        "StaminaCost": 22, "CastSeconds": 0.35, "RecoverySeconds": 8,
+        "StaminaCost": 22, "CastSeconds": 0, "RecoverySeconds": 8,
         "DamageMultiplier": 1.3, "ConsumeStatusId": "staggered",
         "ConditionalDamageMultiplier": 2.4
       }
@@ -20,7 +20,7 @@
       "Attributes": [{ "Attribute": "Agility", "Minimum": 4 }],
       "RequiredSkills": ["sword-novice"], "RequiredEquipmentSlot": "Weapon", "RequiredWeaponVisual": "Sword",
       "Combat": {
-        "StaminaCost": 10, "CastSeconds": 0.15, "RecoverySeconds": 4,
+        "StaminaCost": 10, "CastSeconds": 0, "RecoverySeconds": 4,
         "DamageMultiplier": 0.8, "ApplyStatusId": "pressured",
         "ConsumeStatusId": "shaken", "ConditionalApplyStatusId": "exposed"
       }
@@ -32,7 +32,7 @@
       "Attributes": [{ "Attribute": "Strength", "Minimum": 4 }],
       "RequiredSkills": ["sword-adept"], "RequiredEquipmentSlot": "Weapon", "RequiredWeaponVisual": "Sword",
       "Combat": {
-        "StaminaCost": 17, "CastSeconds": 0.25, "RecoverySeconds": 6,
+        "StaminaCost": 17, "CastSeconds": 0, "RecoverySeconds": 6,
         "DamageMultiplier": 1.0, "ConsumeStatusId": "exposed",
         "ConditionalApplyStatusId": "staggered", "ConditionalDamageMultiplier": 1.2
       }
@@ -44,9 +44,32 @@
       "Attributes": [{ "Attribute": "Strength", "Minimum": 4 }],
       "RequiredSkills": ["sword-novice"], "RequiredEquipmentSlot": "Weapon", "RequiredWeaponVisual": "Sword",
       "Combat": {
-        "StaminaCost": 12, "CastSeconds": 0.2, "RecoverySeconds": 5,
+        "StaminaCost": 12, "CastSeconds": 0, "RecoverySeconds": 5,
         "DamageMultiplier": 0.9, "ApplyStatusId": "shaken",
         "ConsumeStatusId": "pressured", "ConditionalDamageMultiplier": 1.6
+      }
+    },
+    {
+      "Id": "bow-quick-shot", "Name": "Quick Shot",
+      "Description": "Loose an arrow quickly and mark the target for a focused follow-up.",
+      "Path": "Archer",
+      "Attributes": [{ "Attribute": "Agility", "Minimum": 4 }],
+      "RequiredSkills": ["bow-novice"], "RequiredEquipmentSlot": "Weapon", "RequiredWeaponVisual": "Bow",
+      "Combat": {
+        "StaminaCost": 9, "CastSeconds": 0.7, "RecoverySeconds": 4,
+        "DamageMultiplier": 0.8, "ApplyStatusId": "marked"
+      }
+    },
+    {
+      "Id": "bow-aimed-shot", "Name": "Aimed Shot",
+      "Description": "Draw and aim a heavy shot. A marked target takes more damage and is pinned.",
+      "Path": "Archer",
+      "Attributes": [{ "Attribute": "Agility", "Minimum": 4 }],
+      "RequiredSkills": ["bow-novice"], "RequiredEquipmentSlot": "Weapon", "RequiredWeaponVisual": "Bow",
+      "Combat": {
+        "StaminaCost": 18, "CastSeconds": 1.5, "RecoverySeconds": 7,
+        "DamageMultiplier": 1.6, "ConsumeStatusId": "marked",
+        "ConditionalApplyStatusId": "pinned", "ConditionalDamageMultiplier": 1.5
       }
     }
   ]

@@ -24,6 +24,16 @@
       "Id": "stunned", "Name": "Stunned",
       "Description": "Unable to move or attack briefly.",
       "DurationSeconds": 0.8, "Tone": "Dangerous", "BlocksActions": true
+    },
+    {
+      "Id": "marked", "Name": "Marked",
+      "Description": "An archer has sighted this target for a powerful follow-up.",
+      "DurationSeconds": 5, "Tone": "Warning"
+    },
+    {
+      "Id": "pinned", "Name": "Pinned",
+      "Description": "A well-placed arrow briefly prevents action.",
+      "DurationSeconds": 1, "Tone": "Dangerous", "BlocksActions": true
     }
   ]
 }

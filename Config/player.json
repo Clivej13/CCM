@@ -8,5 +8,7 @@
     "Speed": 4,
     "Charisma": 4,
     "Luck": 4
-  }
+  },
+  "SkillIds": ["bow-novice"],
+  "AbilityIds": ["bow-quick-shot", "bow-aimed-shot"]
 }

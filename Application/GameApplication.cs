@@ -141,7 +141,12 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
                     active?.Render();
                     diagnostics.Draw(lifecycle.State);
                     if (debug.Enabled && selection.Selected is { } selected)
-                        Raylib.DrawText($"Controls: {selected}", 8, 28, 16, Color.Lime);
+                    {
+                        string controls=$"Controls: {selected}";
+                        int x=(Raylib.GetScreenWidth()-Raylib.MeasureText(controls,16))/2;
+                        Raylib.DrawRectangle(0,24,Raylib.GetScreenWidth(),24,new Color(0,0,0,190));
+                        Raylib.DrawText(controls,x,28,16,Color.Lime);
+                    }
                 }
                 finally { Raylib.EndDrawing(); }
                 if (smoke)

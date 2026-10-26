@@ -25,7 +25,11 @@ public sealed class AbilityTests
     public void UnspentPointsCanBeTakenIntoTheDungeonAndAllocatedLater()
     {
         var (skills,abilities,_,_)=Bundled();
-        var initial=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json"));
+        var initial=new PlayerDefinition
+        {
+            Attributes=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json"))
+                .Attributes
+        };
         var first=new CharacterBuild(initial,skills,abilities);
         Assert.True(first.HasUnspentPoints);
         var entered=first.Complete();
@@ -124,8 +128,10 @@ public sealed class AbilityTests
             abilities.OrderedFor(build.Attributes,build.SelectedSkills).Take(2).Select(a=>a.Id));
         Assert.True(build.SetAttribute(AttributeKind.Strength,5));
         Assert.True(build.ToggleSkill("sword-adept"));
-        Assert.All(abilities.Abilities,
+        Assert.All(abilities.Abilities.Where(a=>a.Path=="Iron Sword"),
             ability=>Assert.True(ability.MeetsRequirements(build.Attributes,build.SelectedSkills)));
+        Assert.All(abilities.Abilities.Where(a=>a.Path=="Archer"),
+            ability=>Assert.False(ability.MeetsRequirements(build.Attributes,build.SelectedSkills)));
         Assert.True(build.ToggleSkill("sword-novice"));
         Assert.Empty(build.SelectedSkills);
         Assert.DoesNotContain(abilities.Abilities,
@@ -175,16 +181,17 @@ public sealed class AbilityTests
     public void BundledAbilitiesAndTomesHaveImplementedCombatEffects()
     {
         var (_,abilities,items,containers)=Bundled();
-        Assert.Equal(4,abilities.Abilities.Count);
+        Assert.Equal(6,abilities.Abilities.Count);
         Assert.All(abilities.Abilities,ability=>
         {
             Assert.NotNull(ability.Combat);
             Assert.Single(ability.RequiredSkills);
-            Assert.Contains(ability.RequiredSkills[0],new[] { "sword-novice","sword-adept" });
+            Assert.Contains(ability.RequiredSkills[0],
+                new[] { "sword-novice","sword-adept","bow-novice" });
         });
         var chest=new Inventory(containers.Get("starter-chest").Contents);
         var tomes=items.Items.Where(item=>item.ItemType==ItemType.Tome).ToArray();
-        Assert.Equal(4,tomes.Length);
+        Assert.Equal(6,tomes.Length);
         Assert.All(tomes,tome=>
         {
             Assert.NotNull(tome.AbilityId);

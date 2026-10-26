@@ -153,40 +153,29 @@ public sealed class StatusCombatTests
         Assert.Contains("range",fight.RequestAbility("sword-quick-cut"));
         Assert.Equal(before,(int)fight.Player.Stamina);
         fight.Player.Position=new(0,0,-28.5f);
-        Assert.Contains("casting",fight.RequestAbility("sword-quick-cut"));
+        Assert.Contains("damage",fight.RequestAbility("sword-quick-cut"));
         Assert.True(fight.Player.Stamina<before);
     }
 
     [Fact]
-    public void AbilityCooldownsAreIndependentAndPauseWithCombat()
+    public void InstantSwordAbilitiesKeepIndependentCooldownsThatPauseWithCombat()
     {
         var (statuses,abilities,items)=Bundled();
         var fight=ReadySwordFight(statuses,abilities,items);
         Assert.Equal(0,fight.AbilityCooldownFraction("sword-quick-cut"));
 
-        Assert.Contains("casting",fight.RequestAbility("sword-quick-cut"));
-        Assert.Equal("sword-quick-cut",fight.CastingAbilityId);
-        Assert.Equal(0,fight.AbilityCastFraction);
-        fight.UpdateCombat(0.1f);
-        Assert.InRange(fight.AbilityCastFraction,0.65f,0.68f);
-        Assert.Equal(0,fight.AbilityCooldownFraction("sword-quick-cut"));
-        fight.UpdateCombat(0.1f);
+        Assert.Contains("damage",fight.RequestAbility("sword-quick-cut"));
         Assert.Null(fight.CastingAbilityId);
         Assert.Equal(0,fight.AbilityCastFraction);
         Assert.Equal(1,fight.AbilityCooldownFraction("sword-quick-cut"));
         Assert.Equal(0,fight.AbilityCooldownFraction("sword-opening-break"));
         Assert.Contains("cooling down",fight.RequestAbility("sword-quick-cut"));
 
-        Assert.Contains("casting",fight.RequestAbility("sword-opening-break"));
-        fight.UpdateCombat(0.1f);
-        fight.UpdateCombat(0.1f);
+        Assert.Contains("damage",fight.RequestAbility("sword-opening-break"));
         Assert.Equal(1,fight.AbilityCooldownFraction("sword-opening-break"));
-        Assert.InRange(fight.AbilityCooldownFraction("sword-quick-cut"),0.94f,0.96f);
-
         fight.TogglePause();
-        float quickRemaining=fight.AbilityCooldownFraction("sword-quick-cut");
         fight.UpdateCombat(1);
-        Assert.Equal(quickRemaining,fight.AbilityCooldownFraction("sword-quick-cut"));
+        Assert.Equal(1,fight.AbilityCooldownFraction("sword-quick-cut"));
         fight.TogglePause();
         fight.Enemy.ReceiveDamage(fight.Enemy.Health);
         for (int i=0;i<50;i++) fight.UpdateCombat(0.1f);
@@ -211,7 +200,7 @@ public sealed class StatusCombatTests
         var fight=new DungeonSimulation(
             new DungeonSettings { Combat=new() { AutoPauseOnCombatStart=false } },
             items:items,playerDefinition:definition,enemies:enemies,
-            abilities:abilities,statuses:statuses);
+            abilities:abilities,statuses:statuses,combatRoll:()=>0.5f);
         fight.Player.Inventory.Add("iron-sword",1);
         Assert.True(fight.Player.Equipment.Equip("iron-sword"));
         fight.Player.Position=new(0,0,-6.35f);
@@ -228,7 +217,8 @@ public sealed class StatusCombatTests
 
     private static void Cast(DungeonSimulation fight,string abilityId)
     {
-        Assert.Contains("casting",fight.RequestAbility(abilityId));
+        Assert.Contains("damage",fight.RequestAbility(abilityId));
+        Assert.Null(fight.CastingAbilityId);
         for (int i=0;i<9;i++) fight.UpdateCombat(0.1f);
     }
 }

@@ -1,10 +1,10 @@
 namespace CCM.Game;
 
-/// <summary>Resolved on a successful melee hit. A conditional status is consumed for its bonus.</summary>
+/// <summary>Resolved on a successful ability hit. A conditional status is consumed for its bonus.</summary>
 public sealed class AbilityCombat
 {
     public int StaminaCost { get; set; }
-    public float CastSeconds { get; set; } = 0.2f;
+    public float CastSeconds { get; set; }
     public float RecoverySeconds { get; set; } = 4f;
     public float DamageMultiplier { get; set; } = 1f;
     public string? ApplyStatusId { get; set; }
@@ -15,7 +15,7 @@ public sealed class AbilityCombat
     public void Validate(StatusCatalogue? statuses)
     {
         if (StaminaCost is < 1 or > 100 || !float.IsFinite(CastSeconds) ||
-            CastSeconds is < 0.05f or > 3 || !float.IsFinite(RecoverySeconds) ||
+            CastSeconds is < 0 or > 3 || !float.IsFinite(RecoverySeconds) ||
             RecoverySeconds is < 0 or > 30 || !float.IsFinite(DamageMultiplier) ||
             DamageMultiplier is <= 0 or > 5 || !float.IsFinite(ConditionalDamageMultiplier) ||
             ConditionalDamageMultiplier is < 1 or > 5 ||
@@ -157,7 +157,8 @@ public sealed class AbilityBook
         ability.MeetsRequirements(player.Attributes,player.SkillIds) &&
         ability.HasRequiredEquipment(player.Equipment) &&
         (ability.RequiredWeaponVisual is null ||
-         player.EquippedWeaponVisual==Enum.Parse<ItemVisual>(ability.RequiredWeaponVisual,true));
+         player.EquippedWeaponVisual==Enum.Parse<ItemVisual>(ability.RequiredWeaponVisual,true)) &&
+        (ability.RequiredWeaponVisual!="Bow" || player.HasAmmo);
 }
 
 /// <summary>Player-owned assignments shared by the keyboard bar and controller wheel.</summary>

@@ -16,6 +16,12 @@
   "CameraPitch": 0.45,
   "InteractionRange": 2.5,
   "EnemyId": "dungeon-guard",
+  "StartingItems": [
+    { "ItemId": "short-bow", "Quantity": 1 },
+    { "ItemId": "leather-quiver", "Quantity": 1 },
+    { "ItemId": "arrow", "Quantity": 40 }
+  ],
+  "StartingEquipped": ["short-bow", "leather-quiver", "arrow"],
   "Combat": {
     "AutoPauseOnCombatStart": true
   }

@@ -12,7 +12,9 @@
         { "ItemId": "tome-sword-finishing-cut", "Quantity": 1 },
         { "ItemId": "tome-sword-quick-cut", "Quantity": 1 },
         { "ItemId": "tome-sword-driving-cut", "Quantity": 1 },
-        { "ItemId": "tome-sword-opening-break", "Quantity": 1 }
+        { "ItemId": "tome-sword-opening-break", "Quantity": 1 },
+        { "ItemId": "tome-bow-quick-shot", "Quantity": 1 },
+        { "ItemId": "tome-bow-aimed-shot", "Quantity": 1 }
       ]
     }
   ]

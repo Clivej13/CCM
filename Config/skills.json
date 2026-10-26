@@ -15,6 +15,12 @@
         { "Attribute": "Agility", "Minimum": 4 }
       ],
       "RequiredSkills": ["sword-novice"]
+    },
+    {
+      "Id": "bow-novice", "Name": "Bow Novice",
+      "Description": "Learn to draw, aim and release a bow. Unlocks Quick Shot and Aimed Shot.",
+      "Requirements": [{ "Attribute": "Agility", "Minimum": 4 }],
+      "RequiredSkills": []
     }
   ]
 }

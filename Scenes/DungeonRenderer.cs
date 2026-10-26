@@ -61,7 +61,7 @@ internal sealed class DungeonRenderer(DungeonSimulation simulation,ItemCatalogue
         {
             Raylib.DrawCubeV(player.TransformPoint(new(0.25f,0.85f,0.38f)),
                 new(0.26f,0.65f,0.22f),Color.Brown);
-            if (player.Inventory.CountVisual(items,ItemVisual.Arrow)>0)
+            if (player.Equipment.AmmoCount>0)
                 Raylib.DrawCubeV(player.TransformPoint(new(0.25f,1.25f,0.38f)),
                     new(0.18f,0.2f,0.16f),Color.Beige);
         }

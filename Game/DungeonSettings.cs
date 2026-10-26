@@ -1,5 +1,11 @@
 namespace CCM.Game;
 
+public sealed class StartingItemDefinition
+{
+    public string ItemId { get; set; } = "";
+    public int Quantity { get; set; }
+}
+
 public sealed class GameplaySettings
 {
     public bool AutoAttackSelectedEnemy { get; set; }
@@ -30,6 +36,8 @@ public sealed class DungeonSettings
     public float CameraPitch { get; set; } = 0.45f;
     public CombatSettings Combat { get; set; } = new();
     public string EnemyId { get; set; } = "dungeon-guard";
+    public List<StartingItemDefinition> StartingItems { get; set; } = [];
+    public List<string> StartingEquipped { get; set; } = [];
     public void Validate()
     {
         if (!float.IsFinite(InteractionRange) || InteractionRange is < 0.5f or > 5 ||
@@ -49,7 +57,12 @@ public sealed class DungeonSettings
             !float.IsFinite(ControllerCursorSpeed) || ControllerCursorSpeed is <= 0 or > 2000 ||
             !float.IsFinite(CameraPitch) || CameraPitch is < -0.18f or > 1.25f)
             throw new InvalidDataException("Invalid dungeon movement/camera settings.");
-        if (Combat is null || string.IsNullOrWhiteSpace(EnemyId))
-            throw new InvalidDataException("Combat settings and EnemyId are required.");
+        if (Combat is null || string.IsNullOrWhiteSpace(EnemyId) ||
+            StartingItems is null || StartingEquipped is null ||
+            StartingItems.Any(stack=>stack is null || string.IsNullOrWhiteSpace(stack.ItemId) ||
+                stack.Quantity<=0) ||
+            StartingEquipped.Any(string.IsNullOrWhiteSpace) ||
+            StartingEquipped.Distinct(StringComparer.Ordinal).Count()!=StartingEquipped.Count)
+            throw new InvalidDataException("Combat settings, EnemyId and starting equipment are required.");
     }
 }
