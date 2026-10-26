@@ -22,6 +22,20 @@ public sealed class AbilityTests
     }
 
     [Fact]
+    public void AbilityCastsMustFinishBeforeTheirRelatedStatusDurations()
+    {
+        var skills=Settings.Required<SkillCatalogue>(Settings.ConfigPath("skills.json"));
+        var statuses=Settings.Required<StatusCatalogue>(Settings.ConfigPath("statuses.json"));
+        var abilities=Settings.Required<AbilityCatalogue>(Settings.ConfigPath("abilities.json"));
+        abilities.Validate(skills,statuses);
+        var aimed=abilities.Get("bow-aimed-shot").Combat!;
+        Assert.True(aimed.CastSeconds<statuses.Get("pinned").DurationSeconds);
+        Assert.True(aimed.CastSeconds<statuses.Get("marked").DurationSeconds);
+        aimed.CastSeconds=statuses.Get("pinned").DurationSeconds;
+        Assert.Throws<InvalidDataException>(()=>abilities.Validate(skills,statuses));
+    }
+
+    [Fact]
     public void UnspentPointsCanBeTakenIntoTheDungeonAndAllocatedLater()
     {
         var (skills,abilities,_,_)=Bundled();

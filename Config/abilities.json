@@ -67,7 +67,7 @@
       "Attributes": [{ "Attribute": "Agility", "Minimum": 4 }],
       "RequiredSkills": ["bow-novice"], "RequiredEquipmentSlot": "Weapon", "RequiredWeaponVisual": "Bow",
       "Combat": {
-        "StaminaCost": 18, "CastSeconds": 1.5, "RecoverySeconds": 7,
+        "StaminaCost": 18, "CastSeconds": 1.2, "RecoverySeconds": 7,
         "DamageMultiplier": 1.6, "ConsumeStatusId": "marked",
         "ConditionalApplyStatusId": "pinned", "ConditionalDamageMultiplier": 1.5
       }

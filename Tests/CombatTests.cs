@@ -316,12 +316,16 @@ public sealed class CombatTests
         Assert.Contains("casting",fight.RequestAbility("bow-quick-shot"));
         fight.UpdateCombat(0.1f);
         float progress=fight.AbilityCastFraction;
+        Assert.True(progress>0);
+        Assert.Equal(0,fight.AbilityCooldownFraction("bow-quick-shot"));
         fight.Player.ReceiveDamage(2);
         Assert.True(fight.AbilityCastFraction<progress);
         for (int i=0;i<6;i++) fight.UpdateCombat(0.1f);
         Assert.Equal("bow-quick-shot",fight.CastingAbilityId);
         for (int i=0;i<4;i++) fight.UpdateCombat(0.1f);
         Assert.Null(fight.CastingAbilityId);
+        Assert.Equal(0,fight.AbilityCastFraction);
+        Assert.True(fight.AbilityCooldownFraction("bow-quick-shot")>0);
         Assert.Equal(39,fight.Player.Equipment.AmmoCount);
         Assert.True(fight.Enemy.Statuses.Has("marked"));
 

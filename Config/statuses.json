@@ -33,7 +33,7 @@
     {
       "Id": "pinned", "Name": "Pinned",
       "Description": "A well-placed arrow briefly prevents action.",
-      "DurationSeconds": 1, "Tone": "Dangerous", "BlocksActions": true
+      "DurationSeconds": 2, "Tone": "Dangerous", "BlocksActions": true
     }
   ]
 }

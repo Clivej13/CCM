@@ -26,7 +26,10 @@ public sealed class AbilityCombat
             if (id is not null)
             {
                 if (string.IsNullOrWhiteSpace(id)) throw new InvalidDataException("Empty ability status ID.");
-                statuses?.Get(id);
+                var status=statuses?.Get(id);
+                if (status is not null && CastSeconds>=status.DurationSeconds)
+                    throw new InvalidDataException(
+                        $"Ability cast must be shorter than the related status: {id}");
             }
     }
 }

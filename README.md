@@ -174,7 +174,9 @@ wheel, aim with the right stick, and release LT to activate. LT continues to
 switch tabs while a panel is open. The bar and wheel share the same first eight
 assignments. Unlearned abilities cannot be assigned; learned abilities with
 unmet current requirements appear disabled. Assignments belong to the current
-player and reset with a new dungeon.
+player and reset with a new dungeon. During a cast, the purple line under its
+ability fills from left to right. During that ability's cooldown, its tile has
+a dark fill that drains away; cooldown does not use the purple line.
 
 Config/statuses.json owns status names, descriptions, duration, display tone and
 action blocking. Combatants own their active timers; reapplying a status refreshes
@@ -189,7 +191,8 @@ Stunned block movement and attacks briefly. Melee attacks and sword abilities
 land immediately; bow attacks and abilities have a visible cast that takes longer
 each time the player is hit. Moving interrupts attack windups and stops auto-attacking;
 it also cancels an ability cast without spending an arrow. Quick Shot marks a target and Aimed Shot consumes
-Marked for extra damage and a brief pin. Attacks can miss or be dodged. Auto-attacks
+Marked for extra damage and a brief pin. Configured casts must be shorter than
+the statuses they apply or consume. Attacks can miss or be dodged. Auto-attacks
 cost no stamina and resume after an ability's cast. Ability requests need a selected
 enemy, line of sight, weapon range and sufficient stamina.
 
@@ -344,7 +347,7 @@ enemy instance is created only when the game scene is first entered.
 
 Executed successfully on Windows:
 - Release build, zero warnings/errors.
-- 118 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
+- 119 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
   return/new-game/shutdown transitions, invalid configs, persisted settings,
   bundled menu/input/catalogue validation, separate loading catalogues, title
   press/release selection and missing-asset diagnostics; dungeon movement,
