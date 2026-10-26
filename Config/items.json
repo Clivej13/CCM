@@ -8,7 +8,7 @@
     {
       "Id": "short-bow", "Name": "Short bow", "Type": "Weapon", "Slot": "Weapon",
       "Visual": "Bow", "Description": "A compact bow that needs arrows to fire.",
-      "Weight": 1.4, "AttackPower": 6, "AttackRange": 1.8, "AttackSpeed": 0.65, "Protection": 0, "Value": 38, "Stackable": false
+      "Weight": 1.4, "AttackPower": 6, "AttackRange": 18.0, "AttackSpeed": 0.65, "Protection": 0, "Value": 38, "Stackable": false
     },
     {
       "Id": "leather-quiver", "Name": "Leather quiver", "Type": "Apparel", "Slot": "Quiver",
@@ -16,7 +16,7 @@
       "Weight": 0.8, "AttackPower": 0, "Protection": 1, "Value": 12, "Stackable": false
     },
     {
-      "Id": "arrow", "Name": "Arrow", "Type": "Ammunition", "Slot": "None",
+      "Id": "arrow", "Name": "Arrow", "Type": "Ammunition", "Slot": "Ammo",
       "Visual": "Arrow", "Description": "A wooden shaft with an iron tip.",
       "Weight": 0.05, "AttackPower": 2, "Protection": 0, "Value": 1, "Stackable": true
     },
@@ -52,6 +52,18 @@
       "Id": "tome-sword-opening-break", "Name": "Tome of Opening Break", "Type": "Tome", "Slot": "None",
       "Visual": "Tome", "AbilityId": "sword-opening-break",
       "Description": "Teaches an iron sword guard-opening strike.",
+      "Weight": 0.4, "Value": 35, "Stackable": false
+    },
+    {
+      "Id": "tome-bow-quick-shot", "Name": "Tome of Quick Shot", "Type": "Tome", "Slot": "None",
+      "Visual": "Tome", "AbilityId": "bow-quick-shot",
+      "Description": "Teaches a fast archer attack.",
+      "Weight": 0.4, "Value": 35, "Stackable": false
+    },
+    {
+      "Id": "tome-bow-aimed-shot", "Name": "Tome of Aimed Shot", "Type": "Tome", "Slot": "None",
+      "Visual": "Tome", "AbilityId": "bow-aimed-shot",
+      "Description": "Teaches a careful archer attack.",
       "Weight": 0.4, "Value": 35, "Stackable": false
     }
   ]

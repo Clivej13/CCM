@@ -149,7 +149,9 @@ public sealed class GameScene : Scene
             ignoreLook=true;
         }
         string? abilityFeedback=abilityUi.Update(simulation.Player);
-        if (abilityUi.ActivatedAbilityId is { } abilityId)
+        if (abilityUi.ActivatedAbilityId is { } abilityId &&
+            (simulation.Paused || abilityUi.PointerConsumed ||
+             abilityUi.WheelSelectionCommitted || abilityUi.WheelOpen))
             abilityFeedback=simulation.RequestAbility(abilityId);
         if (abilityFeedback is not null)
         {
@@ -184,6 +186,11 @@ public sealed class GameScene : Scene
         if (activeControls.BeforeFrame()) ignoreLook=true;
         simulation.ClearInteractionMessage();
         activeControls.Move(seconds,ignoreLook);
+        if (abilityUi.ActivatedAbilityId is { } movingAbilityId)
+        {
+            feedback=simulation.RequestAbility(movingAbilityId);
+            feedbackSeconds=1.5f;
+        }
         targeting.Update(input,seconds);
         bool combatBeforeFrame=simulation.CombatStarted;
         activeControls.Act(ignoreLook);

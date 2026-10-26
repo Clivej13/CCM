@@ -31,35 +31,32 @@ internal sealed class GameplayHud(SessionInput input,DungeonSimulation simulatio
             DrawPrompt(feedback,Raylib.GetScreenHeight()-(input.UsesMouse ? 110 : 70),
                 Color.RayWhite);
 
-        DrawPlayerPanel(player);
+        const int panelTop=96;
+        const int panelWidth=304;
+        int playerX=16;
+        int enemyX=Raylib.GetScreenWidth()-panelWidth-16;
+        DrawPlayerPanel(player,playerX,panelTop);
+        int playerDetailsY=panelTop+120+Math.Min(6,player.Statuses.Active.Count)*29;
         if (unspentSkillPoints>0 || unspentAbilityPoints>0)
-            Raylib.DrawText($"Unspent: {unspentSkillPoints} skill | {unspentAbilityPoints} ability",
-                16,84,18,Color.Gold);
-        int enemyStatusRows=0;
-        if (simulation.CombatStarted)
         {
-            DrawHealthBar(16,134,enemy.Health,enemy.MaxHealth,
-                simulation.EnemySelected ? "Enemy [selected]" : "Enemy",Color.Red);
-            if (enemy.Alive)
-            {
-                enemyStatusRows=Math.Min(6,enemy.Statuses.Active.Count);
-                if (enemyStatusRows>0)
-                {
-                    Raylib.DrawText("ENEMY STATUS",16,158,15,Color.Gold);
-                    DrawStatuses(enemy,16,178,220);
-                }
-            }
+            Raylib.DrawText($"Unspent: {unspentSkillPoints} skill | {unspentAbilityPoints} ability",
+                playerX,playerDetailsY,18,Color.Gold);
+            playerDetailsY+=25;
         }
-        int attackY=enemyStatusRows>0 ? 184+enemyStatusRows*29 : 174;
         if (simulation.AutoAttackEnabled && enemy.Alive)
             Raylib.DrawText($"Auto attack: {player.Phase} {player.AttackProgress:P0}",
-                16,attackY,16,Color.Gold);
-        if (simulation.CombatStarted && enemy.Alive)
-            Raylib.DrawText($"Enemy: {enemy.Phase} {enemy.AttackProgress:P0}",
-                16,attackY+23,16,Color.Red);
+                playerX,playerDetailsY,16,Color.Gold);
+        if (simulation.CombatStarted)
+            DrawEnemyPanel(enemy,enemyX,panelTop,simulation.EnemySelected);
         if (debug)
-            Raylib.DrawText($"Position {player.Position.X:0.00}, {player.Position.Y:0.00}, {player.Position.Z:0.00} | Camera {Vector3.Distance(camera.Position,camera.Target):0.00}m",
-                8,50,16,Color.Lime);
+        {
+            string details=$"Position {player.Position.X:0.00}, {player.Position.Y:0.00}, {player.Position.Z:0.00} | Camera {Vector3.Distance(camera.Position,camera.Target):0.00}m";
+            const int fontSize=16;
+            int textWidth=Raylib.MeasureText(details,fontSize);
+            int debugX=(Raylib.GetScreenWidth()-textWidth)/2;
+            Raylib.DrawRectangle(debugX-8,48,textWidth+16,25,new Color(0,0,0,190));
+            Raylib.DrawText(details,debugX,52,fontSize,Color.Lime);
+        }
         if (simulation.Paused)
         {
             Raylib.DrawRectangle(0,0,Raylib.GetScreenWidth(),Raylib.GetScreenHeight(),
@@ -68,9 +65,8 @@ internal sealed class GameplayHud(SessionInput input,DungeonSimulation simulatio
         }
     }
 
-    private static void DrawPlayerPanel(PlayerEntity player)
+    private static void DrawPlayerPanel(PlayerEntity player,int x,int y)
     {
-        int x=Raylib.GetScreenWidth()-320,y=72;
         Raylib.DrawRectangle(x,y,304,112,new Color(15,20,29,225));
         Raylib.DrawRectangleLines(x,y,304,112,Color.Gold);
         // Temporary block portrait follows the existing asset-free character style.
@@ -83,7 +79,27 @@ internal sealed class GameplayHud(SessionInput input,DungeonSimulation simulatio
             $"HP {player.Health}/{player.MaxHealth}");
         DrawMeter(x+84,y+74,204,player.Stamina,player.MaxStamina,Color.Gold,
             $"STA {player.Stamina:0}/{player.MaxStamina}");
+        if (player.UsesBow)
+            Raylib.DrawText($"ARROWS {player.Equipment.AmmoCount}",x+84,y+94,14,Color.RayWhite);
         DrawStatuses(player,x,y+120,304);
+    }
+
+    private static void DrawEnemyPanel(EnemyEntity enemy,int x,int y,bool selected)
+    {
+        Raylib.DrawRectangle(x,y,304,112,new Color(29,17,20,225));
+        Raylib.DrawRectangleLines(x,y,304,112,selected ? Color.Gold : Color.Red);
+        Raylib.DrawRectangle(x+12,y+15,60,80,new Color(86,38,43,255));
+        Raylib.DrawCircle(x+42,y+39,16,Color.Red);
+        Raylib.DrawRectangle(x+25,y+55,34,30,Color.Red);
+        Raylib.DrawRectangleLines(x+12,y+15,60,80,selected ? Color.Gold : Color.Red);
+        Raylib.DrawText(selected ? "ENEMY [selected]" : enemy.Definition.Name.ToUpperInvariant(),
+            x+84,y+8,17,selected ? Color.Gold : Color.RayWhite);
+        DrawMeter(x+84,y+55,204,enemy.Health,enemy.MaxHealth,Color.Red,
+            $"HP {enemy.Health}/{enemy.MaxHealth}");
+        if (enemy.Alive)
+            Raylib.DrawText($"Attack: {enemy.Phase} {enemy.AttackProgress:P0}",
+                x+84,y+87,16,Color.RayWhite);
+        DrawStatuses(enemy,x,y+120,304);
     }
 
     private static void DrawMeter(int x,int y,int width,float value,float maximum,
@@ -135,13 +151,6 @@ internal sealed class GameplayHud(SessionInput input,DungeonSimulation simulatio
             Raylib.DrawText(option.Label,x,y,fontSize,option.Selected ? Color.Gold : Color.RayWhite);
             x += Raylib.MeasureText(option.Label,fontSize)+gap;
         }
-    }
-
-    private static void DrawHealthBar(int x,int y,int health,int maximum,string label,Color colour)
-    {
-        Raylib.DrawText($"{label} {health}/{maximum}",x,y-22,18,Color.RayWhite);
-        Raylib.DrawRectangle(x,y,220,14,Color.DarkGray);
-        Raylib.DrawRectangle(x,y,(int)(220f*health/maximum),14,colour);
     }
 
     private static void DrawPrompt(string value,int y,Color colour)

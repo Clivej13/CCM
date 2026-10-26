@@ -16,7 +16,7 @@ public sealed class InventoryTests
         var contents=containers.Get("starter-chest").Contents;
         var simulation=new DungeonSimulation(new(),items:items,chestContents:contents);
         var chest=Assert.IsType<ChestInteractable>(simulation.World.Interactables[1]);
-        Assert.Equal(10,chest.Contents.Stacks.Count);
+        Assert.Equal(12,chest.Contents.Stacks.Count);
         Assert.Equal(20,chest.Contents.Count("arrow"));
 
         Assert.True(chest.Contents.TransferTo(simulation.Player.Inventory,"iron-sword",1));
@@ -46,15 +46,18 @@ public sealed class InventoryTests
         Assert.True(simulation.Player.Equipment.Equip("leather-quiver"));
         Assert.True(chest.Contents.TransferTo(simulation.Player.Inventory,"arrow",20));
         Assert.Equal(20,simulation.Player.Inventory.Count("arrow"));
-        Assert.False(simulation.Player.Equipment.Equip("arrow"));
+        Assert.True(simulation.Player.Equipment.Equip("arrow"));
+        Assert.Equal(20,simulation.Player.Equipment.AmmoCount);
+        Assert.Equal(0,simulation.Player.Inventory.Count("arrow"));
         foreach (string id in new[] { "tome-sword-finishing-cut","tome-sword-quick-cut",
-            "tome-sword-driving-cut","tome-sword-opening-break" })
+            "tome-sword-driving-cut","tome-sword-opening-break",
+            "tome-bow-quick-shot","tome-bow-aimed-shot" })
             Assert.True(chest.Contents.TransferTo(simulation.Player.Inventory,id,1));
         Assert.Empty(chest.Contents.Stacks);
 
         simulation.Reset();
         chest=Assert.IsType<ChestInteractable>(simulation.World.Interactables[1]);
-        Assert.Equal(10,chest.Contents.Stacks.Count);
+        Assert.Equal(12,chest.Contents.Stacks.Count);
         Assert.Empty(simulation.Player.Inventory.Stacks);
         Assert.Null(simulation.Player.Equipment.In(EquipmentSlot.Weapon));
     }
@@ -85,8 +88,8 @@ public sealed class InventoryTests
         var items=Settings.Required<ItemCatalogue>(Settings.ConfigPath("items.json"));
         items.Validate();
         var bag=new Inventory(items.Items.Select(item=>new ItemStack(item.Id,1)));
-        Assert.Equal(10,bag.Filter(items,ItemFilter.All).Count);
-        Assert.Equal(4,bag.Filter(items,ItemFilter.Tomes).Count);
+        Assert.Equal(12,bag.Filter(items,ItemFilter.All).Count);
+        Assert.Equal(6,bag.Filter(items,ItemFilter.Tomes).Count);
         Assert.Equal(3,bag.Filter(items,ItemFilter.Weapons).Count);
         Assert.Equal(2,bag.Filter(items,ItemFilter.Apparel).Count);
         var sword=items.Get("iron-sword");
@@ -134,7 +137,7 @@ public sealed class InventoryTests
         Assert.True(simulation.TryInteractVisible());
         Assert.NotNull(simulation.ChestOpened);
         Assert.True(simulation.ChestOpened.IsOpen);
-        Assert.Equal(10,simulation.ChestOpened.Contents.Stacks.Count);
+        Assert.Equal(12,simulation.ChestOpened.Contents.Stacks.Count);
         simulation.ClearInteractionMessage();
         Assert.Null(simulation.ChestOpened);
         simulation.UpdateAim(new(3.1f,1.2f,-3),-System.Numerics.Vector3.UnitZ);

@@ -8,37 +8,39 @@ namespace CCM.Tests;
 public sealed class CombatTests
 {
     [Fact]
-    public void BothCombatantsUseTheSameCastAndCooldownRules()
+    public void MeleeAttacksLandImmediatelyThenCooldown()
     {
         var player = new PlayerEntity(Vector3.Zero,new CharacterAttributes());
         var enemy = new EnemyEntity(new(0,0,-1),new EnemyDefinition());
         Assert.True(player.InRange(enemy));
-        Assert.True(enemy.InRange(player));
-        float cast=player.Profile.CastSeconds;
-        Assert.False(player.UpdateAttack(cast/2,enemy,true));
-        Assert.Equal(AttackPhase.Casting,player.Phase);
-        Assert.Equal(enemy.MaxHealth,enemy.Health);
-        Assert.True(player.UpdateAttack(cast/2,enemy,true));
+        Assert.Equal(0,player.Profile.CastSeconds);
+        Assert.True(player.UpdateAttack(0.01f,enemy,true));
         int dealt=CombatFormula.DamageAfterDefence(player.Profile.Damage,enemy.Profile);
         Assert.Equal(enemy.MaxHealth-dealt,enemy.Health);
         Assert.Equal(AttackPhase.Cooldown,player.Phase);
         Assert.False(player.UpdateAttack(player.Profile.CooldownSeconds,enemy,true));
         Assert.Equal(AttackPhase.Ready,player.Phase);
-        Assert.True(enemy.UpdateAttack(enemy.Profile.CastSeconds,player,true));
+        Assert.True(enemy.UpdateAttack(0.01f,player,true));
         int received=CombatFormula.DamageAfterDefence(enemy.Profile.Damage,player.Profile);
         Assert.Equal(player.MaxHealth-received,player.Health);
     }
 
     [Fact]
-    public void AttackWhiffsWhenTargetLeavesReachBeforeImpact()
+    public void BowAttackWhiffsWhenTargetLeavesReachBeforeRelease()
     {
-        var player = new PlayerEntity(Vector3.Zero,new CharacterAttributes());
-        var enemy = new EnemyEntity(new(0,0,-1),new EnemyDefinition());
+        var items=Settings.Required<ItemCatalogue>(Settings.ConfigPath("items.json"));
+        var player=new PlayerEntity(Vector3.Zero,new CharacterAttributes(),items);
+        player.Inventory.Add("short-bow",1);
+        Assert.True(player.Equipment.Equip("short-bow"));
+        var enemy=new EnemyEntity(new(0,0,-10),new EnemyDefinition());
         float halfCast=player.Profile.CastSeconds/2;
-        player.UpdateAttack(halfCast,enemy,true);
-        enemy.Position = new(0,0,-10);
+        Assert.True(halfCast>0);
+        Assert.False(player.UpdateAttack(halfCast,enemy,true));
+        Assert.Equal(AttackPhase.Casting,player.Phase);
+        enemy.Position=new(0,0,-30);
         Assert.False(player.InRange(enemy));
         Assert.False(player.UpdateAttack(halfCast,enemy,true));
+        Assert.Equal(AttackOutcome.Miss,player.LastAttackOutcome);
         Assert.Equal(enemy.MaxHealth,enemy.Health);
         Assert.Equal(AttackPhase.Cooldown,player.Phase);
     }
@@ -233,7 +235,7 @@ public sealed class CombatTests
         Assert.Equal(unarmed.Damage+items.Get("iron-sword").AttackPower,armed.Damage);
         Assert.True(armed.AttacksPerSecond>unarmed.AttacksPerSecond);
         Assert.Equal(unarmed.Armour+5,armed.Armour);
-        Assert.True(player.UpdateAttack(armed.CastSeconds,enemy,true));
+        Assert.True(player.UpdateAttack(0.01f,enemy,true));
         Assert.Equal(enemy.MaxHealth-CombatFormula.DamageAfterDefence(armed.Damage,enemy.Profile),
             enemy.Health);
 
@@ -241,8 +243,9 @@ public sealed class CombatTests
         Assert.Equal(unarmed.Range,player.Profile.Range);
         Assert.Equal(unarmed.Damage,player.Profile.Damage);
         player.Inventory.Add("arrow",20);
-        Assert.False(player.Equipment.Equip("arrow"));
-        Assert.Equal(20,player.Inventory.Count("arrow"));
+        Assert.True(player.Equipment.Equip("arrow"));
+        Assert.Equal(20,player.Equipment.AmmoCount);
+        Assert.Equal(0,player.Inventory.Count("arrow"));
     }
 
     [Fact]
@@ -283,6 +286,244 @@ public sealed class CombatTests
         enemies.Enemies.RemoveAt(1);
         enemies.Enemies[0].WeaponId="arrow";
         Assert.Throws<InvalidDataException>(()=>enemies.Validate(items));
+    }
+
+    [Fact]
+    public void BowStartsLoadedAndRangedAbilitiesSpendArrowsAndDelayOnHit()
+    {
+        var statuses=Settings.Required<StatusCatalogue>(Settings.ConfigPath("statuses.json"));
+        var skills=Settings.Required<SkillCatalogue>(Settings.ConfigPath("skills.json"));
+        var abilities=Settings.Required<AbilityCatalogue>(Settings.ConfigPath("abilities.json"));
+        var items=Settings.Required<ItemCatalogue>(Settings.ConfigPath("items.json"));
+        var player=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json"));
+        var settings=Settings.Required<DungeonSettings>(Settings.ConfigPath("dungeon.json"));
+        settings.Combat.AutoPauseOnCombatStart=false;
+        var enemies=new EnemyCatalogue { Enemies=[new EnemyDefinition { MoveSpeed=0 }] };
+        var fight=new DungeonSimulation(settings,items:items,playerDefinition:player,
+            enemies:enemies,abilities:abilities,statuses:statuses,combatRoll:()=>0.5f);
+        Assert.Equal("short-bow",fight.Player.Equipment.In(EquipmentSlot.Weapon));
+        Assert.Equal("leather-quiver",fight.Player.Equipment.In(EquipmentSlot.Quiver));
+        Assert.Equal("arrow",fight.Player.Equipment.In(EquipmentSlot.Ammo));
+        Assert.Equal(40,fight.Player.Equipment.AmmoCount);
+        Assert.Equal("bow-quick-shot",fight.Player.Abilities.Loadout.In(0));
+        Assert.Equal("bow-aimed-shot",fight.Player.Abilities.Loadout.In(1));
+        Assert.True(fight.Player.Profile.Range>10);
+
+        fight.Player.Position=new(0,0,-14);
+        fight.UpdateCombat(0.1f);
+        Assert.True(fight.CombatStarted);
+        Assert.True(fight.SelectEnemyContextual());
+        Assert.Contains("casting",fight.RequestAbility("bow-quick-shot"));
+        fight.UpdateCombat(0.1f);
+        float progress=fight.AbilityCastFraction;
+        Assert.True(progress>0);
+        Assert.Equal(0,fight.AbilityCooldownFraction("bow-quick-shot"));
+        fight.Player.ReceiveDamage(2);
+        Assert.True(fight.AbilityCastFraction<progress);
+        for (int i=0;i<6;i++) fight.UpdateCombat(0.1f);
+        Assert.Equal("bow-quick-shot",fight.CastingAbilityId);
+        for (int i=0;i<4;i++) fight.UpdateCombat(0.1f);
+        Assert.Null(fight.CastingAbilityId);
+        Assert.Equal(0,fight.AbilityCastFraction);
+        Assert.True(fight.AbilityCooldownFraction("bow-quick-shot")>0);
+        Assert.Equal(39,fight.Player.Equipment.AmmoCount);
+        Assert.True(fight.Enemy.Statuses.Has("marked"));
+
+        Assert.Contains("casting",fight.RequestAbility("bow-aimed-shot"));
+        for (int i=0;i<16;i++) fight.UpdateCombat(0.1f);
+        Assert.Null(fight.CastingAbilityId);
+        Assert.Equal(38,fight.Player.Equipment.AmmoCount);
+        Assert.False(fight.Enemy.Statuses.Has("marked"));
+        Assert.True(fight.Enemy.Statuses.Has("pinned"));
+        Assert.True(fight.Enemy.Health<fight.Enemy.MaxHealth);
+    }
+
+    [Fact]
+    public void CastAbilitiesHitDespiteLowAttackRollsButRequireSightAtRelease()
+    {
+        var settings=Settings.Required<DungeonSettings>(Settings.ConfigPath("dungeon.json"));
+        settings.Combat.AutoPauseOnCombatStart=false;
+        var items=Settings.Required<ItemCatalogue>(Settings.ConfigPath("items.json"));
+        var abilities=Settings.Required<AbilityCatalogue>(Settings.ConfigPath("abilities.json"));
+        var statuses=Settings.Required<StatusCatalogue>(Settings.ConfigPath("statuses.json"));
+        var player=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json"));
+        var enemies=new EnemyCatalogue { Enemies=[new EnemyDefinition { MoveSpeed=0 }] };
+        var fight=new DungeonSimulation(settings,items:items,playerDefinition:player,
+            enemies:enemies,abilities:abilities,statuses:statuses,combatRoll:()=>0);
+        fight.Player.Position=new(0,0,-6);
+        fight.Enemy.Position=new(0,0,-10);
+        var door=fight.World.Interactables[0];
+        Assert.True(door.Activate(fight.Player.Position));
+        Assert.True(fight.World.ClearLine(fight.Player.Position+Vector3.UnitY,
+            fight.Enemy.Position+Vector3.UnitY));
+        fight.UpdateCombat(0.1f);
+        Assert.True(fight.SelectEnemyContextual());
+
+        Assert.Contains("casting",fight.RequestAbility("bow-quick-shot"));
+        for (int i=0;i<8;i++) fight.UpdateCombat(0.1f);
+        Assert.Null(fight.CastingAbilityId);
+        Assert.True(fight.Enemy.Health<fight.Enemy.MaxHealth);
+        Assert.True(fight.Enemy.Statuses.Has("marked"));
+        int health=fight.Enemy.Health;
+
+        Assert.Contains("casting",fight.RequestAbility("bow-aimed-shot"));
+        Assert.True(door.Activate(fight.Player.Position));
+        Assert.False(fight.World.ClearLine(fight.Player.Position+Vector3.UnitY,
+            fight.Enemy.Position+Vector3.UnitY));
+        for (int i=0;i<13 && fight.CastingAbilityId is not null;i++)
+            fight.UpdateCombat(0.1f);
+        Assert.Null(fight.CastingAbilityId);
+        Assert.Contains("missed",fight.CombatMessage);
+        Assert.Equal(health,fight.Enemy.Health);
+    }
+
+    [Fact]
+    public void OrdinaryBowAttackUsesRangeAndStopsWhenQuiverIsEmpty()
+    {
+        var settings=Settings.Required<DungeonSettings>(Settings.ConfigPath("dungeon.json"));
+        settings.Combat.AutoPauseOnCombatStart=false;
+        var items=Settings.Required<ItemCatalogue>(Settings.ConfigPath("items.json"));
+        var player=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json"));
+        var enemies=new EnemyCatalogue { Enemies=[new EnemyDefinition { MoveSpeed=0 }] };
+        var fight=new DungeonSimulation(settings,items:items,playerDefinition:player,
+            enemies:enemies,combatRoll:()=>0.5f);
+        fight.Player.Position=new(0,0,-14);
+        fight.UpdateCombat(0.1f);
+        Assert.True(fight.SelectEnemyContextual());
+        fight.RequestAttack();
+        for (int i=0;i<12;i++) fight.UpdateCombat(0.1f);
+        Assert.True(fight.Enemy.Health<fight.Enemy.MaxHealth);
+        Assert.Equal(39,fight.Player.Equipment.AmmoCount);
+        Assert.True(fight.Player.Equipment.Unequip(EquipmentSlot.Ammo));
+        Assert.Equal(39,fight.Player.Inventory.Count("arrow"));
+        fight.RequestAttack();
+        fight.UpdateCombat(0.1f);
+        Assert.False(fight.AutoAttackEnabled);
+        Assert.Equal("No arrows equipped in quiver",fight.CombatMessage);
+    }
+
+    [Fact]
+    public void MissAndDodgeDoNoDamageAndHitsDelayBowWindup()
+    {
+        var items=Settings.Required<ItemCatalogue>(Settings.ConfigPath("items.json"));
+        var player=new PlayerEntity(Vector3.Zero,new CharacterAttributes(),items);
+        var enemy=new EnemyEntity(new(0,0,-10),new EnemyDefinition());
+        player.Inventory.Add("short-bow",1);
+        Assert.True(player.Equipment.Equip("short-bow"));
+        float cast=player.Profile.CastSeconds;
+        Assert.False(player.UpdateAttack(cast/2,enemy,true));
+        player.ReceiveDamage(2);
+        Assert.Equal(AttackPhase.Casting,player.Phase);
+        Assert.False(player.UpdateAttack(cast/2,enemy,true));
+        Assert.Equal(AttackPhase.Casting,player.Phase);
+        Assert.False(player.UpdateAttack(0.3f,enemy,true,accuracyRoll:0));
+        Assert.Equal(AttackOutcome.Miss,player.LastAttackOutcome);
+        Assert.Equal(enemy.MaxHealth,enemy.Health);
+
+        player.UpdateAttack(player.Profile.CooldownSeconds,enemy,true);
+        Assert.False(player.UpdateAttack(cast,enemy,true,dodgeRoll:0));
+        Assert.Equal(AttackOutcome.Dodged,player.LastAttackOutcome);
+        Assert.Equal(enemy.MaxHealth,enemy.Health);
+        Assert.Equal(AttackOutcome.Hit,
+            CombatFormula.RollAttack(player.Attributes,enemy.Attributes,true,0.5f,0.5f));
+    }
+
+    [Fact]
+    public void MovingInterruptsBowCastsAndStopsAutoAttacksWithoutSpendingArrows()
+    {
+        var settings=Settings.Required<DungeonSettings>(Settings.ConfigPath("dungeon.json"));
+        settings.Combat.AutoPauseOnCombatStart=false;
+        var items=Settings.Required<ItemCatalogue>(Settings.ConfigPath("items.json"));
+        var abilities=Settings.Required<AbilityCatalogue>(Settings.ConfigPath("abilities.json"));
+        var statuses=Settings.Required<StatusCatalogue>(Settings.ConfigPath("statuses.json"));
+        var player=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json"));
+        var enemies=new EnemyCatalogue { Enemies=[new EnemyDefinition { MoveSpeed=0 }] };
+        var fight=new DungeonSimulation(settings,items:items,playerDefinition:player,
+            enemies:enemies,abilities:abilities,statuses:statuses,combatRoll:()=>0.5f);
+        fight.Player.Position=new(0,0,-14);
+        fight.UpdateCombat(0.1f);
+        Assert.True(fight.SelectEnemyContextual());
+
+        Assert.Contains("casting",fight.RequestAbility("bow-quick-shot"));
+        fight.UpdateCombat(0.1f);
+        fight.Update(Vector2.UnitY,Vector2.Zero,true,0.1f);
+        Assert.Null(fight.CastingAbilityId);
+        Assert.Equal("Ability interrupted by movement",fight.CombatMessage);
+        Assert.Equal("Stop moving to use an ability",fight.RequestAbility("bow-quick-shot"));
+        Assert.Equal(0,fight.AbilityCooldownFraction("bow-quick-shot"));
+        for (int i=0;i<10;i++) fight.UpdateCombat(0.1f);
+        Assert.Equal(40,fight.Player.Equipment.AmmoCount);
+        Assert.Equal(fight.Enemy.MaxHealth,fight.Enemy.Health);
+
+        fight.RequestAttack();
+        fight.UpdateCombat(0.1f);
+        Assert.Equal(AttackPhase.Casting,fight.Player.Phase);
+        fight.Update(Vector2.UnitY,Vector2.Zero,true,0.1f);
+        Assert.False(fight.AutoAttackEnabled);
+        Assert.Equal(AttackPhase.Ready,fight.Player.Phase);
+        for (int i=0;i<10;i++) fight.UpdateCombat(0.1f);
+        Assert.Equal(40,fight.Player.Equipment.AmmoCount);
+        Assert.Equal(fight.Enemy.MaxHealth,fight.Enemy.Health);
+    }
+
+    [Fact]
+    public void MovingBeforeMeleeAttackStopsItAndDoesNotClearRecovery()
+    {
+        var fight=new DungeonSimulation(new DungeonSettings
+            { Combat=new() { AutoPauseOnCombatStart=false } },
+            enemies:new EnemyCatalogue { Enemies=[new EnemyDefinition { MoveSpeed=0 }] },
+            combatRoll:()=>0.5f);
+        fight.Player.Position=new(0,0,-28.5f);
+        fight.UpdateCombat(0.1f);
+        Assert.True(fight.SelectEnemyContextual());
+        fight.RequestAttack();
+        fight.Update(Vector2.UnitY,Vector2.Zero,true,0.1f);
+        fight.RequestAttack(); // Input can issue an attack after movement in the same frame.
+        fight.UpdateCombat(0.1f);
+        Assert.False(fight.AutoAttackEnabled);
+        Assert.Equal(fight.Enemy.MaxHealth,fight.Enemy.Health);
+
+        fight.RequestAttack();
+        fight.UpdateCombat(0.1f);
+        Assert.True(fight.Enemy.Health<fight.Enemy.MaxHealth);
+        Assert.Equal(AttackPhase.Cooldown,fight.Player.Phase);
+        int health=fight.Enemy.Health;
+        fight.Update(Vector2.UnitY,Vector2.Zero,true,0.1f);
+        Assert.Equal(AttackPhase.Cooldown,fight.Player.Phase);
+        fight.RequestAttack();
+        fight.UpdateCombat(0.1f);
+        Assert.Equal(health,fight.Enemy.Health);
+    }
+
+    [Fact]
+    public void MovingAndPressingAnInstantSwordAbilityInTheSameFrameDoesNotHit()
+    {
+        var items=Settings.Required<ItemCatalogue>(Settings.ConfigPath("items.json"));
+        var abilities=Settings.Required<AbilityCatalogue>(Settings.ConfigPath("abilities.json"));
+        var statuses=Settings.Required<StatusCatalogue>(Settings.ConfigPath("statuses.json"));
+        var player=new PlayerDefinition
+        {
+            SkillIds=["sword-novice"],
+            AbilityIds=["sword-quick-cut"]
+        };
+        var fight=new DungeonSimulation(new DungeonSettings
+            { Combat=new() { AutoPauseOnCombatStart=false } },
+            items:items,playerDefinition:player,
+            enemies:new EnemyCatalogue { Enemies=[new EnemyDefinition { MoveSpeed=0 }] },
+            abilities:abilities,statuses:statuses,combatRoll:()=>0.5f);
+        fight.Player.Inventory.Add("iron-sword",1);
+        Assert.True(fight.Player.Equipment.Equip("iron-sword"));
+        fight.Player.Position=new(0,0,-28.5f);
+        fight.UpdateCombat(0.1f);
+        Assert.True(fight.SelectEnemyContextual());
+
+        fight.Update(Vector2.UnitY,Vector2.Zero,true,0.1f);
+        Assert.Equal("Stop moving to use an ability",fight.RequestAbility("sword-quick-cut"));
+        Assert.Equal(fight.Enemy.MaxHealth,fight.Enemy.Health);
+        Assert.Equal(0,fight.AbilityCooldownFraction("sword-quick-cut"));
+        fight.UpdateCombat(0.1f);
+        Assert.Contains("damage",fight.RequestAbility("sword-quick-cut"));
+        Assert.True(fight.Enemy.Health<fight.Enemy.MaxHealth);
     }
 
     private static DungeonSimulation AtDoor(DungeonSettings settings,EnemyCatalogue? enemies=null)

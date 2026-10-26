@@ -65,15 +65,29 @@ public abstract class CombatEntity
             Stamina=Math.Min(MaxStamina,Stamina+8f*seconds);
     }
     public AttackPhase Phase { get; private set; }
-    public float AttackProgress => Phase==AttackPhase.Casting
+    public float AttackProgress => Phase==AttackPhase.Casting && activeAttack.CastSeconds>0
         ? 1-phaseSeconds/activeAttack.CastSeconds : 0;
-    public void ReceiveDamage(int rawDamage) =>
-        Health=Math.Max(0,Health-CombatFormula.DamageAfterDefence(rawDamage,Profile));
+    public AttackOutcome LastAttackOutcome { get; private set; }
+    public event Action<int>? Damaged;
+    public void ReceiveDamage(int rawDamage)
+    {
+        int damage=CombatFormula.DamageAfterDefence(rawDamage,Profile);
+        if (!Alive || damage<=0) return;
+        Health=Math.Max(0,Health-damage);
+        if (Alive && Phase==AttackPhase.Casting) phaseSeconds+=0.3f;
+        Damaged?.Invoke(damage);
+    }
     public void CancelAttack() { Phase=AttackPhase.Ready; phaseSeconds=0; }
+    public void InterruptAttack()
+    {
+        if (Phase==AttackPhase.Casting) CancelAttack();
+    }
 
     /// <summary>Returns true only when the cast completes and damage lands. Range is checked at start and impact.</summary>
-    public bool UpdateAttack(float seconds,CombatEntity? target,bool canHit)
+    public bool UpdateAttack(float seconds,CombatEntity? target,bool canHit,
+        float accuracyRoll=0.5f,float dodgeRoll=0.5f)
     {
+        LastAttackOutcome=AttackOutcome.None;
         if (!Alive || !float.IsFinite(seconds) || seconds<=0) return false;
         if (Statuses.BlocksActions) { CancelAttack(); return false; }
         if (Phase==AttackPhase.Ready)
@@ -88,11 +102,18 @@ public abstract class CombatEntity
         if (phaseSeconds>0) return false;
         if (Phase==AttackPhase.Casting)
         {
-            bool landed=target is { Alive:true } && canHit && InRange(target,activeAttack.Range);
-            if (landed) target!.ReceiveDamage(activeAttack.Damage);
+            bool inRange=target is { Alive:true } && canHit &&
+                InRange(target,activeAttack.Range);
+            LastAttackOutcome=inRange
+                ? CombatFormula.RollAttack(Attributes,target!.Attributes,
+                    activeAttack.CastSeconds>0,accuracyRoll,dodgeRoll,
+                    !target.Statuses.BlocksActions)
+                : AttackOutcome.Miss;
+            if (LastAttackOutcome==AttackOutcome.Hit)
+                target!.ReceiveDamage(activeAttack.Damage);
             Phase=AttackPhase.Cooldown;
             phaseSeconds=activeAttack.CooldownSeconds;
-            return landed;
+            return LastAttackOutcome==AttackOutcome.Hit;
         }
         Phase=AttackPhase.Ready;
         return false;
@@ -119,8 +140,12 @@ public sealed class PlayerEntity : CombatEntity
         Abilities=new AbilityBook(abilityIds);
     }
     public override CombatProfile Profile => CombatFormula.Calculate(Attributes,
-        Equipped(EquipmentSlot.Weapon),Equipped(EquipmentSlot.Body),Equipped(EquipmentSlot.Quiver));
+        Equipped(EquipmentSlot.Weapon),Equipped(EquipmentSlot.Body),
+        Equipped(EquipmentSlot.Quiver),Equipped(EquipmentSlot.Ammo));
     public ItemVisual? EquippedWeaponVisual => Equipped(EquipmentSlot.Weapon)?.VisualKind;
+    public bool UsesBow => EquippedWeaponVisual==ItemVisual.Bow;
+    public bool HasAmmo => Equipment.In(EquipmentSlot.Quiver) is not null &&
+        Equipment.In(EquipmentSlot.Ammo) is not null && Equipment.AmmoCount>0;
     public void ApplyBuild(PlayerDefinition previous,PlayerDefinition next)
     {
         next.Validate();

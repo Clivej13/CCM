@@ -9,9 +9,9 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
     AbilityCatalogue? abilities=null,StatusCatalogue? statuses=null)
 {
     private static readonly EquipmentSlot[] Slots=
-        [EquipmentSlot.Weapon,EquipmentSlot.Body,EquipmentSlot.Quiver];
+        [EquipmentSlot.Weapon,EquipmentSlot.Body,EquipmentSlot.Quiver,EquipmentSlot.Ammo];
     private static readonly ItemFilter[] Filters=
-        [ItemFilter.All,ItemFilter.Weapons,ItemFilter.Apparel,ItemFilter.Tomes];
+        [ItemFilter.All,ItemFilter.Weapons,ItemFilter.Apparel,ItemFilter.Ammunition,ItemFilter.Tomes];
     private const int SectionTabWidth=150;
     private const int SectionTabGap=8;
     private enum PanelMode { Closed, Chest, Inventory, Character, Abilities }
@@ -493,6 +493,8 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
             bool highlight=equipmentFocused && i==selectedSlot;
             if (highlight) Raylib.DrawRectangle(divider+8,rowY-3,width/2-22,31,new Color(90,75,40,255));
             string name=player.Equipment.In(Slots[i]) is { } id ? catalogue.Get(id).Name : "[empty]";
+            if (Slots[i]==EquipmentSlot.Ammo && player.Equipment.AmmoCount>0)
+                name+=$" x{player.Equipment.AmmoCount}";
             Raylib.DrawText(Fit($"{Slots[i]}: {name}",rightWidth,18),rightX,rowY,18,
                 highlight ? Color.Gold : Color.RayWhite);
         }
@@ -684,7 +686,7 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
             ? $"Range: {item.AttackRange:0.0} m  Speed: {item.AttackSpeed:0.00}/s"
             : item.ItemType==ItemType.Tome
                 ? $"Teaches: {abilities?.Get(item.AbilityId!).Name ?? item.AbilityId}"
-                : item.ItemType==ItemType.Ammunition ? "Ammunition - cannot equip" : "Apparel";
+                : item.ItemType==ItemType.Ammunition ? "Load into an equipped quiver" : "Apparel";
         Raylib.DrawText(Fit(attack,width,14),x,y+78,14,Color.RayWhite);
         DrawWrapped(item.Description,x,y+97,width,14,2);
     }

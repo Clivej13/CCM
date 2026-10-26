@@ -159,10 +159,13 @@ internal sealed class AbilityLoadoutUi(SessionInput input,AbilityCatalogue? cata
             int darkHeight=(int)MathF.Ceiling(height*remaining);
             Raylib.DrawRectangle(x,y+height-darkHeight,width,darkHeight,new Color(0,0,0,175));
         }
-        float line=id==simulation.CastingAbilityId
-            ? simulation.AbilityCastFraction : remaining;
-        if (line>0)
-            Raylib.DrawRectangle(x,y+height+2,Math.Max(1,(int)MathF.Ceiling(width*line)),
-                3,new Color(174,92,235,255));
+        if (id==simulation.CastingAbilityId)
+        {
+            float progress=simulation.AbilityCastFraction;
+            Raylib.DrawRectangle(x,y+height+2,width,4,new Color(45,24,61,255));
+            Raylib.DrawRectangle(x,y+height+2,
+                Math.Max(1,(int)MathF.Ceiling(width*progress)),4,
+                new Color(174,92,235,255));
+        }
     }
 }
