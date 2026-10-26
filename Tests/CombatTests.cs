@@ -339,6 +339,45 @@ public sealed class CombatTests
     }
 
     [Fact]
+    public void CastAbilitiesHitDespiteLowAttackRollsButRequireSightAtRelease()
+    {
+        var settings=Settings.Required<DungeonSettings>(Settings.ConfigPath("dungeon.json"));
+        settings.Combat.AutoPauseOnCombatStart=false;
+        var items=Settings.Required<ItemCatalogue>(Settings.ConfigPath("items.json"));
+        var abilities=Settings.Required<AbilityCatalogue>(Settings.ConfigPath("abilities.json"));
+        var statuses=Settings.Required<StatusCatalogue>(Settings.ConfigPath("statuses.json"));
+        var player=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json"));
+        var enemies=new EnemyCatalogue { Enemies=[new EnemyDefinition { MoveSpeed=0 }] };
+        var fight=new DungeonSimulation(settings,items:items,playerDefinition:player,
+            enemies:enemies,abilities:abilities,statuses:statuses,combatRoll:()=>0);
+        fight.Player.Position=new(0,0,-6);
+        fight.Enemy.Position=new(0,0,-10);
+        var door=fight.World.Interactables[0];
+        Assert.True(door.Activate(fight.Player.Position));
+        Assert.True(fight.World.ClearLine(fight.Player.Position+Vector3.UnitY,
+            fight.Enemy.Position+Vector3.UnitY));
+        fight.UpdateCombat(0.1f);
+        Assert.True(fight.SelectEnemyContextual());
+
+        Assert.Contains("casting",fight.RequestAbility("bow-quick-shot"));
+        for (int i=0;i<8;i++) fight.UpdateCombat(0.1f);
+        Assert.Null(fight.CastingAbilityId);
+        Assert.True(fight.Enemy.Health<fight.Enemy.MaxHealth);
+        Assert.True(fight.Enemy.Statuses.Has("marked"));
+        int health=fight.Enemy.Health;
+
+        Assert.Contains("casting",fight.RequestAbility("bow-aimed-shot"));
+        Assert.True(door.Activate(fight.Player.Position));
+        Assert.False(fight.World.ClearLine(fight.Player.Position+Vector3.UnitY,
+            fight.Enemy.Position+Vector3.UnitY));
+        for (int i=0;i<13 && fight.CastingAbilityId is not null;i++)
+            fight.UpdateCombat(0.1f);
+        Assert.Null(fight.CastingAbilityId);
+        Assert.Contains("missed",fight.CombatMessage);
+        Assert.Equal(health,fight.Enemy.Health);
+    }
+
+    [Fact]
     public void OrdinaryBowAttackUsesRangeAndStopsWhenQuiverIsEmpty()
     {
         var settings=Settings.Required<DungeonSettings>(Settings.ConfigPath("dungeon.json"));

@@ -192,7 +192,9 @@ land immediately; bow attacks and abilities have a visible cast that takes longe
 each time the player is hit. Moving interrupts attack windups and stops auto-attacking;
 it also cancels an ability cast without spending an arrow. Quick Shot marks a target and Aimed Shot consumes
 Marked for extra damage and a brief pin. Configured casts must be shorter than
-the statuses they apply or consume. Attacks can miss or be dodged. Auto-attacks
+the statuses they apply or consume. Cast-time abilities hit a target in range
+with line of sight; they miss if sight is blocked before release. Instant attacks
+and ordinary bow shots can miss or be dodged. Auto-attacks
 cost no stamina and resume after an ability's cast. Ability requests need a selected
 enemy, line of sight, weapon range and sufficient stamina.
 
@@ -347,7 +349,7 @@ enemy instance is created only when the game scene is first entered.
 
 Executed successfully on Windows:
 - Release build, zero warnings/errors.
-- 119 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
+- 120 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
   return/new-game/shutdown transitions, invalid configs, persisted settings,
   bundled menu/input/catalogue validation, separate loading catalogues, title
   press/release selection and missing-asset diagnostics; dungeon movement,

@@ -425,10 +425,13 @@ public sealed class DungeonSimulation
             return $"{ability.Name}: no arrows in quiver";
         if (!Enemy.Alive || !Player.InRange(Enemy) || !clear)
             return $"{ability.Name} missed";
-        var outcome=CombatFormula.RollAttack(Player.Attributes,Enemy.Attributes,ranged,
-            combatRoll(),combatRoll(),!Enemy.Statuses.BlocksActions);
-        if (outcome!=AttackOutcome.Hit)
-            return $"{ability.Name} {(outcome==AttackOutcome.Dodged ? "dodged" : "missed")}";
+        if (effect.CastSeconds==0)
+        {
+            var outcome=CombatFormula.RollAttack(Player.Attributes,Enemy.Attributes,ranged,
+                combatRoll(),combatRoll(),!Enemy.Statuses.BlocksActions);
+            if (outcome!=AttackOutcome.Hit)
+                return $"{ability.Name} {(outcome==AttackOutcome.Dodged ? "dodged" : "missed")}";
+        }
         bool combo=effect.ConsumeStatusId is { } needed && Enemy.Statuses.Consume(needed);
         float multiplier=effect.DamageMultiplier*
             (combo ? effect.ConditionalDamageMultiplier : 1f);
