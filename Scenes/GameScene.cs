@@ -9,7 +9,10 @@ public sealed class GameScene : Scene
     private readonly SessionInput input;
     private readonly DungeonSettings settings;
     private readonly Action returnToMenu;
+    private readonly Action requestLevelUp;
     private readonly DungeonSimulation simulation;
+    private readonly int skillPointLimit,abilityPointLimit;
+    private PlayerDefinition currentBuild;
     private readonly GameplayTargeting targeting;
     private readonly DungeonRenderer renderer;
     private readonly GameplayHud hud;
@@ -23,19 +26,25 @@ public sealed class GameScene : Scene
     private float feedbackSeconds;
 
     public GameScene(SessionInput input,DungeonSettings settings,bool debug,
-        Action returnToMenu,InputController menuInput,InputConfig bindings,
+        Action returnToMenu,Action requestLevelUp,InputController menuInput,InputConfig bindings,
         GameplaySettings? gameplay=null,ItemCatalogue? items=null,
         IEnumerable<ItemStack>? chestContents=null,
         PlayerDefinition? playerDefinition=null,EnemyCatalogue? enemies=null,
-        SkillCatalogue? skills=null,AbilityCatalogue? abilities=null)
+        SkillCatalogue? skills=null,AbilityCatalogue? abilities=null,
+        StatusCatalogue? statuses=null)
     {
         this.input=input;
         this.settings=settings;
         this.returnToMenu=returnToMenu;
+        this.requestLevelUp=requestLevelUp;
+        currentBuild=playerDefinition ?? new PlayerDefinition();
+        skillPointLimit=skills?.SkillPoints ?? 0;
+        abilityPointLimit=abilities?.StartingAbilityPoints ?? 0;
         items ??=new ItemCatalogue();
-        simulation=new(settings,gameplay,items,chestContents,playerDefinition,enemies);
+        simulation=new(settings,gameplay,items,chestContents,playerDefinition,enemies,
+            abilities,statuses);
         targeting=new(simulation,settings);
-        inventoryPanel=new(items,skills,abilities);
+        inventoryPanel=new(items,skills,abilities,statuses);
         pauseMenu=new(menuInput,bindings);
         renderer=new(simulation,items,debug);
         hud=new(input,simulation,targeting,debug);
@@ -55,9 +64,17 @@ public sealed class GameScene : Scene
         _ => gamepadTopDown
     };
 
+    public IReadOnlyCollection<string> TomeLearnedAbilityIds =>
+        simulation.Player.Abilities.LearnedIds.Except(currentBuild.AbilityIds).ToArray();
+
+    public void ApplyBuild(PlayerDefinition previous,PlayerDefinition next)
+    {
+        simulation.ApplyPlayerBuild(previous,next);
+        currentBuild=next;
+    }
+
     public override void Enter()
     {
-        simulation.Reset();
         inventoryPanel.Close();
         pauseMenu.Close();
         targeting.Reset();
@@ -65,7 +82,7 @@ public sealed class GameScene : Scene
         feedback=null;
         feedbackSeconds=0;
         ignoreLook=true;
-        wasTopDown=false;
+        wasTopDown=simulation.TopDown;
         activeControls=SelectControls();
         activeControls.Enter();
         activeControls.BeforeFrame();
@@ -80,6 +97,7 @@ public sealed class GameScene : Scene
             switch (pauseMenu.Update())
             {
                 case "ResumeGame": ClosePauseMenu(); break;
+                case "OpenLevelUp": requestLevelUp(); break;
                 case "ReturnToMainMenu": returnToMenu(); break;
             }
             return;
@@ -131,6 +149,8 @@ public sealed class GameScene : Scene
             ignoreLook=true;
         }
         string? abilityFeedback=abilityUi.Update(simulation.Player);
+        if (abilityUi.ActivatedAbilityId is { } abilityId)
+            abilityFeedback=simulation.RequestAbility(abilityId);
         if (abilityFeedback is not null)
         {
             feedback=abilityFeedback;
@@ -217,9 +237,11 @@ public sealed class GameScene : Scene
     public override void Render()
     {
         renderer.Render();
-        hud.Render(feedback,feedbackSeconds);
+        hud.Render(feedback,feedbackSeconds,
+            Math.Max(0,skillPointLimit-currentBuild.SkillIds.Count),
+            Math.Max(0,abilityPointLimit-currentBuild.AbilityIds.Count));
         if (!inventoryPanel.IsOpen && !pauseMenu.IsOpen)
-            abilityUi.Render(simulation.Player);
+            abilityUi.Render(simulation.Player,simulation);
         inventoryPanel.Render(simulation.Player,input.UsesMouse);
         pauseMenu.Render();
     }

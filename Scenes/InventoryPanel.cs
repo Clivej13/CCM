@@ -6,7 +6,7 @@ namespace CCM.Scenes;
 
 /// <summary>Looting and equipment share a modal panel; item data remains catalogue-owned.</summary>
 internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? skills=null,
-    AbilityCatalogue? abilities=null)
+    AbilityCatalogue? abilities=null,StatusCatalogue? statuses=null)
 {
     private static readonly EquipmentSlot[] Slots=
         [EquipmentSlot.Weapon,EquipmentSlot.Body,EquipmentSlot.Quiver];
@@ -206,6 +206,13 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
         if (entries.Count==0) return;
         if (input.UiUpPressed()) selected=(selected+entries.Count-1)%entries.Count;
         if (input.UiDownPressed()) selected=(selected+1)%entries.Count;
+        if (input.UsesMouse && input.Zoom!=0)
+        {
+            var pointer=Raylib.GetMousePosition();
+            if (pointer.X>=PanelLeft() && pointer.X<PanelLeft()+PanelWidth() &&
+                pointer.Y>=RowTop() && pointer.Y<PanelTop()+PanelHeight())
+                selected=Math.Clamp(selected-Math.Sign(input.Zoom),0,entries.Count-1);
+        }
         bool confirm=input.UiConfirmPressed();
         if (input.UsesMouse && input.SelectPressed())
         {
@@ -547,14 +554,24 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
             (usable ? "Learned, requirements met" : learned ? "Learned, unavailable" :
              eligible ? "Can learn from tome" : "Requirements unmet"),rightWidth,16),
             rightX,y+142,16,Color.RayWhite);
-        DrawWrapped(selectedAbility.Description,rightX,y+178,rightWidth,17,4);
-        Raylib.DrawText("REQUIREMENTS",rightX,y+270,18,Color.Gold);
+        DrawWrapped(selectedAbility.Description,rightX,y+178,rightWidth,17,3);
+        if (selectedAbility.Combat is { } effect)
+        {
+            Raylib.DrawText(Fit($"STA {effect.StaminaCost} | Cast {effect.CastSeconds:0.00}s | Recover {effect.RecoverySeconds:0.00}s",
+                rightWidth,15),rightX,y+244,15,Color.Gold);
+            string applied=effect.ApplyStatusId is { } id ? statuses?.Get(id).Name ?? id : "None";
+            string conditional=effect.ConsumeStatusId is { } consumed
+                ? $" | {statuses?.Get(consumed).Name ?? consumed} follow-up" : "";
+            Raylib.DrawText(Fit($"Applies {applied}{conditional}",rightWidth,15),
+                rightX,y+264,15,Color.RayWhite);
+        }
+        Raylib.DrawText("REQUIREMENTS",rightX,y+289,18,Color.Gold);
         int line=0;
         foreach (var requirement in selectedAbility.Attributes)
         {
             int current=player.Attributes.Get(requirement.Kind);
             Raylib.DrawText(Fit($"{requirement.Kind}: {current} / {requirement.Minimum}",
-                rightWidth,16),rightX,y+300+line++*24,16,
+                rightWidth,16),rightX,y+318+line++*24,16,
                 current>=requirement.Minimum ? Color.RayWhite : Color.Gray);
         }
         foreach (var skillId in selectedAbility.RequiredSkills)
@@ -562,13 +579,20 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
             bool hasSkill=player.SkillIds.Contains(skillId);
             string name=skills?.Get(skillId).Name ?? skillId;
             Raylib.DrawText(Fit($"Skill: {name}",rightWidth,16),
-                rightX,y+300+line++*24,16,hasSkill ? Color.RayWhite : Color.Gray);
+                rightX,y+318+line++*24,16,hasSkill ? Color.RayWhite : Color.Gray);
         }
         if (selectedAbility.RequiredEquipmentSlot is { } slot)
         {
             bool equipped=selectedAbility.HasRequiredEquipment(player.Equipment);
             Raylib.DrawText(Fit($"Equipped: {slot}",rightWidth,16),
-                rightX,y+300+line*24,16,equipped ? Color.RayWhite : Color.Gray);
+                rightX,y+318+line*24,16,equipped ? Color.RayWhite : Color.Gray);
+            line++;
+        }
+        if (selectedAbility.RequiredWeaponVisual is { } visual)
+        {
+            bool hasStyle=player.EquippedWeaponVisual?.ToString()==visual;
+            Raylib.DrawText(Fit($"Weapon style: {visual}",rightWidth,16),
+                rightX,y+318+line*24,16,hasStyle ? Color.RayWhite : Color.Gray);
         }
         int slotY=y+height-74;
         int slotCount=usesMouse ? AbilityLoadout.SlotCount : AbilityLoadout.WheelSlotCount;

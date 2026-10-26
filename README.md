@@ -146,12 +146,13 @@ combat values. Value is display-only. The bow currently uses a short melee range
 projectiles and arrow consumption are not implemented. Arrows cannot be equipped.
 
 Config/abilities.json defines two starting ability points, ability IDs, paths,
-attribute and skill prerequisites,
-and optional equipment requirements. Paths describe a direction of training;
-they do not lock the character to a class. Two general abilities are available
-at the starting attributes; advanced paths require their matching skills.
-Three single-use tomes are in the
-starter chest and reference catalogue abilities through Config/items.json. Move
+attribute and skill prerequisites, equipment requirements, stamina costs, cast
+and recovery times, and optional status effects. Paths describe a direction of
+training; they do not lock the character to a class. The catalogue contains
+only four implemented iron sword attacks. Sword Novice unlocks Opening Break and
+Quick Cut; Sword Adept requires Novice and unlocks Driving Cut and Finishing Cut.
+Adept also requires Strength 5 and Agility 4. Each attack needs an equipped sword
+when used. Four single-use tomes are in the starter chest and reference catalogue abilities through Config/items.json. Move
 a tome to the bag, then press Enter/controller A or right click it to learn its
 ability once the requirements are met. An unavailable or already learned tome
 is retained. Learning does not require the eventual equipment; a learned ability
@@ -162,49 +163,71 @@ The Abilities tab assigns learned abilities to a player-owned loadout. On keyboa
 select an ability and press 1-9, 0, - or = to assign that slot, or click a slot at
 the bottom of the tab. Pressing the same slot again with the same ability clears
 it; right-clicking a slot also clears it. In the dungeon the 12-slot bar stays
-at the bottom of the screen; its keys or a mouse click select an assigned ability.
-On controller, the Abilities tab shows the first eight slots. Left/right selects
-a wheel slot, A assigns or clears the highlighted learned ability, and X clears
-the slot. Hold LT in the dungeon to open the eight-way wheel, aim with the right
-stick, and release LT to select. LT continues to switch tabs while a panel is
-open. The bar and wheel share the same first eight assignments. Unlearned abilities
-cannot be assigned; learned abilities with unmet current requirements appear
-disabled. Assignments belong to the current player and reset with a new dungeon.
-Ability effects and activation remain future work; selection currently shows
-feedback without casting an effect.
+at the bottom of the screen; its keys or a mouse click activate an assigned
+combat ability. On controller, the Abilities tab shows the first eight slots.
+Left/right selects a wheel slot, A assigns or clears the highlighted learned
+ability, and X clears the slot. Hold LT in the dungeon to open the eight-way
+wheel, aim with the right stick, and release LT to activate. LT continues to
+switch tabs while a panel is open. The bar and wheel share the same first eight
+assignments. Unlearned abilities cannot be assigned; learned abilities with
+unmet current requirements appear disabled. Assignments belong to the current
+player and reset with a new dungeon.
+
+Config/statuses.json owns status names, descriptions, duration, display tone and
+action blocking. Combatants own their active timers; reapplying a status refreshes
+it, and combat pause freezes it. Opening Break applies Shaken. Quick Cut applies
+Pressured, or consumes Shaken to apply Exposed. Driving Cut consumes Exposed to
+apply Staggered, and Finishing Cut consumes Staggered for a larger hit. Quick Cut
+followed by Opening Break consumes Pressured for a cheaper, moderate bonus.
+These interactions use ability and status IDs rather than bar numbers. The guard
+applies Shaken on a landed attack, so the right-side player portrait displays a
+real incoming status next to health and regenerating stamina. Staggered and
+Stunned block movement and attacks briefly. Auto-attacks cost no stamina and
+resume after an ability's cast and recovery. Sword ability requests need a
+selected enemy, line of sight, weapon range and sufficient stamina.
 
 ## Character setup and skills
 
 Config/player.json supplies the starting attributes, currently 4 in each of Strength,
 Endurance, Agility, Intelligence, Willpower, Speed, Charisma and Luck. Level Up has
-Attributes, Skills and Abilities tabs. Each tab puts the selection list on the left
-and details on the right. Config/attributes.json owns the attribute descriptions;
+Attributes, Skills, Abilities and Finish tabs. The first three tabs put the
+selection list on the left and details on the right; Finish reviews attribute
+values, spent skill and ability points, and learned picks before confirmation.
+Config/attributes.json owns the attribute descriptions;
 see docs/character-system-copy.md for the TODO to review them whenever the
 underlying systems change. Attribute values have no point budget and can be set
 from 1 to 10. Config/skills.json defines skill names, descriptions,
-up to three attribute prerequisites and two skill points. A skill cannot be selected
-until every requirement is met. The catalogue includes two- and three-attribute
-examples. Available skills appear above locked skills, with catalogue order retained within
-each group. Lowering an attribute below a selected skill's requirement refunds its point.
-Both skill points and both starting ability points must be spent before Enter
-Dungeon is available. Skills are recorded on the player and shown on the
-Character panel; they have no gameplay effects yet. Selected abilities are
-shown as learned in the dungeon's Abilities tab. Lowering an attribute or
-removing a prerequisite skill during setup refunds any invalid ability pick.
+up to three attribute prerequisites, skill prerequisites and two skill points.
+The bundled catalogue now contains Sword Novice and Sword Adept. Adept requires
+Novice, Strength 5 and Agility 4; both skills must be selected to spend the two
+starting points. Available skills appear above locked skills, with catalogue order
+retained within each group. Lowering an attribute or removing Novice refunds
+Adept and any starting abilities that no longer meet their requirements.
+Finish Level Up is available even with unspent points. The remaining skill and
+ability points are tracked with the current build and shown in the dungeon HUD.
+Open the pause menu with Escape/Start and choose Level Up to spend them later;
+returning to the dungeon keeps inventory, equipment, camera, enemy state and
+combat pause. Tome-learned abilities remain known and do not consume starting
+ability points. Starting a New Game begins a fresh build. Skills are recorded
+on the player and shown on the Character panel; they unlock the matching sword
+abilities but have no direct combat effect. Selected abilities are shown as
+learned in the dungeon's Abilities tab. Lowering an attribute or removing a
+prerequisite skill during setup refunds any invalid starting ability pick.
 
 Use Up/Down to select a list entry. On Attributes, Left/Right or A/D changes
 the selected value; Enter/controller A increases it. The last list entry opens
 Skills. On Skills, Enter/controller A toggles a skill or opens Abilities. On
-Abilities, Enter/controller A toggles a starting ability or enters the dungeon
-when all points are spent. Tab/controller X cycles tabs; Q/E or controller
-LT/RT moves backward/forward through them.
+Abilities, Enter/controller A toggles a starting ability or opens Finish. On
+Finish, Enter/controller A confirms the build even if points remain.
+Tab/controller X cycles tabs; Q/E or controller LT/RT moves backward/forward
+through them.
 The tabs, plus/minus buttons and bottom action button are clickable. On the
 Skills and Abilities tabs, left click inspects an entry and right click selects
 or deselects it. The mouse wheel scrolls either list beyond eight entries.
 Controller B removes the highlighted skill or ability pick, or lowers the highlighted
-attribute; it does nothing on an unselected row. Escape/Start returns to the
+attribute; on Finish it returns to Abilities. It does nothing on an unselected row. Escape/Start returns to the
 previous setup tab. From Attributes, Escape/Start returns to the main menu
-without creating a player.
+before the first dungeon entry, or to the same game when revisiting Level Up.
 
 ## Dungeon test level
 
@@ -309,7 +332,7 @@ enemy instance is created only when the game scene is first entered.
 
 Executed successfully on Windows:
 - Release build, zero warnings/errors.
-- 104 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
+- 111 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
   return/new-game/shutdown transitions, invalid configs, persisted settings,
   bundled menu/input/catalogue validation, separate loading catalogues, title
   press/release selection and missing-asset diagnostics; dungeon movement,
@@ -346,10 +369,11 @@ Still check interactively:
 1. Visually inspect splash centring, loading progress and the debug overlay in
    each mode. Each tiny asset may finish in just two loading frames.
 2. Use keyboard, mouse and a physical controller for every menu action; verify
-   New Game opens the three setup tabs, available abilities move above locked
-   ones as attributes and skills change, both starting ability points must be
-   spent, and the chosen abilities appear as learned in the dungeon. Verify
-   the selected device moves, looks and returns.
+   New Game opens the four setup tabs, the Finish review and button work, available abilities move above locked
+   ones as attributes and skills change. Finish with points unspent, check the
+   dungeon HUD count, reopen Level Up from the pause menu, spend a point and
+   confirm the count changes without resetting the dungeon. Check that learned
+   abilities remain available and the selected device moves, looks and returns.
    Hold splash skip, release, and verify the title needs a second press. Confirm
    with a controller and check another controller cannot control the player. Walk against walls, through
    the doorway and around obstacles; aim at the door and chest to verify the gold
@@ -368,7 +392,7 @@ Still check interactively:
    controller cursor, and zoom in to
    reattach the camera. Confirm distant enemy selection works while a distant
    door/chest left click cannot instantly activate it. Open the chest in each
-   camera view, take all nine stacks, equip each weapon in turn plus armour and
+   camera view, take all ten stacks, equip each weapon in turn plus armour and
    quiver, and verify the block visuals and arrow count. Reopen the emptied
    chest, then start a new game and verify its contents reset. In inventory, use
    Left/Right or the left stick to cycle filters, Tab/X to switch panes, and
@@ -376,14 +400,19 @@ Still check interactively:
    bottom-left details, right click it to equip, then scroll with the wheel and
    scrollbar; ensure scrolling does not change the selected item's details.
    Check empty slot labels and that equipped items disappear from the bag, while
-   replaced items return to it. In the Tomes filter, try a tome without its
-   required skill and confirm it stays in the bag; choose that skill on a new
-   character, read the tome, and confirm it moves to learned Abilities. Test
-   Guard Break with and without an equipped weapon. Assign learned abilities to
+   replaced items return to it. In the Tomes filter, check that Quick Cut's
+   tome stays in the bag without Sword Novice or enough Agility. Restore both,
+   read the tome, and confirm it moves to learned Abilities. Check that Quick
+   Cut cannot be used until the iron sword is equipped. Assign learned abilities to
    the 1 through = bar slots, use those keys and click the bar, then check that
    controller A/X assigns and clears the first eight slots and LT plus right
-   stick selects from the wheel without issuing a dungeon action. Confirm
-   unlearned abilities cannot be assigned. On keyboard and mouse, press C to open Character and K to open Abilities;
+   stick activates from the wheel without issuing a dungeon action. Confirm
+   unlearned abilities cannot be assigned. Equip the iron sword, learn its four
+   tomes, and try Opening Break, Quick Cut, Driving Cut, Finishing Cut in that
+   order; compare with Quick Cut then Opening Break. Watch the enemy statuses
+   change and the stamina cost. Let the guard land a hit and check Shaken beside
+   the right-side player portrait, health and stamina. Pause combat and confirm
+   status timers stop. On keyboard and mouse, press C to open Character and K to open Abilities;
    use Q/E or the title tabs to cycle all three, A/D to change bag
    filters, and click X to close Character, Inventory, Abilities and the chest. Check that movement does not
    close any panel. On controller, confirm LT/RT cycles Inventory, Character and Abilities,

@@ -32,6 +32,11 @@
         },
         {
           "Type": "Button",
+          "Text": "Level Up",
+          "Function": "OpenLevelUp"
+        },
+        {
+          "Type": "Button",
           "Text": "Return to Main Menu",
           "Function": "ReturnToMainMenu"
         }

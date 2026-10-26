@@ -31,22 +31,28 @@
       "Weight": 2.0, "AttackPower": 5, "AttackRange": 2.2, "AttackSpeed": 0.80, "Protection": 0, "Value": 18, "Stackable": false
     },
     {
-      "Id": "tome-guard-break", "Name": "Tome of Guard Break", "Type": "Tome", "Slot": "None",
-      "Visual": "Tome", "AbilityId": "guard-break",
-      "Description": "Teaches Guard Break once its training and Strength requirements are met.",
-      "Weight": 0.4, "Value": 60, "Stackable": false
+      "Id": "tome-sword-finishing-cut", "Name": "Tome of Finishing Cut", "Type": "Tome", "Slot": "None",
+      "Visual": "Tome", "AbilityId": "sword-finishing-cut",
+      "Description": "Teaches the iron sword finishing strike.",
+      "Weight": 0.4, "Value": 35, "Stackable": false
     },
     {
-      "Id": "tome-arcane-pulse", "Name": "Tome of Arcane Pulse", "Type": "Tome", "Slot": "None",
-      "Visual": "Tome", "AbilityId": "arcane-pulse",
-      "Description": "Teaches Arcane Pulse once its training and Intelligence requirements are met.",
-      "Weight": 0.4, "Value": 60, "Stackable": false
+      "Id": "tome-sword-quick-cut", "Name": "Tome of Quick Cut", "Type": "Tome", "Slot": "None",
+      "Visual": "Tome", "AbilityId": "sword-quick-cut",
+      "Description": "Teaches a fast iron sword strike.",
+      "Weight": 0.4, "Value": 35, "Stackable": false
     },
     {
-      "Id": "tome-swift-step", "Name": "Tome of Swift Step", "Type": "Tome", "Slot": "None",
-      "Visual": "Tome", "AbilityId": "swift-step",
-      "Description": "Teaches Swift Step once its training and attribute requirements are met.",
-      "Weight": 0.4, "Value": 60, "Stackable": false
+      "Id": "tome-sword-driving-cut", "Name": "Tome of Driving Cut", "Type": "Tome", "Slot": "None",
+      "Visual": "Tome", "AbilityId": "sword-driving-cut",
+      "Description": "Teaches a heavy iron sword follow-up.",
+      "Weight": 0.4, "Value": 35, "Stackable": false
+    },
+    {
+      "Id": "tome-sword-opening-break", "Name": "Tome of Opening Break", "Type": "Tome", "Slot": "None",
+      "Visual": "Tome", "AbilityId": "sword-opening-break",
+      "Description": "Teaches an iron sword guard-opening strike.",
+      "Weight": 0.4, "Value": 35, "Stackable": false
     }
   ]
 }

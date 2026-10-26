@@ -40,7 +40,7 @@ public sealed class FoundationTests
         Assert.Throws<InvalidOperationException>(() => state.Transition(AppState.MainMenu));
     }
     [Fact]
-    public void SetupCanBeCancelledButGameplayRequiresCompletion()
+    public void SetupCanBeCancelledBeforeGameplay()
     {
         var state=new Lifecycle();
         state.Transition(AppState.Splash);
@@ -50,6 +50,20 @@ public sealed class FoundationTests
         Assert.Throws<InvalidOperationException>(()=>state.Transition(AppState.Game));
         state.Transition(AppState.LevelUp);
         state.Transition(AppState.MainMenu);
+        state.Transition(AppState.LevelUp);
+        state.Transition(AppState.Game);
+        Assert.Equal(AppState.Game,state.State);
+    }
+
+    [Fact]
+    public void GameplayCanRevisitLevelUpAndReturnToTheSameState()
+    {
+        var state=new Lifecycle();
+        state.Transition(AppState.Splash);
+        state.Transition(AppState.Title);
+        state.Transition(AppState.Loading);
+        state.Transition(AppState.LevelUp);
+        state.Transition(AppState.Game);
         state.Transition(AppState.LevelUp);
         state.Transition(AppState.Game);
         Assert.Equal(AppState.Game,state.State);
@@ -136,6 +150,8 @@ public sealed class FoundationTests
             item => item.Function == "SetAutoAttack" && item.Type == "Toggle");
         Assert.Equal(new[] { "NewGame", "OpenMenu", "Exit" },
             menus.Menus["Main"].Items.Select(i => i.Function));
+        Assert.Contains(menus.Menus["Pause"].Items,
+            item=>item.Function=="OpenLevelUp" && item.Type=="Button");
         var input = InputConfigLoader.Load(Settings.ConfigPath("input.json"));
         foreach (string action in new[] { "MenuUp", "MenuDown", "MenuLeft", "MenuRight", "MenuConfirm", "MenuBack" })
         {

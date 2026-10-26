@@ -19,7 +19,7 @@ public sealed class Lifecycle
             (AppState.Loading, AppState.MainMenu or AppState.LevelUp) => true,
             (AppState.MainMenu, AppState.LevelUp) => true,
             (AppState.LevelUp, AppState.Game or AppState.MainMenu) => true,
-            (AppState.Game, AppState.MainMenu) => true,
+            (AppState.Game, AppState.MainMenu or AppState.LevelUp) => true,
             _ => false
         };
         if (State == AppState.Shutdown || !allowed)

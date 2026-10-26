@@ -9,8 +9,14 @@ public sealed class DungeonSimulation
     private readonly DungeonSettings settings;
     private readonly GameplaySettings gameplay;
     private readonly ItemCatalogue items;
-    private readonly PlayerDefinition playerDefinition;
+    private PlayerDefinition playerDefinition;
     private readonly EnemyDefinition enemyDefinition;
+    private readonly AbilityCatalogue? abilities;
+    private readonly StatusCatalogue? statuses;
+    private AbilityDefinition? castingAbility;
+    private float abilityCastSeconds;
+    private readonly Dictionary<string,(float Remaining,float Duration)> abilityCooldowns=
+        new(StringComparer.Ordinal);
     private readonly List<Vector3> movementPath = [];
     private Interactable? pendingInteraction;
     private int waypoint;
@@ -35,6 +41,12 @@ public sealed class DungeonSimulation
     public bool Paused { get; private set; }
     public bool EnemySelected { get; private set; }
     public bool AutoAttackEnabled => attackRequested;
+    public string? CastingAbilityId => castingAbility?.Id;
+    public float AbilityCastFraction => castingAbility?.Combat is { } combat
+        ? Math.Clamp(1-abilityCastSeconds/combat.CastSeconds,0,1) : 0;
+    public float AbilityCooldownFraction(string id) =>
+        abilityCooldowns.TryGetValue(id,out var cooldown)
+            ? Math.Clamp(cooldown.Remaining/cooldown.Duration,0,1) : 0;
     public bool ContextEnemySelected => chosenEnemy && EnemySelected && Enemy.Alive;
     public DungeonCamera Camera { get; }
     public float Yaw => Camera.Yaw;
@@ -48,17 +60,20 @@ public sealed class DungeonSimulation
 
     public DungeonSimulation(DungeonSettings settings, GameplaySettings? gameplay = null,
         ItemCatalogue? items=null,IEnumerable<ItemStack>? chestContents=null,
-        PlayerDefinition? playerDefinition=null,EnemyCatalogue? enemies=null)
+        PlayerDefinition? playerDefinition=null,EnemyCatalogue? enemies=null,
+        AbilityCatalogue? abilities=null,StatusCatalogue? statuses=null)
     {
         settings.Validate();
         this.settings=settings;
         this.gameplay=gameplay ?? new GameplaySettings();
         this.items=items ?? new ItemCatalogue();
+        this.abilities=abilities;
+        this.statuses=statuses;
         playerDefinition ??= new PlayerDefinition();
         playerDefinition.Validate();
         this.playerDefinition=playerDefinition;
         enemies ??= new EnemyCatalogue { Enemies=[new EnemyDefinition()] };
-        enemies.Validate(this.items);
+        enemies.Validate(this.items,statuses);
         enemyDefinition=enemies.Get(settings.EnemyId);
         World=new DungeonWorld(chestContents);
         Player=new(World.Spawn,this.playerDefinition.Attributes,this.items,
@@ -88,7 +103,20 @@ public sealed class DungeonSimulation
         chosenContext = null;
         chosenEnemy = false;
         doorJustOpened = false;
+        castingAbility=null;
+        abilityCastSeconds=0;
+        abilityCooldowns.Clear();
     }
+    public void ApplyPlayerBuild(PlayerDefinition previous,PlayerDefinition next)
+    {
+        Player.ApplyBuild(previous,next);
+        playerDefinition=next;
+        castingAbility=null;
+        abilityCastSeconds=0;
+        abilityCooldowns.Clear();
+        CombatMessage=null;
+    }
+
     public void TogglePause() => Paused = !Paused;
     public void ClearInteractionMessage()
     {
@@ -302,6 +330,77 @@ public sealed class DungeonSimulation
             chaseRepathSeconds = 0;
         }
     }
+    public string RequestAbility(string id)
+    {
+        if (abilities is null || statuses is null) return "Ability combat is unavailable";
+        var ability=abilities.Get(id);
+        if (!Player.Abilities.CanUse(ability,Player)) return $"{ability.Name} is unavailable";
+        if (ability.Combat is null) return $"{ability.Name} has no combat effect yet";
+        if (Paused || !Player.Alive || Player.Statuses.BlocksActions)
+            return "Cannot use an ability now";
+        if (castingAbility is not null) return "Finish the current action first";
+        if (abilityCooldowns.ContainsKey(id)) return $"{ability.Name} is cooling down";
+        if (!EnemySelected || !Enemy.Alive) return "Select an enemy first";
+        if (!Player.InRange(Enemy) ||
+            !World.ClearLine(Player.Position+Vector3.UnitY,Enemy.Position+Vector3.UnitY))
+            return "Move into sword range";
+        if (!Player.TrySpendStamina(ability.Combat.StaminaCost))
+            return "Not enough stamina";
+        castingAbility=ability;
+        abilityCastSeconds=ability.Combat.CastSeconds;
+        Player.CancelAttack();
+        return $"{ability.Name} casting";
+    }
+
+    private void UpdateAbility(float seconds,bool clear)
+    {
+        TickAbilityCooldowns(seconds);
+        if (castingAbility is null) return;
+        if (Player.Statuses.BlocksActions)
+        {
+            castingAbility=null;
+            abilityCastSeconds=0;
+            CombatMessage="Ability interrupted";
+            return;
+        }
+        abilityCastSeconds=Math.Max(0,abilityCastSeconds-seconds);
+        if (abilityCastSeconds>0) return;
+        var ability=castingAbility;
+        castingAbility=null;
+        var effect=ability.Combat!;
+        if (effect.RecoverySeconds>0)
+            abilityCooldowns[ability.Id]=(effect.RecoverySeconds,effect.RecoverySeconds);
+        if (!Enemy.Alive || !Player.InRange(Enemy) || !clear)
+        {
+            CombatMessage=$"{ability.Name} missed";
+            return;
+        }
+        bool combo=effect.ConsumeStatusId is { } needed && Enemy.Statuses.Consume(needed);
+        float multiplier=effect.DamageMultiplier*
+            (combo ? effect.ConditionalDamageMultiplier : 1f);
+        int raw=Math.Max(1,(int)MathF.Round(Player.Profile.Damage*multiplier));
+        int before=Enemy.Health;
+        Enemy.ReceiveDamage(raw);
+        if (Enemy.Alive)
+        {
+            string? applied=combo && effect.ConditionalApplyStatusId is not null
+                ? effect.ConditionalApplyStatusId : effect.ApplyStatusId;
+            if (applied is not null) Enemy.Statuses.Apply(statuses!.Get(applied));
+        }
+        CombatMessage=$"{ability.Name}{(combo ? " combo" : "")}: {before-Enemy.Health} damage";
+    }
+
+    private void TickAbilityCooldowns(float seconds)
+    {
+        foreach (var id in abilityCooldowns.Keys.ToArray())
+        {
+            var cooldown=abilityCooldowns[id];
+            float remaining=cooldown.Remaining-seconds;
+            if (remaining<=0.0001f) abilityCooldowns.Remove(id);
+            else abilityCooldowns[id]=(remaining,cooldown.Duration);
+        }
+    }
+
     public bool SetMoveDestination(Vector3 destination)
     {
         destination.Y = 0;
@@ -328,6 +427,7 @@ public sealed class DungeonSimulation
         seconds = Math.Min(seconds,0.1f);
         if (pan.LengthSquared()>1) pan=Vector2.Normalize(pan);
         Camera.Pan(pan,seconds);
+        if (Player.Statuses.BlocksActions) return;
         UpdateChase(seconds);
         AdvancePath(seconds);
         if (pendingInteraction is { } item)
@@ -397,8 +497,16 @@ public sealed class DungeonSimulation
     public void UpdateCombat(float seconds, bool controllerScheme = false)
     {
         CombatMessage = null;
-        if (Paused || !float.IsFinite(seconds) || seconds <= 0 || !Enemy.Alive || !Player.Alive) return;
+        if (Paused || !float.IsFinite(seconds) || seconds <= 0 || !Player.Alive) return;
         seconds = Math.Min(seconds,0.1f);
+        Player.Statuses.Tick(seconds);
+        Enemy.Statuses.Tick(seconds);
+        Player.RegenerateStamina(seconds);
+        if (!Enemy.Alive)
+        {
+            UpdateAbility(seconds,false);
+            return;
+        }
         if (!CombatStarted)
         {
             if (doorJustOpened) { doorJustOpened = false; return; }
@@ -414,7 +522,7 @@ public sealed class DungeonSimulation
         }
         var distance = Vector2.Distance(new(Enemy.Position.X,Enemy.Position.Z),
             new(Player.Position.X,Player.Position.Z));
-        if (distance > Enemy.Profile.Range*0.85f)
+        if (!Enemy.Statuses.BlocksActions && distance > Enemy.Profile.Range*0.85f)
         {
             var offset = Player.Position-Enemy.Position;
             offset.Y = 0;
@@ -422,11 +530,21 @@ public sealed class DungeonSimulation
                 Enemy.Position = World.Move(Enemy.Position,Vector3.Normalize(offset)*Enemy.Definition.MoveSpeed*Enemy.Attributes.MovementMultiplier*seconds);
         }
         bool clear = World.ClearLine(Player.Position+Vector3.UnitY,Enemy.Position+Vector3.UnitY);
-        if (attackRequested && Player.UpdateAttack(seconds,Enemy,clear))
+        UpdateAbility(seconds,clear);
+        if (attackRequested && castingAbility is null &&
+            Player.UpdateAttack(seconds,Enemy,clear))
             CombatMessage = $"Enemy hit - {Enemy.Health}/{Enemy.MaxHealth} HP";
-        else if (!attackRequested) Player.CancelAttack();
+        else if (!attackRequested || castingAbility is not null)
+            Player.CancelAttack();
         if (Enemy.Alive && Enemy.UpdateAttack(seconds,Player,clear))
+        {
             CombatMessage = $"Player hit - {Player.Health}/{Player.MaxHealth} HP";
+            if (Enemy.Definition.OnHitStatusId is { } id && statuses is not null && Player.Alive)
+            {
+                Player.Statuses.Apply(statuses.Get(id));
+                CombatMessage += $" | {statuses.Get(id).Name}";
+            }
+        }
         if (!Enemy.Alive)
         {
             attackRequested = false;
@@ -449,6 +567,7 @@ public sealed class DungeonSimulation
         if (!float.IsFinite(move.X) || !float.IsFinite(move.Y) ||
             !float.IsFinite(look.X) || !float.IsFinite(look.Y) || !float.IsFinite(turn)) return;
         Camera.Rotate(look,mouseLook,seconds,turn);
+        if (Player.Statuses.BlocksActions) return;
         if (move.LengthSquared() > 1) move = Vector2.Normalize(move);
         var forward = new Vector3(-MathF.Sin(Yaw),0,-MathF.Cos(Yaw));
         var right = new Vector3(MathF.Cos(Yaw),0,-MathF.Sin(Yaw));
