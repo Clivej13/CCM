@@ -40,8 +40,10 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
             playerDefinition.Validate();
             var skillCatalogue=Settings.Required<SkillCatalogue>(Settings.ConfigPath("skills.json"));
             skillCatalogue.Validate();
+            var statusCatalogue=Settings.Required<StatusCatalogue>(Settings.ConfigPath("statuses.json"));
+            statusCatalogue.Validate();
             var abilityCatalogue=Settings.Required<AbilityCatalogue>(Settings.ConfigPath("abilities.json"));
-            abilityCatalogue.Validate(skillCatalogue);
+            abilityCatalogue.Validate(skillCatalogue,statusCatalogue);
             foreach (var id in playerDefinition.SkillIds) skillCatalogue.Get(id);
             foreach (var id in playerDefinition.AbilityIds) abilityCatalogue.Get(id);
             itemCatalogue.Validate(abilityCatalogue);
@@ -50,7 +52,7 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
             attributeDescriptions.Validate();
             var selectedPlayer=playerDefinition;
             var enemyCatalogue=Settings.Required<EnemyCatalogue>(Settings.ConfigPath("enemies.json"));
-            enemyCatalogue.Validate(itemCatalogue);
+            enemyCatalogue.Validate(itemCatalogue,statusCatalogue);
             enemyCatalogue.Get(dungeon.EnemyId);
             var containerCatalogue=Settings.Required<ContainerCatalogue>(Settings.ConfigPath("containers.json"));
             containerCatalogue.Validate(itemCatalogue);
@@ -80,23 +82,43 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
             scenes[AppState.Loading] = new LoadingScene(assets, diagnostics, input,
                 () => Transition(Lifecycle.Destination(debug)), () => Transition(AppState.Shutdown),
                 initialKeys:["foundation-triangle"]);
+            bool levelUpFromGame=false;
             var levelUp=new LevelUpScene(sessionInput,playerDefinition,skillCatalogue,
                 abilityCatalogue,attributeDescriptions,
-                chosen => { selectedPlayer=chosen; Transition(AppState.Game); },
-                () => Transition(AppState.MainMenu));
+                chosen =>
+                {
+                    if (levelUpFromGame && scenes[AppState.Game] is GameScene game)
+                        game.ApplyBuild(selectedPlayer,chosen);
+                    selectedPlayer=chosen;
+                    Transition(AppState.Game);
+                },
+                () => Transition(levelUpFromGame ? AppState.Game : AppState.MainMenu));
             scenes[AppState.LevelUp]=levelUp;
             scenes[AppState.MainMenu] = new MenuScene(input, bindings, display, store, diagnostics,
-                () => Transition(AppState.LevelUp), () => Transition(AppState.Shutdown), gameplaySave, gameplay);
+                () =>
+                {
+                    levelUpFromGame=false;
+                    selectedPlayer=playerDefinition;
+                    levelUp.Prepare(playerDefinition);
+                    Transition(AppState.LevelUp);
+                },
+                () => Transition(AppState.Shutdown), gameplaySave, gameplay);
             lifecycle.Changed += (previous, next) =>
             {
                 active?.Exit();
                 diagnostics.Event($"State {previous} -> {next}");
-                // Rebuild the dungeon from the completed character build on every entry.
-                if (next==AppState.Game)
+                if (next==AppState.Game && !levelUpFromGame)
                     scenes[AppState.Game]=new GameScene(sessionInput,dungeon,debug.Enabled,
-                        () => Transition(AppState.MainMenu),input,bindings,gameplay,
-                        itemCatalogue,starterChest.Contents,selectedPlayer,enemyCatalogue,
-                        skillCatalogue,abilityCatalogue);
+                        () => Transition(AppState.MainMenu),
+                        () =>
+                        {
+                            levelUpFromGame=true;
+                            var game=(GameScene)scenes[AppState.Game];
+                            levelUp.Prepare(selectedPlayer,game.TomeLearnedAbilityIds,true);
+                            Transition(AppState.LevelUp);
+                        },
+                        input,bindings,gameplay,itemCatalogue,starterChest.Contents,
+                        selectedPlayer,enemyCatalogue,skillCatalogue,abilityCatalogue,statusCatalogue);
                 active = scenes.GetValueOrDefault(next);
                 active?.Enter();
             };

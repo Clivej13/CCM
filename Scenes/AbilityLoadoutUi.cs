@@ -14,12 +14,14 @@ internal sealed class AbilityLoadoutUi(SessionInput input,AbilityCatalogue? cata
     public bool WheelOpen => wheelOpen;
     public bool PointerConsumed { get; private set; }
     public bool WheelSelectionCommitted { get; private set; }
+    public string? ActivatedAbilityId { get; private set; }
 
     public void Reset()
     {
         wheelOpen=false;
         PointerConsumed=false;
         WheelSelectionCommitted=false;
+        ActivatedAbilityId=null;
         selectedSlot=-1;
         wheelSlot=0;
     }
@@ -28,6 +30,7 @@ internal sealed class AbilityLoadoutUi(SessionInput input,AbilityCatalogue? cata
     {
         PointerConsumed=false;
         WheelSelectionCommitted=false;
+        ActivatedAbilityId=null;
         if (input.UsesMouse)
         {
             wheelOpen=false;
@@ -77,23 +80,25 @@ internal sealed class AbilityLoadoutUi(SessionInput input,AbilityCatalogue? cata
         return Select(player,wheelSlot);
     }
 
-    private string Select(PlayerEntity player,int slot)
+    private string? Select(PlayerEntity player,int slot)
     {
         selectedSlot=slot;
         string? id=player.Abilities.Loadout.In(slot);
         if (id is null) return $"Slot {AbilityLoadout.KeyLabel(slot)} is empty";
         if (catalogue is null) return "Ability catalogue unavailable";
         var ability=catalogue.Get(id);
-        return player.Abilities.CanUse(ability,player)
-            ? $"{ability.Name} selected - effect not implemented"
-            : $"{ability.Name} is unavailable with current requirements";
+        if (!player.Abilities.CanUse(ability,player))
+            return $"{ability.Name} is unavailable with current requirements";
+        if (ability.Combat is null) return $"{ability.Name} has no combat effect yet";
+        ActivatedAbilityId=id;
+        return null;
     }
 
-    public void Render(PlayerEntity player)
+    public void Render(PlayerEntity player,DungeonSimulation simulation)
     {
         if (catalogue is null) return;
-        if (input.UsesMouse) RenderBar(player);
-        else if (wheelOpen) RenderWheel(player);
+        if (input.UsesMouse) RenderBar(player,simulation);
+        else if (wheelOpen) RenderWheel(player,simulation);
     }
 
     private static (int X,int Y,int Width,int Gap) BarLayout()
@@ -104,7 +109,7 @@ internal sealed class AbilityLoadoutUi(SessionInput input,AbilityCatalogue? cata
         return ((Raylib.GetScreenWidth()-total)/2,Raylib.GetScreenHeight()-58,width,gap);
     }
 
-    private void RenderBar(PlayerEntity player)
+    private void RenderBar(PlayerEntity player,DungeonSimulation simulation)
     {
         var (x,y,slotWidth,gap)=BarLayout();
         int total=(slotWidth+gap)*AbilityLoadout.SlotCount-gap;
@@ -112,11 +117,11 @@ internal sealed class AbilityLoadoutUi(SessionInput input,AbilityCatalogue? cata
         for (int i=0;i<AbilityLoadout.SlotCount;i++)
         {
             int left=x+i*(slotWidth+gap);
-            DrawSlot(player,i,left,y,slotWidth,44);
+            DrawSlot(player,simulation,i,left,y,slotWidth,44);
         }
     }
 
-    private void RenderWheel(PlayerEntity player)
+    private void RenderWheel(PlayerEntity player,DungeonSimulation simulation)
     {
         int cx=Raylib.GetScreenWidth()/2,cy=Raylib.GetScreenHeight()/2;
         Raylib.DrawCircle(cx,cy,192,new Color(0,0,0,190));
@@ -127,11 +132,12 @@ internal sealed class AbilityLoadoutUi(SessionInput input,AbilityCatalogue? cata
             float angle=i*MathF.Tau/AbilityLoadout.WheelSlotCount-MathF.PI/2;
             int x=cx+(int)(MathF.Cos(angle)*139)-49;
             int y=cy+(int)(MathF.Sin(angle)*139)-26;
-            DrawSlot(player,i,x,y,98,52,i==wheelSlot);
+            DrawSlot(player,simulation,i,x,y,98,52,i==wheelSlot);
         }
     }
 
-    private void DrawSlot(PlayerEntity player,int index,int x,int y,int width,int height,
+    private void DrawSlot(PlayerEntity player,DungeonSimulation simulation,int index,
+        int x,int y,int width,int height,
         bool wheelFocused=false)
     {
         string? id=player.Abilities.Loadout.In(index);
@@ -147,5 +153,16 @@ internal sealed class AbilityLoadoutUi(SessionInput input,AbilityCatalogue? cata
         while (label.Length>1 && Raylib.MeasureText(label,12)>width-8)
             label=label[..^1];
         Raylib.DrawText(label,x+4,y+height-17,12,usable ? Color.RayWhite : Color.Gray);
+        float remaining=simulation.AbilityCooldownFraction(id);
+        if (remaining>0)
+        {
+            int darkHeight=(int)MathF.Ceiling(height*remaining);
+            Raylib.DrawRectangle(x,y+height-darkHeight,width,darkHeight,new Color(0,0,0,175));
+        }
+        float line=id==simulation.CastingAbilityId
+            ? simulation.AbilityCastFraction : remaining;
+        if (line>0)
+            Raylib.DrawRectangle(x,y+height+2,Math.Max(1,(int)MathF.Ceiling(width*line)),
+                3,new Color(174,92,235,255));
     }
 }

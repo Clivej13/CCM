@@ -14,7 +14,8 @@
         "Luck": 5
       },
       "MoveSpeed": 2.3,
-      "VisionRange": 28
+      "VisionRange": 28,
+      "OnHitStatusId": "shaken"
     }
   ]
 }

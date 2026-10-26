@@ -9,9 +9,10 @@
         { "ItemId": "arrow", "Quantity": 20 },
         { "ItemId": "leather-armour", "Quantity": 1 },
         { "ItemId": "oak-staff", "Quantity": 1 },
-        { "ItemId": "tome-guard-break", "Quantity": 1 },
-        { "ItemId": "tome-arcane-pulse", "Quantity": 1 },
-        { "ItemId": "tome-swift-step", "Quantity": 1 }
+        { "ItemId": "tome-sword-finishing-cut", "Quantity": 1 },
+        { "ItemId": "tome-sword-quick-cut", "Quantity": 1 },
+        { "ItemId": "tome-sword-driving-cut", "Quantity": 1 },
+        { "ItemId": "tome-sword-opening-break", "Quantity": 1 }
       ]
     }
   ]

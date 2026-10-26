@@ -22,126 +22,222 @@ public sealed class AbilityTests
     }
 
     [Fact]
+    public void UnspentPointsCanBeTakenIntoTheDungeonAndAllocatedLater()
+    {
+        var (skills,abilities,_,_)=Bundled();
+        var initial=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json"));
+        var first=new CharacterBuild(initial,skills,abilities);
+        Assert.True(first.HasUnspentPoints);
+        var entered=first.Complete();
+        Assert.Empty(entered.SkillIds);
+        Assert.Empty(entered.AbilityIds);
+
+        var later=new CharacterBuild(entered,skills,abilities);
+        Assert.True(later.ToggleSkill("sword-novice"));
+        Assert.True(later.ToggleAbility("sword-quick-cut"));
+        var partial=later.Complete();
+        Assert.Equal(1,later.RemainingSkillPoints);
+        Assert.Equal(1,later.RemainingAbilityPoints);
+
+        var revisit=new CharacterBuild(partial,skills,abilities,["sword-opening-break"]);
+        Assert.False(revisit.ToggleAbility("sword-opening-break")); // tome learning costs no point
+        Assert.Equal(1,revisit.RemainingSkillPoints);
+        Assert.Equal(1,revisit.RemainingAbilityPoints);
+        Assert.Contains("sword-quick-cut",revisit.SelectedAbilities);
+        Assert.True(revisit.SetAttribute(AttributeKind.Strength,5));
+        Assert.True(revisit.ToggleSkill("sword-adept"));
+        Assert.True(revisit.ToggleAbility("sword-driving-cut"));
+        Assert.False(revisit.HasUnspentPoints);
+    }
+
+    [Fact]
     public void CharacterSetupSpendsTwoAbilityPointsAndSeedsTheDungeonPlayer()
     {
         var (skills,abilities,items,_)=Bundled();
         var attributes=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json")).Attributes;
         var build=new CharacterBuild(attributes,skills,abilities);
         Assert.Equal(2,build.RemainingAbilityPoints);
-        Assert.True(build.ToggleAbility("second-wind"));
-        Assert.False(build.ToggleAbility("arcane-pulse"));
-        Assert.True(build.ToggleSkill("arcane-spark"));
-        Assert.True(build.ToggleSkill("quickstep"));
-        Assert.True(build.ToggleAbility("arcane-pulse"));
-        Assert.False(build.ToggleAbility("swift-step")); // both ability points are spent
-        Assert.True(build.CanComplete);
+        Assert.False(build.ToggleAbility("sword-quick-cut"));
+        Assert.True(build.ToggleSkill("sword-novice"));
+        Assert.True(build.SetAttribute(AttributeKind.Strength,5));
+        Assert.True(build.ToggleSkill("sword-adept"));
+        Assert.True(build.ToggleAbility("sword-quick-cut"));
+        Assert.True(build.ToggleAbility("sword-opening-break"));
+        Assert.False(build.ToggleAbility("sword-driving-cut")); // both ability points are spent
+        Assert.False(build.HasUnspentPoints);
         var definition=build.Complete();
-        Assert.Equal(new[] { "second-wind","arcane-pulse" },definition.AbilityIds);
+        Assert.Equal(new[] { "sword-quick-cut","sword-opening-break" },definition.AbilityIds);
 
         var simulation=new DungeonSimulation(new DungeonSettings(),items:items,
             playerDefinition:definition);
-        Assert.True(simulation.Player.Abilities.Knows("second-wind"));
-        Assert.True(simulation.Player.Abilities.Knows("arcane-pulse"));
+        Assert.True(simulation.Player.Abilities.Knows("sword-quick-cut"));
+        Assert.True(simulation.Player.Abilities.Knows("sword-opening-break"));
         simulation.Reset();
-        Assert.True(simulation.Player.Abilities.Knows("second-wind"));
-        Assert.True(simulation.Player.Abilities.Knows("arcane-pulse"));
+        Assert.True(simulation.Player.Abilities.Knows("sword-quick-cut"));
+        Assert.True(simulation.Player.Abilities.Knows("sword-opening-break"));
     }
 
     [Fact]
-    public void LoweringAttributesOrRemovingSkillsRefundsStartingAbilityPoints()
+    public void LoweringAnAttributeRefundsAnUnavailableStartingAbility()
     {
         var (skills,abilities,_,_)=Bundled();
         var attributes=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json")).Attributes;
         var build=new CharacterBuild(attributes,skills,abilities);
-        Assert.True(build.ToggleAbility("second-wind"));
-        Assert.True(build.ToggleAbility("clear-mind"));
-        Assert.True(build.SetAttribute(AttributeKind.Endurance,3));
-        Assert.DoesNotContain("second-wind",build.SelectedAbilities);
+        Assert.True(build.ToggleSkill("sword-novice"));
+        Assert.True(build.ToggleAbility("sword-quick-cut"));
+        Assert.True(build.ToggleAbility("sword-opening-break"));
+        Assert.True(build.SetAttribute(AttributeKind.Agility,3));
+        Assert.DoesNotContain("sword-quick-cut",build.SelectedAbilities);
+        Assert.Contains("sword-opening-break",build.SelectedAbilities);
         Assert.Equal(1,build.RemainingAbilityPoints);
-        Assert.True(build.ToggleSkill("arcane-spark"));
-        Assert.True(build.ToggleAbility("arcane-pulse"));
-        Assert.True(build.ToggleSkill("arcane-spark")); // removing the prerequisite
-        Assert.DoesNotContain("arcane-pulse",build.SelectedAbilities);
-        Assert.Equal(1,build.RemainingAbilityPoints);
-        Assert.False(build.CanComplete);
+        Assert.True(build.HasUnspentPoints);
     }
 
     [Fact]
-    public void AvailableSetupAbilitiesSortAheadOfLockedPaths()
+    public void RemovingNoviceRefundsAdeptAndBothDependentAbilities()
+    {
+        var (skills,abilities,_,_)=Bundled();
+        var attributes=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json"))
+            .Attributes.With(AttributeKind.Strength,5);
+        var build=new CharacterBuild(attributes,skills,abilities);
+        Assert.True(build.ToggleSkill("sword-novice"));
+        Assert.True(build.ToggleSkill("sword-adept"));
+        Assert.True(build.ToggleAbility("sword-opening-break"));
+        Assert.True(build.ToggleAbility("sword-finishing-cut"));
+        Assert.True(build.ToggleSkill("sword-novice"));
+        Assert.Empty(build.SelectedSkills);
+        Assert.Empty(build.SelectedAbilities);
+        Assert.Equal(2,build.RemainingSkillPoints);
+        Assert.Equal(2,build.RemainingAbilityPoints);
+    }
+
+    [Fact]
+    public void AvailableSetupAbilitiesSortAheadOfLockedAbilities()
     {
         var (skills,abilities,_,_)=Bundled();
         var attributes=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json")).Attributes;
         var build=new CharacterBuild(attributes,skills,abilities);
-        Assert.Equal(new[] { "second-wind","clear-mind" },
-            abilities.OrderedFor(build.Attributes,build.SelectedSkills)
-                .Take(2).Select(ability=>ability.Id));
-        Assert.True(build.ToggleSkill("arcane-spark"));
-        Assert.Equal(new[] { "second-wind","clear-mind","arcane-pulse" },
-            abilities.OrderedFor(build.Attributes,build.SelectedSkills)
-                .Take(3).Select(ability=>ability.Id));
+        Assert.DoesNotContain(abilities.Abilities,
+            ability=>ability.MeetsRequirements(build.Attributes,build.SelectedSkills));
+        Assert.True(build.ToggleSkill("sword-novice"));
+        Assert.Equal(new[] { "sword-quick-cut","sword-opening-break" },
+            abilities.OrderedFor(build.Attributes,build.SelectedSkills).Take(2).Select(a=>a.Id));
+        Assert.True(build.SetAttribute(AttributeKind.Strength,5));
+        Assert.True(build.ToggleSkill("sword-adept"));
+        Assert.All(abilities.Abilities,
+            ability=>Assert.True(ability.MeetsRequirements(build.Attributes,build.SelectedSkills)));
+        Assert.True(build.ToggleSkill("sword-novice"));
+        Assert.Empty(build.SelectedSkills);
+        Assert.DoesNotContain(abilities.Abilities,
+            ability=>ability.MeetsRequirements(build.Attributes,build.SelectedSkills));
     }
 
     [Fact]
-    public void TomeNeedsTrainingAndAttributesThenTeachesOnce()
+    public void SwordTomeNeedsAttributesThenTeachesOnceAndRequiresSwordToUse()
     {
         var (_,abilities,items,containers)=Bundled();
-        var player=new PlayerEntity(Vector3.Zero,
-            new CharacterAttributes
-            {
-                Strength=4,Endurance=4,Agility=4,Intelligence=4,
-                Willpower=4,Speed=4,Charisma=4,Luck=4
-            },items,["power-strike"]);
+        var attributes=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json")).Attributes;
         var chest=new Inventory(containers.Get("starter-chest").Contents);
-        Assert.True(chest.TransferTo(player.Inventory,"tome-guard-break",1));
+        var player=new PlayerEntity(Vector3.Zero,attributes.With(AttributeKind.Agility,3),items,
+            ["sword-novice"]);
+        Assert.True(chest.TransferTo(player.Inventory,"tome-sword-quick-cut",1));
         Assert.Single(player.Inventory.Filter(items,ItemFilter.Tomes));
-        Assert.False(player.Abilities.TryLearnFromTome("tome-guard-break",player.Inventory,
+        Assert.False(player.Abilities.TryLearnFromTome("tome-sword-quick-cut",player.Inventory,
             items,abilities,player.Attributes,player.SkillIds));
-        Assert.Equal(1,player.Inventory.Count("tome-guard-break"));
+        Assert.Equal(1,player.Inventory.Count("tome-sword-quick-cut"));
 
-        var strongAttributes=player.Attributes.With(AttributeKind.Strength,5);
-        var untrained=new PlayerEntity(Vector3.Zero,strongAttributes,items);
-        Assert.True(player.Inventory.TransferTo(untrained.Inventory,"tome-guard-break",1));
-        Assert.False(untrained.Abilities.TryLearnFromTome("tome-guard-break",
+        var untrained=new PlayerEntity(Vector3.Zero,attributes,items);
+        Assert.True(player.Inventory.TransferTo(untrained.Inventory,"tome-sword-quick-cut",1));
+        Assert.False(untrained.Abilities.TryLearnFromTome("tome-sword-quick-cut",
             untrained.Inventory,items,abilities,untrained.Attributes,untrained.SkillIds));
-        Assert.Equal(1,untrained.Inventory.Count("tome-guard-break"));
 
-        var strongPlayer=new PlayerEntity(Vector3.Zero,strongAttributes,items,["power-strike"]);
-        Assert.True(untrained.Inventory.TransferTo(strongPlayer.Inventory,"tome-guard-break",1));
-        Assert.True(strongPlayer.Abilities.TryLearnFromTome("tome-guard-break",
-            strongPlayer.Inventory,items,abilities,strongPlayer.Attributes,strongPlayer.SkillIds));
-        Assert.True(strongPlayer.Abilities.Knows("guard-break"));
-        Assert.Equal(0,strongPlayer.Inventory.Count("tome-guard-break"));
-        Assert.False(strongPlayer.Abilities.CanUse(abilities.Get("guard-break"),strongPlayer));
+        var eligible=new PlayerEntity(Vector3.Zero,attributes,items,["sword-novice"]);
+        Assert.True(untrained.Inventory.TransferTo(eligible.Inventory,"tome-sword-quick-cut",1));
+        Assert.True(eligible.Abilities.TryLearnFromTome("tome-sword-quick-cut",
+            eligible.Inventory,items,abilities,eligible.Attributes,eligible.SkillIds));
+        Assert.True(eligible.Abilities.Knows("sword-quick-cut"));
+        Assert.Equal(0,eligible.Inventory.Count("tome-sword-quick-cut"));
+        Assert.False(eligible.Abilities.CanUse(abilities.Get("sword-quick-cut"),eligible));
 
-        strongPlayer.Inventory.Add("iron-sword",1);
-        Assert.True(strongPlayer.Equipment.Equip("iron-sword"));
-        Assert.True(strongPlayer.Abilities.CanUse(abilities.Get("guard-break"),strongPlayer));
-        Assert.True(strongPlayer.Equipment.Unequip(EquipmentSlot.Weapon));
-        Assert.True(strongPlayer.Abilities.Knows("guard-break"));
-        Assert.False(strongPlayer.Abilities.CanUse(abilities.Get("guard-break"),strongPlayer));
-        strongPlayer.Inventory.Add("tome-guard-break",1);
-        Assert.False(strongPlayer.Abilities.TryLearnFromTome("tome-guard-break",
-            strongPlayer.Inventory,items,abilities,strongPlayer.Attributes,strongPlayer.SkillIds));
-        Assert.Equal(1,strongPlayer.Inventory.Count("tome-guard-break"));
+        eligible.Inventory.Add("iron-sword",1);
+        Assert.True(eligible.Equipment.Equip("iron-sword"));
+        Assert.True(eligible.Abilities.CanUse(abilities.Get("sword-quick-cut"),eligible));
+        Assert.True(eligible.Equipment.Unequip(EquipmentSlot.Weapon));
+        Assert.True(eligible.Abilities.Knows("sword-quick-cut"));
+        Assert.False(eligible.Abilities.CanUse(abilities.Get("sword-quick-cut"),eligible));
+        eligible.Inventory.Add("tome-sword-quick-cut",1);
+        Assert.False(eligible.Abilities.TryLearnFromTome("tome-sword-quick-cut",
+            eligible.Inventory,items,abilities,eligible.Attributes,eligible.SkillIds));
+        Assert.Equal(1,eligible.Inventory.Count("tome-sword-quick-cut"));
     }
 
     [Fact]
-    public void DifferentTrainingPathsCanLearnDifferentTomes()
+    public void BundledAbilitiesAndTomesHaveImplementedCombatEffects()
     {
         var (_,abilities,items,containers)=Bundled();
+        Assert.Equal(4,abilities.Abilities.Count);
+        Assert.All(abilities.Abilities,ability=>
+        {
+            Assert.NotNull(ability.Combat);
+            Assert.Single(ability.RequiredSkills);
+            Assert.Contains(ability.RequiredSkills[0],new[] { "sword-novice","sword-adept" });
+        });
         var chest=new Inventory(containers.Get("starter-chest").Contents);
-        var attributes=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json")).Attributes;
-        var player=new PlayerEntity(Vector3.Zero,attributes,items,["arcane-spark","quickstep"]);
-        foreach (string id in new[] { "tome-arcane-pulse","tome-swift-step" })
-            Assert.True(chest.TransferTo(player.Inventory,id,1));
-        Assert.True(player.Abilities.TryLearnFromTome("tome-arcane-pulse",player.Inventory,
-            items,abilities,player.Attributes,player.SkillIds));
-        Assert.True(player.Abilities.TryLearnFromTome("tome-swift-step",player.Inventory,
-            items,abilities,player.Attributes,player.SkillIds));
-        Assert.Equal(2,player.Abilities.LearnedIds.Count);
-        Assert.True(player.Abilities.CanUse(abilities.Get("arcane-pulse"),player));
-        Assert.True(player.Abilities.CanUse(abilities.Get("swift-step"),player));
-        Assert.False(player.Abilities.Knows("guard-break"));
+        var tomes=items.Items.Where(item=>item.ItemType==ItemType.Tome).ToArray();
+        Assert.Equal(4,tomes.Length);
+        Assert.All(tomes,tome=>
+        {
+            Assert.NotNull(tome.AbilityId);
+            Assert.NotNull(abilities.Get(tome.AbilityId!).Combat);
+            Assert.Equal(1,chest.Count(tome.Id));
+        });
+    }
+
+    [Fact]
+    public void RevisitedBuildUpdatesTheLivePlayerWithoutResettingDungeonProgress()
+    {
+        var (_,abilities,items,_)=Bundled();
+        var initial=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json"));
+        initial.SkillIds=["sword-novice"];
+        initial.AbilityIds=["sword-opening-break"];
+        var simulation=new DungeonSimulation(new DungeonSettings(),items:items,
+            playerDefinition:initial,abilities:abilities);
+        var player=simulation.Player;
+        player.Position=new Vector3(3,0,-7);
+        player.Inventory.Add("iron-sword",1);
+        Assert.True(player.Equipment.Equip("iron-sword"));
+        player.Inventory.Add("tome-sword-quick-cut",1);
+        Assert.True(player.Abilities.TryLearnFromTome("tome-sword-quick-cut",
+            player.Inventory,items,abilities,player.Attributes,player.SkillIds));
+        Assert.True(player.Abilities.Loadout.Assign(0,"sword-opening-break",player.Abilities));
+        int oldMaxHealth=player.MaxHealth;
+        player.ReceiveDamage(8);
+        int missingHealth=player.MaxHealth-player.Health;
+        simulation.Enemy.ReceiveDamage(2);
+        int enemyHealth=simulation.Enemy.Health;
+        simulation.TogglePause();
+
+        var revised=new PlayerDefinition
+        {
+            Attributes=initial.Attributes.With(AttributeKind.Strength,5)
+                .With(AttributeKind.Endurance,5),
+            SkillIds=["sword-novice","sword-adept"],
+            AbilityIds=["sword-driving-cut"]
+        };
+        simulation.ApplyPlayerBuild(initial,revised);
+        Assert.Same(player,simulation.Player);
+        Assert.Equal(new Vector3(3,0,-7),player.Position);
+        Assert.Equal("iron-sword",player.Equipment.In(EquipmentSlot.Weapon));
+        Assert.Equal(enemyHealth,simulation.Enemy.Health);
+        Assert.True(simulation.Paused);
+        Assert.True(player.MaxHealth>oldMaxHealth);
+        Assert.Equal(missingHealth,player.MaxHealth-player.Health);
+        Assert.Equal(5,player.Attributes.Strength);
+        Assert.Contains("sword-adept",player.SkillIds);
+        Assert.True(player.Abilities.Knows("sword-driving-cut"));
+        Assert.True(player.Abilities.Knows("sword-quick-cut")); // learned from a tome
+        Assert.False(player.Abilities.Knows("sword-opening-break"));
+        Assert.Null(player.Abilities.Loadout.In(0));
     }
 
     [Fact]
@@ -149,15 +245,15 @@ public sealed class AbilityTests
     {
         var (_,_,items,_)=Bundled();
         var definition=Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json"));
-        definition.AbilityIds=["second-wind"];
+        definition.AbilityIds=["sword-quick-cut"];
         var simulation=new DungeonSimulation(new DungeonSettings(),items:items,
             playerDefinition:definition);
         var player=simulation.Player;
-        Assert.False(player.Abilities.Loadout.Assign(0,"clear-mind",player.Abilities));
-        Assert.True(player.Abilities.Loadout.Assign(0,"second-wind",player.Abilities));
-        Assert.True(player.Abilities.Loadout.Assign(11,"second-wind",player.Abilities));
-        Assert.Equal("second-wind",player.Abilities.Loadout.In(0));
-        Assert.Equal("second-wind",player.Abilities.Loadout.In(11));
+        Assert.False(player.Abilities.Loadout.Assign(0,"sword-opening-break",player.Abilities));
+        Assert.True(player.Abilities.Loadout.Assign(0,"sword-quick-cut",player.Abilities));
+        Assert.True(player.Abilities.Loadout.Assign(11,"sword-quick-cut",player.Abilities));
+        Assert.Equal("sword-quick-cut",player.Abilities.Loadout.In(0));
+        Assert.Equal("sword-quick-cut",player.Abilities.Loadout.In(11));
         player.Abilities.Loadout.Clear(0);
         Assert.Null(player.Abilities.Loadout.In(0));
         Assert.Throws<ArgumentOutOfRangeException>(()=>player.Abilities.Loadout.In(12));
@@ -169,14 +265,19 @@ public sealed class AbilityTests
     public void InvalidAbilityAndTomeReferencesFailValidation()
     {
         var (skills,abilities,items,_)=Bundled();
-        abilities.Get("arcane-pulse").RequiredSkills.Add("unknown-skill");
+        var ability=abilities.Get("sword-quick-cut");
+        ability.Combat=null;
+        Assert.Throws<InvalidDataException>(()=>abilities.Validate(skills));
+        ability.Combat=new AbilityCombat { StaminaCost=10 };
+        ability.RequiredSkills.Add("unknown-skill");
         Assert.Throws<KeyNotFoundException>(()=>abilities.Validate(skills));
-        abilities.Get("arcane-pulse").RequiredSkills.Remove("unknown-skill");
+        ability.RequiredSkills.Remove("unknown-skill");
 
-        items.Get("tome-arcane-pulse").AbilityId="unknown-ability";
+        var tome=items.Get("tome-sword-quick-cut");
+        tome.AbilityId="unknown-ability";
         Assert.Throws<KeyNotFoundException>(()=>items.Validate(abilities));
-        items.Get("tome-arcane-pulse").AbilityId="arcane-pulse";
-        items.Get("tome-arcane-pulse").Slot="Weapon";
+        tome.AbilityId="sword-quick-cut";
+        tome.Slot="Weapon";
         Assert.Throws<InvalidDataException>(()=>items.Validate(abilities));
     }
 }

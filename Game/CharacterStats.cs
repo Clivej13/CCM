@@ -80,8 +80,9 @@ public sealed class EnemyDefinition
     public float VisionRange { get; set; } = 28f;
     public string? WeaponId { get; set; }
     public string? ArmourId { get; set; }
+    public string? OnHitStatusId { get; set; }
 
-    public void Validate(ItemCatalogue items)
+    public void Validate(ItemCatalogue items,StatusCatalogue? statuses=null)
     {
         if (string.IsNullOrWhiteSpace(Id) || string.IsNullOrWhiteSpace(Name) ||
             Attributes is null || !float.IsFinite(MoveSpeed) || MoveSpeed is < 0 or > 20 ||
@@ -92,13 +93,19 @@ public sealed class EnemyDefinition
             throw new InvalidDataException($"Enemy {Id} weapon must use the Weapon slot.");
         if (ArmourId is not null && items.Get(ArmourId).EquipmentSlot!=EquipmentSlot.Body)
             throw new InvalidDataException($"Enemy {Id} armour must use the Body slot.");
+        if (OnHitStatusId is not null)
+        {
+            if (string.IsNullOrWhiteSpace(OnHitStatusId))
+                throw new InvalidDataException($"Enemy {Id} has an empty on-hit status.");
+            statuses?.Get(OnHitStatusId);
+        }
     }
 }
 
 public sealed class EnemyCatalogue
 {
     public List<EnemyDefinition> Enemies { get; set; } = [];
-    public void Validate(ItemCatalogue items)
+    public void Validate(ItemCatalogue items,StatusCatalogue? statuses=null)
     {
         if (Enemies is null || Enemies.Count==0)
             throw new InvalidDataException("Enemy catalogue is empty.");
@@ -106,7 +113,7 @@ public sealed class EnemyCatalogue
         foreach (var enemy in Enemies)
         {
             if (enemy is null) throw new InvalidDataException("Enemy definition is null.");
-            enemy.Validate(items);
+            enemy.Validate(items,statuses);
             if (!ids.Add(enemy.Id))
                 throw new InvalidDataException($"Duplicate enemy ID: {enemy.Id}");
         }
@@ -130,7 +137,7 @@ public static class CombatFormula
     {
         ArgumentNullException.ThrowIfNull(attributes);
         attributes.Validate();
-        int health=40+attributes.Endurance*6;
+        int health=(50+attributes.Endurance*6)*10;
         int damage=2+attributes.Strength+(weapon?.AttackPower ?? 0);
         float speed=(weapon?.AttackSpeed ?? 0.7f)*(0.75f+attributes.Agility*0.025f);
         speed=Math.Clamp(speed,0.2f,4f);

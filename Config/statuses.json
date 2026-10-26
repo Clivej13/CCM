@@ -1,0 +1,29 @@
+{
+  "Statuses": [
+    {
+      "Id": "pressured", "Name": "Pressured",
+      "Description": "A quick strike has forced a defensive response.",
+      "DurationSeconds": 4, "Tone": "Warning"
+    },
+    {
+      "Id": "shaken", "Name": "Shaken",
+      "Description": "Balance is compromised; a follow-up can exploit the opening.",
+      "DurationSeconds": 4, "Tone": "Warning"
+    },
+    {
+      "Id": "exposed", "Name": "Exposed",
+      "Description": "Guard is open to a driving cut.",
+      "DurationSeconds": 3, "Tone": "Dangerous"
+    },
+    {
+      "Id": "staggered", "Name": "Staggered",
+      "Description": "Unable to act briefly and open to a finishing strike.",
+      "DurationSeconds": 1.5, "Tone": "Dangerous", "BlocksActions": true
+    },
+    {
+      "Id": "stunned", "Name": "Stunned",
+      "Description": "Unable to move or attack briefly.",
+      "DurationSeconds": 0.8, "Tone": "Dangerous", "BlocksActions": true
+    }
+  ]
+}
