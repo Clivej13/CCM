@@ -156,4 +156,23 @@ public sealed class InteractionTests
         var target = InteractionQuery.Find(world,new(3.1f,1.2f,-9),new(3.1f,1.2f,-4),new(0,0,-1),5);
         Assert.Null(target);
     }
+
+    [Fact]
+    public void FireplaceCanBeReachedExtinguishedAndRelit()
+    {
+        var world=new DungeonWorld();
+        var fireplace=world.Fireplaces[2];
+        var eye=new Vector3(5,1.2f,-37.5f);
+        Assert.False(world.CanStand(fireplace.Position));
+        Assert.Same(fireplace,InteractionQuery.FindNearby(world,eye,-Vector3.UnitZ,2.5f)?.Item);
+        Assert.Equal("Extinguish fireplace",fireplace.Action);
+        Assert.True(fireplace.Activate(new(5,0,-37.5f)));
+        Assert.False(fireplace.IsLit);
+        Assert.Equal("Light fireplace",fireplace.Action);
+        Assert.True(fireplace.Activate(new(5,0,-37.5f)));
+        Assert.True(fireplace.IsLit);
+        fireplace.Activate(new(5,0,-37.5f));
+        world.Reset();
+        Assert.True(fireplace.IsLit);
+    }
 }

@@ -34,4 +34,16 @@
     <Copy SourceFiles="$(MSBuildProjectDirectory)/../CCM_assets/Assets/Characters/Orc/Male/Animations/Walk/Generated/orc_male_locomotion.glb" DestinationFiles="$(MSBuildProjectDirectory)/Assets/Characters/orc_male_walk.glb" />
     <Copy SourceFiles="$(MSBuildProjectDirectory)/../CCM_assets/Assets/Characters/Orc/Male/Animations/Run/Generated/orc_male_locomotion.glb" DestinationFiles="$(MSBuildProjectDirectory)/Assets/Characters/orc_male_run.glb" />
   </Target>
+  <Target Name="ImportCcmFireplace" BeforeTargets="Build" Condition="'$(ImportCcmFireplace)' == 'true'">
+    <Copy
+      SourceFiles="$(MSBuildProjectDirectory)/../CCM_assets/Assets/Props/Environment/DungeonFireplace/Generated/dungeon_fireplace.glb"
+      DestinationFiles="$(MSBuildProjectDirectory)/Assets/Props/dungeon_fireplace.glb" />
+  </Target>
+  <Target Name="ImportCcmDungeonKit" BeforeTargets="Build" Condition="'$(ImportCcmDungeonKit)' == 'true'">
+    <ItemGroup>
+      <DungeonKitModel Include="$(MSBuildProjectDirectory)/../CCM_assets/Assets/Environment/Dungeon/Modules/*/Generated/*.glb" />
+    </ItemGroup>
+    <Copy SourceFiles="@(DungeonKitModel)"
+      DestinationFiles="@(DungeonKitModel->'$(MSBuildProjectDirectory)/Assets/Dungeon/%(Filename)%(Extension)')" />
+  </Target>
 </Project>

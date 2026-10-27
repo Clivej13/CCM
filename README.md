@@ -2,7 +2,7 @@
 
 C# / .NET 9 / Raylib-cs 8.0.0 game foundation. One window, one game loop:
 Initial Loading → Splash → Title → Loading → MainMenu or LevelUp → Game → Shutdown.
-New Game and debug test-level startup both open character setup before the same block-built dungeon. Escape / controller Start opens the pause menu.
+New Game and debug test-level startup both open character setup before the same modular dungeon. Escape / controller Start opens the pause menu.
 
 ## Build and launch
 
@@ -89,9 +89,10 @@ validated platform. Refresh rate remains Raylib/driver controlled.
   state before Game; Settings is a framework submenu of MainMenu.
 - Separate AssetSessions own the presentation and destination AssetManagers.
   InitialLoading loads Config/presentation-assets.json (the title's OBJ mark).
-  After title confirmation, Loading requires the foundation verification model
-  and the two character models from Config/assets.json. ProcessNext loads one
-  required native asset per frame. Terrain and item visuals remain procedural.
+  After title confirmation, Loading requires the foundation verification model,
+  the two characters, fireplace and dungeon scenery from Config/assets.json.
+  ProcessNext loads one required native asset per frame. Equipped items still
+  use procedural visuals.
 - The splash and loading text use Raylib's built-in font. Each catalogue is
   validated when its loading stage begins. Failures remain on a responsive
   error screen; Escape/B or window close exits. Details go to logs.
@@ -120,6 +121,30 @@ orc. To refresh these copies when `CCM_assets` is beside this repository, run
 `dotnet build CCM.csproj -p:ImportCcmCharacters=true`.
 Normal builds use the copies already in this repository.
 
+Three fireplaces in the starting room, corridor and far room are the dungeon's
+only origins of light. Each `FireplaceLightRig` groups the main firelight with two
+weaker secondary lights placed around its room to suggest light bouncing off the
+stone. All three follow the hearth's flicker and extinguish together. The lights
+illuminate nearby characters, fireplace models, floor, walls and props with a
+soft warm tint. Walls and closed doors block them; opening a door lets light
+through. The shader lives in `Assets/Shaders`; `Scenes/DungeonLighting.cs`
+uses it for both models and procedural cubes, so lighting varies across each
+floor tile, wall and door surface. Animation updates mesh normals with the
+vertices so the light follows each pose.
+
+The fireplace GLB and dungeon scenery modules come from the sibling
+`CCM_assets` library.
+`dotnet build CCM.csproj -p:ImportCcmFireplace=true` refreshes the repository
+copy; normal builds use the bundled copy. Game-driven flame particles rise from
+each model's `FireEffectOrigin` at 0.35 m above the floor. Each fireplace can be
+extinguished or relit independently, removing or restoring its light.
+`FireplaceLightIntensity` in `Config/dungeon.json` sets their brightness from 0 to 3.
+The scenery kit supplies flagstone and cracked floor tiles, ashlar and barred
+window walls, pillars, the arched oak doorway, chest, crates, barrel, rubble and
+an unlit torch sconce. The existing collision and interaction rules remain in
+the game. `dotnet build CCM.csproj -p:ImportCcmDungeonKit=true` refreshes the
+module GLBs copied into this repository.
+
 ## Inventory and equipment
 
 Config/items.json defines item IDs, display names, type, description, weight,
@@ -127,8 +152,8 @@ equipment slot, weapon damage/range/attack rate, protection, value and block vis
 Config/containers.json gives the starter chest item IDs and quantities. Both catalogues load through the Configuration library at startup;
 unknown references and duplicate definitions stop startup with an error.
 The Raylib AssetManager and Config/assets.json still own graphical resources.
-These prototype items use procedural block visuals, so they add no model or
-texture assets yet. An item is an ID and quantity in an Inventory, never a
+Equipped prototype items still use procedural block visuals, while the dungeon
+chest and scenery use models. An item is an ID and quantity in an Inventory, never a
 separately loaded asset instance.
 
 Open the chest through the normal interaction controls to display its contents.
@@ -253,10 +278,11 @@ before the first dungeon entry, or to the same game when revisiting Level Up.
 ## Dungeon test level
 
 New Game and Test Level Debug first open the same level-up screen, then enter the same two-room dungeon. The second room
-is wider and deeper, with one block-built melee enemy. Opening the corridor door
+is wider and deeper, with one orc melee enemy. Opening the corridor door
 reveals the enemy; combat begins when it sees the player within its configured
 vision range. A chest beside the first room's north wall remains a separate
-interaction target. Entering the scene resets the player, enemy, door and chest.
+interaction target. Entering the scene resets the player, enemy, door, chest
+and fireplaces.
 
 - Follow camera keyboard: W/S move forward/back, A/D turn, Q/E strafe.
   Hold right mouse to turn the camera and character; while held, A/D strafe.
@@ -348,17 +374,16 @@ intervals to 0.1 seconds rather than moving through walls.
 
 The completed Input 0.2.0 migration is recorded in
 [docs/input-library-follow-up.md](docs/input-library-follow-up.md).
-The external libraries remain untouched. The AssetManager owns native models and
-textures, while item/enemy catalogues own gameplay definitions. No dedicated weapon
-or enemy model files exist yet, so no such native assets are loaded; the dungeon
-continues drawing blocks. Their definitions are validated at startup, and the
-enemy instance is created only when the game scene is first entered.
+The external libraries remain untouched. The AssetManager owns native models
+and textures, while item/enemy catalogues own gameplay definitions. Equipped
+weapons and armour still use procedural visuals. Their definitions are validated
+at startup, and the enemy instance is created when the game scene is first entered.
 
 ## Validation
 
 Executed successfully on Windows:
 - Release build, zero warnings/errors.
-- 120 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
+- 121 headless tests across the foundation/dungeon and input integration suites: all startup combinations, required lifecycle ordering,
   return/new-game/shutdown transitions, invalid configs, persisted settings,
   bundled menu/input/catalogue validation, separate loading catalogues, title
   press/release selection and missing-asset diagnostics; dungeon movement,

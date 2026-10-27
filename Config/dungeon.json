@@ -14,6 +14,7 @@
   "FreeCameraSpeed": 10,
   "ControllerCursorSpeed": 650,
   "CameraPitch": 0.45,
+  "FireplaceLightIntensity": 1.0,
   "InteractionRange": 2.5,
   "EnemyId": "dungeon-guard",
   "StartingItems": [

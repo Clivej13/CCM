@@ -81,7 +81,8 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
             });
             scenes[AppState.Loading] = new LoadingScene(assets, diagnostics, input,
                 () => Transition(Lifecycle.Destination(debug)), () => Transition(AppState.Shutdown),
-                initialKeys:["foundation-triangle","player-character","enemy-character"]);
+                initialKeys:["foundation-triangle","player-character","enemy-character",
+                    "dungeon-fireplace","dungeon-floor-flagstone","dungeon-floor-cracked","dungeon-wall-straight","dungeon-wall-barred-window","dungeon-pillar-corner","dungeon-doorway-arch","dungeon-door-oak","dungeon-chest-oak","dungeon-crate-closed","dungeon-crate-open","dungeon-barrel-oak","dungeon-rubble-small","dungeon-torch-sconce"]);
             bool levelUpFromGame=false;
             var levelUp=new LevelUpScene(sessionInput,playerDefinition,skillCatalogue,
                 abilityCatalogue,attributeDescriptions,
@@ -108,6 +109,9 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
                 active?.Exit();
                 diagnostics.Event($"State {previous} -> {next}");
                 if (next==AppState.Game && !levelUpFromGame)
+                {
+                    if (scenes.GetValueOrDefault(AppState.Game) is GameScene previousGame)
+                        previousGame.DisposeRenderer();
                     scenes[AppState.Game]=new GameScene(sessionInput,dungeon,debug.Enabled,
                         () => Transition(AppState.MainMenu),
                         () =>
@@ -120,6 +124,7 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
                         input,bindings,gameplay,itemCatalogue,starterChest.Contents,
                         selectedPlayer,enemyCatalogue,skillCatalogue,abilityCatalogue,statusCatalogue,
                         assets.Manager!);
+                }
                 active = scenes.GetValueOrDefault(next);
                 active?.Enter();
             };
@@ -195,8 +200,16 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
             try
             {
                 if (lifecycle.State != AppState.Shutdown) lifecycle.Transition(AppState.Shutdown);
-                try { assets.Dispose(); }
-                finally { presentation.Dispose(); }
+                try
+                {
+                    if (scenes.GetValueOrDefault(AppState.Game) is GameScene game)
+                        game.DisposeRenderer();
+                }
+                finally
+                {
+                    try { assets.Dispose(); }
+                    finally { presentation.Dispose(); }
+                }
             }
             finally { if (window) Raylib.CloseWindow(); }
         }

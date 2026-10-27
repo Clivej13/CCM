@@ -116,5 +116,6 @@ public sealed class DungeonTests
         Assert.Throws<InvalidDataException>(()=>new DungeonSettings { CameraDistance=float.NaN }.Validate());
         Assert.Throws<InvalidDataException>(()=>new DungeonSettings { KeyboardTurnSpeed=0 }.Validate());
         Assert.Throws<InvalidDataException>(()=>new DungeonSettings { InteractionRange=0 }.Validate());
+        Assert.Throws<InvalidDataException>(()=>new DungeonSettings { FireplaceLightIntensity=-1 }.Validate());
     }
 }

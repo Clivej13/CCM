@@ -34,6 +34,7 @@ public sealed class DungeonSettings
     public float ControllerCursorSpeed { get; set; } = 650f;
     public float InteractionRange { get; set; } = 2.5f;
     public float CameraPitch { get; set; } = 0.45f;
+    public float FireplaceLightIntensity { get; set; } = 1f;
     public CombatSettings Combat { get; set; } = new();
     public string EnemyId { get; set; } = "dungeon-guard";
     public List<StartingItemDefinition> StartingItems { get; set; } = [];
@@ -55,7 +56,9 @@ public sealed class DungeonSettings
             !float.IsFinite(MouseZoomStep) || MouseZoomStep is <= 0 or > 10 ||
             !float.IsFinite(FreeCameraSpeed) || FreeCameraSpeed is <= 0 or > 30 ||
             !float.IsFinite(ControllerCursorSpeed) || ControllerCursorSpeed is <= 0 or > 2000 ||
-            !float.IsFinite(CameraPitch) || CameraPitch is < -0.18f or > 1.25f)
+            !float.IsFinite(CameraPitch) || CameraPitch is < -0.18f or > 1.25f ||
+            !float.IsFinite(FireplaceLightIntensity) ||
+            FireplaceLightIntensity is < 0 or > 3)
             throw new InvalidDataException("Invalid dungeon movement/camera settings.");
         if (Combat is null || string.IsNullOrWhiteSpace(EnemyId) ||
             StartingItems is null || StartingEquipped is null ||
