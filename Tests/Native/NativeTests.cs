@@ -11,6 +11,118 @@ namespace CCM.NativeTests;
 
 public sealed class NativeTests
 {
+    [Fact]
+    public void FirelightFlickersAndExtinguishesWithTheHearth()
+    {
+        var fireplaces=new DungeonWorld().Fireplaces;
+        float first=CCM.Scenes.FireplaceFlame.Intensity(fireplaces[0],0);
+        float second=CCM.Scenes.FireplaceFlame.Intensity(fireplaces[0],0.2f);
+        Assert.InRange(first,0.5f,1f);
+        Assert.InRange(second,0.5f,1f);
+        Assert.NotEqual(first,second);
+        fireplaces[0].Activate(Vector3.Zero);
+        Assert.Equal(0,CCM.Scenes.FireplaceFlame.Intensity(fireplaces[0],0.2f));
+        Assert.True(CCM.Scenes.FireplaceFlame.Intensity(fireplaces[1],0.2f)>0);
+    }
+
+    [Fact]
+    public void ExtinguishedFireplacesLeaveDungeonGeometryDark()
+    {
+        Raylib.InitWindow(800,600,"CCM fireplace lighting");
+        var player=Raylib.LoadModel(Path.Combine("Assets","Characters","human_male_locomotion.glb"));
+        var enemy=Raylib.LoadModel(Path.Combine("Assets","Characters","orc_male_idle.glb"));
+        var hearth=Raylib.LoadModel(Path.Combine("Assets","Props","dungeon_fireplace.glb"));
+        try
+        {
+            var world=new DungeonWorld();
+            using var lighting=new CCM.Scenes.DungeonLighting(player,enemy,hearth,world);
+            var fireplaces=world.Fireplaces;
+            lighting.Update(0,1);
+            var surface=fireplaces[0].FireOrigin;
+            Assert.True(lighting.LitColor(Color.White,surface,Vector3.Zero).R>0);
+            var nearby=lighting.LitColor(Color.White,surface+Vector3.UnitZ*3,Vector3.Zero);
+            Assert.InRange((int)nearby.R-(int)nearby.B,0,80);
+            fireplaces[0].Activate(Vector3.Zero);
+            lighting.Update(0.2f,1);
+            Assert.Equal(0,lighting.LitColor(Color.White,surface,Vector3.Zero).R);
+            foreach (var fireplace in fireplaces.Skip(1)) fireplace.Activate(Vector3.Zero);
+            lighting.Update(0.2f,1);
+            Assert.Equal(new Color(0,0,0,255),
+                lighting.LitColor(Color.White,surface,Vector3.Zero));
+
+            fireplaces[1].Activate(Vector3.Zero);
+            lighting.Update(0.2f,1);
+            var nearDoor=new Vector3(0,1,-6);
+            Assert.Equal(0,lighting.LitColor(Color.White,nearDoor,Vector3.Zero).R);
+            world.Interactables[0].Activate(world.Spawn);
+            Assert.True(lighting.LitColor(Color.White,nearDoor,Vector3.Zero).R>0);
+
+            fireplaces[1].Activate(Vector3.Zero);
+            fireplaces[0].Activate(Vector3.Zero);
+            lighting.Update(0.4f,1);
+            var camera=new Camera3D
+            {
+                Position=new(0,15,3),Target=new(0,0,3),Up=-Vector3.UnitZ,
+                FovY=16,Projection=CameraProjection.Orthographic
+            };
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(Color.Black);
+            Raylib.BeginMode3D(camera);
+            lighting.DrawCube(new(0,-0.15f,3),new(16,0.3f,10),Color.White);
+            Raylib.EndMode3D();
+            var image=Raylib.LoadImageFromScreen();
+            Raylib.EndDrawing();
+            try
+            {
+                var nearScreen=Raylib.GetWorldToScreen(new(-6,0,3),camera);
+                var farScreen=Raylib.GetWorldToScreen(new(5,0,3),camera);
+                var nearPixel=Raylib.GetImageColor(image,(int)nearScreen.X,(int)nearScreen.Y);
+                var farPixel=Raylib.GetImageColor(image,(int)farScreen.X,(int)farScreen.Y);
+                Assert.True(nearPixel.R>farPixel.R+20,
+                    $"Expected smooth fire falloff across one floor: near={nearPixel}, far={farPixel}");
+            }
+            finally { Raylib.UnloadImage(image); }
+
+            fireplaces[0].Activate(Vector3.Zero);
+            fireplaces[1].Activate(Vector3.Zero);
+            world.Interactables[0].Activate(world.Spawn);
+            var doorCamera=new Camera3D
+            {
+                Position=new(0,15,-8),Target=new(0,0,-8),Up=-Vector3.UnitZ,
+                FovY=16,Projection=CameraProjection.Orthographic
+            };
+            Color DoorPixel()
+            {
+                lighting.Update(0.4f,1);
+                Raylib.BeginDrawing();
+                Raylib.ClearBackground(Color.Black);
+                Raylib.BeginMode3D(doorCamera);
+                lighting.DrawCube(new(0,-0.15f,-7),new(12,0.3f,10),Color.White);
+                Raylib.EndMode3D();
+                var capture=Raylib.LoadImageFromScreen();
+                Raylib.EndDrawing();
+                try
+                {
+                    var screen=Raylib.GetWorldToScreen(new(0,0,-6),doorCamera);
+                    return Raylib.GetImageColor(capture,(int)screen.X,(int)screen.Y);
+                }
+                finally { Raylib.UnloadImage(capture); }
+            }
+            var closedPixel=DoorPixel();
+            world.Interactables[0].Activate(world.Spawn);
+            var openPixel=DoorPixel();
+            Assert.True(openPixel.R>closedPixel.R+10,
+                $"Door should block firelight: closed={closedPixel}, open={openPixel}");
+        }
+        finally
+        {
+            Raylib.UnloadModel(hearth);
+            Raylib.UnloadModel(enemy);
+            Raylib.UnloadModel(player);
+            Raylib.CloseWindow();
+        }
+    }
+
     [Theory]
     [InlineData("human_male_locomotion.glb",1.78f)]
     [InlineData("orc_male_idle.glb",2.08f)]
@@ -78,7 +190,7 @@ public sealed class NativeTests
                 previousIndex = index;
             }
             Assert.Contains("Loaded 1 assets.", log); // presentation catalogue
-            Assert.Contains("Loaded 3 assets.", log); // foundation and both models
+            Assert.Contains("Loaded 17 assets.", log); // foundation, characters, fireplace and dungeon scenery
             Assert.Contains("State Loading -> "+destination, log);
             Assert.Contains("State MainMenu -> LevelUp", log);
             Assert.Contains("State LevelUp -> Game", log);

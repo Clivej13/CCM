@@ -47,7 +47,7 @@ public sealed class GameScene : Scene
         targeting=new(simulation,settings);
         inventoryPanel=new(items,skills,abilities,statuses);
         pauseMenu=new(menuInput,bindings);
-        renderer=new(simulation,items,debug,assets);
+        renderer=new(simulation,items,debug,assets,settings.FireplaceLightIntensity);
         hud=new(input,simulation,targeting,debug);
         abilityUi=new(input,abilities);
         mouseFollow=new MouseFollowControls(input,simulation,targeting);
@@ -241,6 +241,8 @@ public sealed class GameScene : Scene
         abilityUi.Reset();
         activeControls.Exit();
     }
+
+    public void DisposeRenderer() => renderer.Dispose();
 
     public override void Render()
     {

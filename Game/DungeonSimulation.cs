@@ -307,8 +307,10 @@ public sealed class DungeonSimulation
         bool wasOpen=item.IsOpen;
         bool changed = item.Activate(Player.Position);
         InteractionMessage = changed
-            ? item is ChestInteractable && wasOpen ? "Chest searched"
-                : $"{item.Name} {(item.IsOpen ? "opened" : "closed")}"
+            ? item is FireplaceInteractable fireplace
+                ? fireplace.IsLit ? "Fireplace lit" : "Fireplace extinguished"
+                : item is ChestInteractable && wasOpen ? "Chest searched"
+                    : $"{item.Name} {(item.IsOpen ? "opened" : "closed")}"
             : "Step away from the doorway";
         if (changed && item.Kind == InteractionKind.Door && item.IsOpen)
             doorJustOpened = true;

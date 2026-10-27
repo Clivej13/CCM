@@ -1,7 +1,7 @@
 using System.Numerics;
 namespace CCM.Game;
 
-public enum InteractionKind { Door, Chest }
+public enum InteractionKind { Door, Chest, Fireplace }
 
 /// <summary>World objects expose only their common targeting and activation contract.</summary>
 public abstract class Interactable
@@ -21,13 +21,12 @@ public sealed class DoorInteractable : Interactable
     public override InteractionKind Kind => InteractionKind.Door;
     public override string Name => "Door";
     public override Block ClosedBounds => new(new(0,1.5f,-8.5f),new(4,3,0.3f));
-    public override Block Bounds => IsOpen
-        ? new(new(-1.85f,1.5f,-10.35f),new(0.3f,3,4)) : ClosedBounds;
+    private static Block OpenBounds => new(new(-1.6f,1.5f,-9.85f),new(0.6f,3,2.8f));
+    public override Block Bounds => IsOpen ? OpenBounds : ClosedBounds;
     public override bool Activate(Vector3 playerFeet)
     {
         // Check the destination pose before opening or closing.
-        Block destination=IsOpen ? ClosedBounds
-            : new(new(-1.85f,1.5f,-10.35f),new(0.3f,3,4));
+        Block destination=IsOpen ? ClosedBounds : OpenBounds;
         if (DungeonWorld.OverlapsPlayer(destination,playerFeet)) return false;
         IsOpen=!IsOpen;
         return true;
@@ -56,6 +55,30 @@ public sealed class ChestInteractable : Interactable
     public override bool Activate(Vector3 playerFeet)
     {
         IsOpen=true;
+        return true;
+    }
+}
+
+public sealed class FireplaceInteractable(
+    Vector3 position,float rotationDegrees,float phaseOffset=0) : Interactable
+{
+    public Vector3 Position => position;
+    public float RotationDegrees => rotationDegrees;
+    public float PhaseOffset => phaseOffset;
+    public Vector3 FireOrigin => position+new Vector3(0,0.35f,0);
+    public bool IsLit { get; private set; } = true;
+    public override InteractionKind Kind => InteractionKind.Fireplace;
+    public override string Name => "Fireplace";
+    public override string Action => IsLit ? "Extinguish fireplace" : "Light fireplace";
+    public override Block ClosedBounds => new(position+new Vector3(0,1.18f,0),
+        Math.Abs(rotationDegrees)%180<1
+            ? new Vector3(2.36f,2.36f,0.9f)
+            : new Vector3(0.9f,2.36f,2.36f));
+    public override Block Bounds => ClosedBounds;
+    public override void Reset() => IsLit=true;
+    public override bool Activate(Vector3 playerFeet)
+    {
+        IsLit=!IsLit;
         return true;
     }
 }

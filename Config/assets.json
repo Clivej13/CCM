@@ -14,6 +14,76 @@
       "Key": "enemy-character",
       "Type": "Model",
       "Path": "Assets/Characters/orc_male_idle.glb"
+    },
+    {
+      "Key": "dungeon-fireplace",
+      "Type": "Model",
+      "Path": "Assets/Props/dungeon_fireplace.glb"
+    },
+    {
+      "Key": "dungeon-floor-flagstone",
+      "Type": "Model",
+      "Path": "Assets/Dungeon/floor_flagstone.glb"
+    },
+    {
+      "Key": "dungeon-floor-cracked",
+      "Type": "Model",
+      "Path": "Assets/Dungeon/floor_cracked.glb"
+    },
+    {
+      "Key": "dungeon-wall-straight",
+      "Type": "Model",
+      "Path": "Assets/Dungeon/wall_straight.glb"
+    },
+    {
+      "Key": "dungeon-wall-barred-window",
+      "Type": "Model",
+      "Path": "Assets/Dungeon/wall_barred_window.glb"
+    },
+    {
+      "Key": "dungeon-pillar-corner",
+      "Type": "Model",
+      "Path": "Assets/Dungeon/pillar_corner.glb"
+    },
+    {
+      "Key": "dungeon-doorway-arch",
+      "Type": "Model",
+      "Path": "Assets/Dungeon/doorway_arch.glb"
+    },
+    {
+      "Key": "dungeon-door-oak",
+      "Type": "Model",
+      "Path": "Assets/Dungeon/door_oak.glb"
+    },
+    {
+      "Key": "dungeon-chest-oak",
+      "Type": "Model",
+      "Path": "Assets/Dungeon/chest_oak.glb"
+    },
+    {
+      "Key": "dungeon-crate-closed",
+      "Type": "Model",
+      "Path": "Assets/Dungeon/crate_closed.glb"
+    },
+    {
+      "Key": "dungeon-crate-open",
+      "Type": "Model",
+      "Path": "Assets/Dungeon/crate_open.glb"
+    },
+    {
+      "Key": "dungeon-barrel-oak",
+      "Type": "Model",
+      "Path": "Assets/Dungeon/barrel_oak.glb"
+    },
+    {
+      "Key": "dungeon-rubble-small",
+      "Type": "Model",
+      "Path": "Assets/Dungeon/rubble_small.glb"
+    },
+    {
+      "Key": "dungeon-torch-sconce",
+      "Type": "Model",
+      "Path": "Assets/Dungeon/torch_sconce.glb"
     }
   ]
 }

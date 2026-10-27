@@ -12,6 +12,7 @@ internal sealed class GltfCharacter
     private readonly GltfFile modelFile;
     private readonly Dictionary<string,GltfFile> clips;
     private readonly float[][] vertices;
+    private readonly float[][] normals;
     private readonly int[] meshPrimitives;
     private readonly float worldScale;
     private readonly float floorY;
@@ -38,6 +39,7 @@ internal sealed class GltfCharacter
             };
         meshPrimitives=new int[model.MeshCount];
         vertices=new float[model.MeshCount][];
+        normals=new float[model.MeshCount][];
         var used=new HashSet<int>();
         for (int m=0;m<model.MeshCount;m++)
         {
@@ -51,6 +53,7 @@ internal sealed class GltfCharacter
             meshPrimitives[m]=match;
             used.Add(match);
             vertices[m]=new float[count*3];
+            normals[m]=new float[count*3];
         }
         // Bind pose bounds give one scale for body, outfit, and eyes.
         var pose=modelFile.Pose(null,0);
@@ -105,19 +108,26 @@ internal sealed class GltfCharacter
         {
             var primitive=modelFile.Primitives[meshPrimitives[m]];
             var output=vertices[m];
+            var normalOutput=normals[m];
             for (int v=0;v<primitive.Positions.Length;v++)
             {
                 Vector3 point=modelFile.Vertex(primitive,v,pose);
+                Vector3 normal=modelFile.Normal(primitive,v,pose);
                 int offset=v*3;
                 output[offset]=point.X*worldScale;
                 output[offset+1]=(point.Y-floorY)*worldScale;
                 output[offset+2]=point.Z*worldScale;
+                normalOutput[offset]=normal.X;
+                normalOutput[offset+1]=normal.Y;
+                normalOutput[offset+2]=normal.Z;
                 var worldPoint=new Vector3(output[offset],output[offset+1],output[offset+2]);
                 BoundsMin=Vector3.Min(BoundsMin,worldPoint);
                 BoundsMax=Vector3.Max(BoundsMax,worldPoint);
             }
             fixed (float* data=output)
                 Raylib.UpdateMeshBuffer(model.Meshes[m],0,data,output.Length*sizeof(float),0);
+            fixed (float* data=normalOutput)
+                Raylib.UpdateMeshBuffer(model.Meshes[m],2,data,normalOutput.Length*sizeof(float),0);
         }
     }
 
@@ -137,6 +147,7 @@ internal sealed class GltfCharacter
         {
             public int Node;
             public Vector3[] Positions=[];
+            public Vector3[] Normals=[];
             public int[] Joints=[];
             public Vector4[] Weights=[];
             public int[] SkinJoints=[];
@@ -207,7 +218,8 @@ internal sealed class GltfCharacter
                         var primitive=new Primitive
                         {
                             Node=n,
-                            Positions=ReadVec3(attributes.GetProperty("POSITION").GetInt32())
+                            Positions=ReadVec3(attributes.GetProperty("POSITION").GetInt32()),
+                            Normals=ReadVec3(attributes.GetProperty("NORMAL").GetInt32())
                         };
                         if (node.Skin>=0 && attributes.TryGetProperty("JOINTS_0",out var joints))
                         {
@@ -312,6 +324,28 @@ internal sealed class GltfCharacter
                 result+=Vector3.Transform(position,transform)*(weight/sum);
             }
             return result;
+        }
+
+        public Vector3 Normal(Primitive primitive,int vertex,Matrix4x4[] pose)
+        {
+            Vector3 normal=primitive.Normals[vertex];
+            if (primitive.Joints.Length==0)
+                return Vector3.Normalize(Vector3.TransformNormal(normal,pose[primitive.Node]));
+            Vector4 weights=primitive.Weights[vertex];
+            float sum=weights.X+weights.Y+weights.Z+weights.W;
+            if (sum<=0)
+                return Vector3.Normalize(Vector3.TransformNormal(normal,pose[primitive.Node]));
+            Vector3 result=Vector3.Zero;
+            for (int i=0;i<4;i++)
+            {
+                float weight=i switch {0=>weights.X,1=>weights.Y,2=>weights.Z,_=>weights.W};
+                if (weight<=0) continue;
+                int joint=primitive.Joints[vertex*4+i];
+                if (joint>=primitive.SkinJoints.Length) continue;
+                var transform=primitive.InverseBinds[joint]*pose[primitive.SkinJoints[joint]];
+                result+=Vector3.TransformNormal(normal,transform)*(weight/sum);
+            }
+            return result.LengthSquared()>0.000001f ? Vector3.Normalize(result) : Vector3.UnitY;
         }
 
         private static Vector4 Sample(Track track,float seconds)
