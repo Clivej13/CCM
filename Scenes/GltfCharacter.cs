@@ -23,7 +23,8 @@ internal sealed class GltfCharacter
     internal Vector3 BoundsMin { get; private set; }
     internal Vector3 BoundsMax { get; private set; }
 
-    public unsafe GltfCharacter(Model model,string modelPath,float height,string? prefix=null)
+    public unsafe GltfCharacter(Model model,string modelPath,float height,string? prefix=null,
+        GltfCharacter? reference=null)
     {
         modelFile=new GltfFile(Resolve(modelPath));
         clips=prefix is null
@@ -55,21 +56,21 @@ internal sealed class GltfCharacter
             vertices[m]=new float[count*3];
             normals[m]=new float[count*3];
         }
-        // Bind pose bounds give one scale for body, outfit, and eyes.
-        var pose=modelFile.Pose(null,0);
+        // Outfits omit covered skin below the waist. Include boots and other
+        // garment meshes when finding the floor and full character height.
+        var pose=modelFile.Pose(clips["idle"],0,"idle");
         float bottom=float.PositiveInfinity,top=float.NegativeInfinity;
         foreach (var primitive in modelFile.Primitives)
-            if (primitive.Positions.Length>500)
-                for (int v=0;v<primitive.Positions.Length;v++)
-                {
-                    float y=modelFile.Vertex(primitive,v,pose).Y;
-                    bottom=Math.Min(bottom,y);
-                    top=Math.Max(top,y);
-                }
-        if (!float.IsFinite(bottom) || top-bottom<0.1f)
-            throw new InvalidDataException("Character has no usable body bounds");
-        floorY=bottom;
-        worldScale=height/(top-bottom);
+            for (int v=0;v<primitive.Positions.Length;v++)
+            {
+                float y=modelFile.Vertex(primitive,v,pose).Y;
+                bottom=Math.Min(bottom,y);
+                top=Math.Max(top,y);
+            }
+        if (!float.IsFinite(bottom) || top-bottom<(reference is null ? 0.1f : 0.001f))
+            throw new InvalidDataException("Character has no usable bounds");
+        floorY=reference?.floorY ?? bottom;
+        worldScale=reference?.worldScale ?? height/(top-bottom);
     }
 
     private static string Resolve(string path)
@@ -80,16 +81,22 @@ internal sealed class GltfCharacter
         throw new FileNotFoundException("Character animation asset is missing",path);
     }
 
-    public unsafe void Update(Model model,Vector3 position,float seconds)
+    public unsafe void Update(Model model,Vector3 position,float seconds,
+        GltfCharacter? reference=null,IReadOnlySet<string>? hiddenNodes=null)
     {
-        if (lastSeconds<0 || seconds<lastSeconds)
+        if (reference is not null)
+        {
+            state=reference.state;
+            clipSeconds=reference.clipSeconds;
+        }
+        else if (lastSeconds<0 || seconds<lastSeconds)
         {
             lastSeconds=seconds;
             lastPosition=position;
             state="idle";
             clipSeconds=0;
         }
-        else if (seconds>lastSeconds)
+        else if (reference is null && seconds>lastSeconds)
         {
             float elapsed=seconds-lastSeconds;
             var delta=position-lastPosition;
@@ -107,12 +114,13 @@ internal sealed class GltfCharacter
         for (int m=0;m<meshPrimitives.Length;m++)
         {
             var primitive=modelFile.Primitives[meshPrimitives[m]];
+            bool hidden=hiddenNodes?.Contains(modelFile.NodeName(primitive))==true;
             var output=vertices[m];
             var normalOutput=normals[m];
             for (int v=0;v<primitive.Positions.Length;v++)
             {
-                Vector3 point=modelFile.Vertex(primitive,v,pose);
-                Vector3 normal=modelFile.Normal(primitive,v,pose);
+                Vector3 point=hidden ? Vector3.Zero : modelFile.Vertex(primitive,v,pose);
+                Vector3 normal=hidden ? Vector3.UnitY : modelFile.Normal(primitive,v,pose);
                 int offset=v*3;
                 output[offset]=point.X*worldScale;
                 output[offset+1]=(point.Y-floorY)*worldScale;
@@ -121,8 +129,11 @@ internal sealed class GltfCharacter
                 normalOutput[offset+1]=normal.Y;
                 normalOutput[offset+2]=normal.Z;
                 var worldPoint=new Vector3(output[offset],output[offset+1],output[offset+2]);
-                BoundsMin=Vector3.Min(BoundsMin,worldPoint);
-                BoundsMax=Vector3.Max(BoundsMax,worldPoint);
+                if (!hidden)
+                {
+                    BoundsMin=Vector3.Min(BoundsMin,worldPoint);
+                    BoundsMax=Vector3.Max(BoundsMax,worldPoint);
+                }
             }
             fixed (float* data=output)
                 Raylib.UpdateMeshBuffer(model.Meshes[m],0,data,output.Length*sizeof(float),0);
@@ -156,6 +167,7 @@ internal sealed class GltfCharacter
         private sealed class Track
         {
             public string Node="";
+            public int NodeIndex;
             public string Path="";
             public float[] Times=[];
             public Vector4[] Values=[];
@@ -167,6 +179,7 @@ internal sealed class GltfCharacter
         private readonly Dictionary<string,List<Track>> tracks=
             new(StringComparer.OrdinalIgnoreCase);
         public readonly List<Primitive> Primitives=[];
+        public string NodeName(Primitive primitive)=>nodes[primitive.Node].Name;
 
         public GltfFile(string path)
         {
@@ -253,6 +266,7 @@ internal sealed class GltfCharacter
                         clipTracks.Add(new Track
                         {
                             Node=nodes[node].Name,
+                            NodeIndex=node,
                             Path=type,
                             Times=ReadFloats(sampler.GetProperty("input").GetInt32()),
                             Values=ReadValues(sampler.GetProperty("output").GetInt32())
@@ -275,7 +289,8 @@ internal sealed class GltfCharacter
                     throw new InvalidDataException($"Missing {clipName} animation");
                 foreach (var track in selected)
                 {
-                    int target=nodes.FindIndex(n=>n.Name==track.Node);
+                    int target=ReferenceEquals(clip,this) ? track.NodeIndex :
+                        nodes.FindIndex(n=>n.Name==track.Node);
                     if (target<0) throw new InvalidDataException(
                         $"Animation bone {track.Node} is missing from model");
                     Vector4 value=Sample(track,seconds);

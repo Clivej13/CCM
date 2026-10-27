@@ -113,13 +113,15 @@ Jumping and procedural generation are not included. Both characters play looping
 idle, walk and run animations according to their movement speed. The player runs
 at full movement speed; slower controller movement and the enemy chase use walk.
 
-The player uses the Human/Male locomotion GLB, which contains its own Idle,
-Walk and Run clips. The enemy uses the separate Orc/Male idle, walk and run
-GLBs. The game samples the exported joint transforms and skin weights directly
-and scales the complete character to 1.78 m for the human and 2.08 m for the
-orc. To refresh these copies when `CCM_assets` is beside this repository, run
-`dotnet build CCM.csproj -p:ImportCcmCharacters=true`.
-Normal builds use the copies already in this repository.
+The player and orc guard now use the animated Underlayer outfit exports from
+the character library. Each combines the body with a shirt, trousers and boots,
+and contains synchronized Idle, Walk and Run clips. The game samples the
+exported joint transforms and skin weights directly and scales the characters
+to 1.78 m and 2.08 m. The updated loincloth and original locomotion exports are
+also retained in `Assets/Characters`. To refresh all 40 generated character GLBs
+and the original flat copies when `CCM_assets` is beside this repository, run
+`dotnet build CCM.csproj -p:ImportCcmCharacters=true`. The full library is copied
+to `Assets/Characters/Library`; normal builds use the bundled copies.
 
 Three fireplaces in the starting room, corridor and far room are the dungeon's
 only origins of light. Each `FireplaceLightRig` groups the main firelight with two
@@ -129,7 +131,9 @@ illuminate nearby characters, fireplace models, floor, walls and props with a
 soft warm tint. Walls and closed doors block them; opening a door lets light
 through. The shader lives in `Assets/Shaders`; `Scenes/DungeonLighting.cs`
 uses it for both models and procedural cubes, so lighting varies across each
-floor tile, wall and door surface. Animation updates mesh normals with the
+floor tile, wall and door surface. The player and guard cast soft shadows from
+those fireplace lights onto nearby surfaces; their shadows follow movement and
+disappear when a fire goes out. Animation updates mesh normals with the
 vertices so the light follows each pose.
 
 The fireplace GLB and dungeon scenery modules come from the sibling

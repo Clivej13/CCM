@@ -125,6 +125,9 @@ public abstract class CombatEntity
 
 public sealed class PlayerEntity : CombatEntity
 {
+    private static readonly EquipmentSlot[] ExtraArmourSlots=
+        [EquipmentSlot.Helmet,EquipmentSlot.Shoulders,EquipmentSlot.Belt,
+            EquipmentSlot.Gauntlets,EquipmentSlot.Greaves,EquipmentSlot.ShinBoots];
     private readonly ItemCatalogue items;
     public Inventory Inventory { get; } = new();
     public Equipment Equipment { get; }
@@ -141,7 +144,8 @@ public sealed class PlayerEntity : CombatEntity
     }
     public override CombatProfile Profile => CombatFormula.Calculate(Attributes,
         Equipped(EquipmentSlot.Weapon),Equipped(EquipmentSlot.Body),
-        Equipped(EquipmentSlot.Quiver),Equipped(EquipmentSlot.Ammo));
+        Equipped(EquipmentSlot.Quiver),Equipped(EquipmentSlot.Ammo),
+        ExtraArmourSlots.Sum(slot=>Equipped(slot)?.Protection ?? 0));
     public ItemVisual? EquippedWeaponVisual => Equipped(EquipmentSlot.Weapon)?.VisualKind;
     public bool UsesBow => EquippedWeaponVisual==ItemVisual.Bow;
     public bool HasAmmo => Equipment.In(EquipmentSlot.Quiver) is not null &&

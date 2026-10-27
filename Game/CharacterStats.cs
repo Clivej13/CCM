@@ -136,11 +136,11 @@ public static class CombatFormula
 
     public static CombatProfile Calculate(CharacterAttributes attributes,
         ItemDefinition? weapon=null,ItemDefinition? armour=null,ItemDefinition? quiver=null,
-        ItemDefinition? ammo=null)
+        ItemDefinition? ammo=null,int additionalProtection=0)
     {
         ArgumentNullException.ThrowIfNull(attributes);
         attributes.Validate();
-        int health=(50+attributes.Endurance*6)*10;
+        int health=50+attributes.Endurance*6;
         bool ranged=weapon?.VisualKind==ItemVisual.Bow;
         int damage=2+attributes.Strength+(weapon?.AttackPower ?? 0)+
             (ranged ? ammo?.AttackPower ?? 0 : 0);
@@ -151,7 +151,7 @@ public static class CombatFormula
         float cooldown=interval-cast;
         float range=weapon?.AttackRange ?? UnarmedRange;
         int defence=attributes.Endurance/5+
-            (armour?.Protection ?? 0)+(quiver?.Protection ?? 0);
+            (armour?.Protection ?? 0)+(quiver?.Protection ?? 0)+additionalProtection;
         int resistance=Math.Min(60,attributes.Willpower+attributes.Intelligence/2);
         return new(health,damage,range,speed,cast,cooldown,defence,resistance);
     }
