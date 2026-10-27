@@ -12,6 +12,42 @@ namespace CCM.NativeTests;
 public sealed class NativeTests
 {
     [Theory]
+    [InlineData("human_male_locomotion.glb",1.78f)]
+    [InlineData("orc_male_idle.glb",2.08f)]
+    public void CharacterClipsStayAtWorldHeight(string file,float height)
+    {
+        Raylib.InitWindow(800,600,"CCM animation bounds");
+        var path=Path.Combine("Assets","Characters",file);
+        var model=Raylib.LoadModel(path);
+        try
+        {
+            var character=new CCM.Scenes.GltfCharacter(model,path,height,
+                file.StartsWith("orc_",StringComparison.Ordinal)
+                    ? Path.Combine("Assets","Characters","orc_male") : null);
+            var positions=new[]
+            {
+                (new Vector3(0,0,0),0f),
+                (new Vector3(0,0,0),0.5f),
+                (new Vector3(0,0,-0.2f),0.6f),
+                (new Vector3(0,0,-0.8f),0.8f),
+                (new Vector3(0,0,-1.6f),1f),
+                (new Vector3(0,0,-3.2f),1.2f),
+                (new Vector3(0,0,-4.8f),1.4f)
+            };
+            foreach (var (position,time) in positions)
+            {
+                character.Update(model,position,time);
+                var min=character.BoundsMin;
+                var max=character.BoundsMax;
+                Assert.True(min.Y>-0.1f && max.Y<height+0.1f &&
+                    max.X-min.X<height*0.7f && max.Z-min.Z<height*0.7f,
+                    $"{file} t={time}: min={min}, max={max}, height={height}");
+            }
+        }
+        finally { Raylib.UnloadModel(model); Raylib.CloseWindow(); }
+    }
+
+    [Theory]
     [InlineData("regular.json", "MainMenu")]
     [InlineData("regular-debug.json", "MainMenu")]
     [InlineData("test-level-debug.json", "LevelUp")]
@@ -41,7 +77,8 @@ public sealed class NativeTests
                 Assert.True(index > previousIndex, $"Out-of-order startup: {entry}");
                 previousIndex = index;
             }
-            Assert.Contains("Loaded 1 assets.", log);
+            Assert.Contains("Loaded 1 assets.", log); // presentation catalogue
+            Assert.Contains("Loaded 3 assets.", log); // foundation and both models
             Assert.Contains("State Loading -> "+destination, log);
             Assert.Contains("State MainMenu -> LevelUp", log);
             Assert.Contains("State LevelUp -> Game", log);

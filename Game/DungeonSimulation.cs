@@ -44,6 +44,7 @@ public sealed class DungeonSimulation
     public bool Paused { get; private set; }
     public bool EnemySelected { get; private set; }
     public bool AutoAttackEnabled => attackRequested;
+    public float AnimationSeconds { get; private set; }
     public string? CastingAbilityId => castingAbility?.Id;
     public float AbilityCastFraction => castingAbility?.Combat is { } combat
         ? Math.Clamp(1-abilityCastSeconds/combat.CastSeconds,0,1) : 0;
@@ -128,6 +129,7 @@ public sealed class DungeonSimulation
         castingAbility=null;
         abilityCastSeconds=0;
         abilityCooldowns.Clear();
+        AnimationSeconds=0;
     }
     public void ApplyPlayerBuild(PlayerDefinition previous,PlayerDefinition next)
     {
@@ -566,6 +568,7 @@ public sealed class DungeonSimulation
             Player.InterruptAttack();
         }
         seconds = Math.Min(seconds,0.1f);
+        AnimationSeconds+=seconds;
         Player.Statuses.Tick(seconds);
         Enemy.Statuses.Tick(seconds);
         Player.RegenerateStamina(seconds);

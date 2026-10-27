@@ -81,7 +81,7 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
             });
             scenes[AppState.Loading] = new LoadingScene(assets, diagnostics, input,
                 () => Transition(Lifecycle.Destination(debug)), () => Transition(AppState.Shutdown),
-                initialKeys:["foundation-triangle"]);
+                initialKeys:["foundation-triangle","player-character","enemy-character"]);
             bool levelUpFromGame=false;
             var levelUp=new LevelUpScene(sessionInput,playerDefinition,skillCatalogue,
                 abilityCatalogue,attributeDescriptions,
@@ -118,7 +118,8 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
                             Transition(AppState.LevelUp);
                         },
                         input,bindings,gameplay,itemCatalogue,starterChest.Contents,
-                        selectedPlayer,enemyCatalogue,skillCatalogue,abilityCatalogue,statusCatalogue);
+                        selectedPlayer,enemyCatalogue,skillCatalogue,abilityCatalogue,statusCatalogue,
+                        assets.Manager!);
                 active = scenes.GetValueOrDefault(next);
                 active?.Enter();
             };

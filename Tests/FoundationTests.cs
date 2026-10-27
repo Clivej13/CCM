@@ -159,6 +159,13 @@ public sealed class FoundationTests
             Assert.Contains(input.Bindings, b => b.Action == action && b.Device == "GamepadButton");
         }
         var config = AssetConfigLoader.Load(Settings.ConfigPath("assets.json"));
+        foreach (var key in new[] { "player-character","enemy-character" })
+        {
+            var definition=Assert.Single(config.Assets,asset=>asset.Key==key);
+            Assert.Equal("Model",definition.Type);
+            Assert.True(File.Exists(Path.GetFullPath(definition.Path,AppContext.BaseDirectory)),
+                $"Missing packaged character asset: {definition.Path}");
+        }
         var assets = new AssetManager(config);
         assets.SetRequiredAssets(config.Assets.Select(a => a.Key).ToArray());
         Assert.True(assets.HasPendingWork);

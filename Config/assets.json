@@ -4,6 +4,16 @@
       "Key": "foundation-triangle",
       "Type": "Model",
       "Path": "Assets/foundation.obj"
+    },
+    {
+      "Key": "player-character",
+      "Type": "Model",
+      "Path": "Assets/Characters/human_male_locomotion.glb"
+    },
+    {
+      "Key": "enemy-character",
+      "Type": "Model",
+      "Path": "Assets/Characters/orc_male_idle.glb"
     }
   ]
 }

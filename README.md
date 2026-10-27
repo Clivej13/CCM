@@ -89,11 +89,9 @@ validated platform. Refresh rate remains Raylib/driver controlled.
   state before Game; Settings is a framework submenu of MainMenu.
 - Separate AssetSessions own the presentation and destination AssetManagers.
   InitialLoading loads Config/presentation-assets.json (the title's OBJ mark).
-  After title confirmation, Loading requires only the foundation verification
-  model from Config/assets.json. Other catalogue entries can remain unloaded until
-  a scene requires them through AssetManager.RequireAsset; ProcessNext loads one
-  required native asset per frame. Dungeon blocks are drawn procedurally and need
-  no external models.
+  After title confirmation, Loading requires the foundation verification model
+  and the two character models from Config/assets.json. ProcessNext loads one
+  required native asset per frame. Terrain and item visuals remain procedural.
 - The splash and loading text use Raylib's built-in font. Each catalogue is
   validated when its loading stage begins. Failures remain on a responsive
   error screen; Escape/B or window close exits. Details go to logs.
@@ -107,9 +105,20 @@ validated platform. Refresh rate remains Raylib/driver controlled.
   closes its file handle after each write.
 
 Framework dependencies and source provenance are in [vendor/PROVENANCE.md](vendor/PROVENANCE.md).
-The dungeon uses flat-floor collision, block characters and one melee enemy.
+The dungeon uses flat-floor collision and one melee enemy. The player and enemy
+use human and orc GLB models copied from the sibling CCM_assets character library.
 The player starts the test fight with a bow, a quiver and loaded arrows.
-Jumping, animation and procedural generation are not included.
+Jumping and procedural generation are not included. Both characters play looping
+idle, walk and run animations according to their movement speed. The player runs
+at full movement speed; slower controller movement and the enemy chase use walk.
+
+The player uses the Human/Male locomotion GLB, which contains its own Idle,
+Walk and Run clips. The enemy uses the separate Orc/Male idle, walk and run
+GLBs. The game samples the exported joint transforms and skin weights directly
+and scales the complete character to 1.78 m for the human and 2.08 m for the
+orc. To refresh these copies when `CCM_assets` is beside this repository, run
+`dotnet build CCM.csproj -p:ImportCcmCharacters=true`.
+Normal builds use the copies already in this repository.
 
 ## Inventory and equipment
 
@@ -143,8 +152,8 @@ closes any panel. Movement does not close a panel, and I does not close
 Inventory. On controller, LT/RT cycles backward/forward across the three tabs.
 Y or B closes the panel or chest; the X close button is hidden. Escape/Start opens the pause menu. Open panels
 suspend dungeon updates; the chest and player inventory reset when entering a
-new game. Equipping changes the player's block appearance and live
-combat values. Value is display-only. The bow uses ranged line of sight and consumes
+new game. Equipping changes the procedural weapon and quiver visuals and live
+combat values; the character outfit is currently fixed. Value is display-only. The bow uses ranged line of sight and consumes
 one loaded arrow per released shot.
 
 Config/abilities.json defines two starting ability points, ability IDs, paths,

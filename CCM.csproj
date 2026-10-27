@@ -2,6 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType><TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <DefaultItemExcludes>$(DefaultItemExcludes);artifacts/**</DefaultItemExcludes>
   </PropertyGroup>
@@ -15,7 +16,22 @@
     <ProjectReference Include="vendor/RaylibGameFramework.Menus/RaylibGameFramework.Menus.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>CCM.NativeTests</_Parameter1>
+    </AssemblyAttribute>
     <Compile Remove="Tests/**/*.cs;vendor/**/*.cs" />
     <None Update="Config/**/*.json;Assets/**/*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+  <Target Name="ImportCcmCharacters" BeforeTargets="Build" Condition="'$(ImportCcmCharacters)' == 'true'">
+    <Copy
+      SourceFiles="$(MSBuildProjectDirectory)/../CCM_assets/Assets/Characters/Human/Male/Outfits/Loincloth/Generated/human_male_loincloth.glb"
+      DestinationFiles="$(MSBuildProjectDirectory)/Assets/Characters/human_male_loincloth.glb" />
+    <Copy
+      SourceFiles="$(MSBuildProjectDirectory)/../CCM_assets/Assets/Characters/Orc/Male/Outfits/Underwear/Generated/orc_male_underwear.glb"
+      DestinationFiles="$(MSBuildProjectDirectory)/Assets/Characters/orc_male_underwear.glb" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)/../CCM_assets/Assets/Characters/Human/Male/Animations/Locomotion/Generated/human_male_locomotion.glb" DestinationFiles="$(MSBuildProjectDirectory)/Assets/Characters/human_male_locomotion.glb" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)/../CCM_assets/Assets/Characters/Orc/Male/Animations/Idle/Generated/orc_male_locomotion.glb" DestinationFiles="$(MSBuildProjectDirectory)/Assets/Characters/orc_male_idle.glb" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)/../CCM_assets/Assets/Characters/Orc/Male/Animations/Walk/Generated/orc_male_locomotion.glb" DestinationFiles="$(MSBuildProjectDirectory)/Assets/Characters/orc_male_walk.glb" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)/../CCM_assets/Assets/Characters/Orc/Male/Animations/Run/Generated/orc_male_locomotion.glb" DestinationFiles="$(MSBuildProjectDirectory)/Assets/Characters/orc_male_run.glb" />
+  </Target>
 </Project>

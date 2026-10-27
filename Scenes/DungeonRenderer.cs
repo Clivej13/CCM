@@ -1,11 +1,21 @@
 using System.Numerics;
 using CCM.Game;
 using Raylib_cs;
+using RaylibGameFramework.Assets;
 
 namespace CCM.Scenes;
 
-internal sealed class DungeonRenderer(DungeonSimulation simulation,ItemCatalogue items,bool debug)
+internal sealed class DungeonRenderer(DungeonSimulation simulation,ItemCatalogue items,
+    bool debug,AssetManager? assets=null)
 {
+    private readonly GltfCharacter? playerAnimation=assets is null ? null :
+        new GltfCharacter(assets.GetModel("player-character"),
+            "Assets/Characters/human_male_locomotion.glb",1.78f);
+    private readonly GltfCharacter? enemyAnimation=assets is null ? null :
+        new GltfCharacter(assets.GetModel("enemy-character"),
+            "Assets/Characters/orc_male_idle.glb",2.08f,
+            "Assets/Characters/orc_male");
+
     public void Render()
     {
         Raylib.ClearBackground(new Color(20,23,30,255));
@@ -27,8 +37,16 @@ internal sealed class DungeonRenderer(DungeonSimulation simulation,ItemCatalogue
         }
         foreach (var item in simulation.World.Interactables) DrawInteractable(item);
         var enemy = simulation.Enemy;
-        Raylib.DrawCubeV(enemy.Position+new Vector3(0,0.9f,0),new(0.9f,1.8f,0.9f),
-            enemy.Alive ? new Color(170,58,58,255) : Color.DarkGray);
+        if (assets is not null)
+        {
+            var model=assets.GetModel("enemy-character");
+            enemyAnimation!.Update(model,enemy.Position,simulation.AnimationSeconds);
+            DrawCharacter(model,enemy.Position,simulation.Player.Position-enemy.Position,
+                enemy.Alive ? Color.White : Color.Gray);
+        }
+        else
+            Raylib.DrawCubeV(enemy.Position+new Vector3(0,0.9f,0),new(0.9f,1.8f,0.9f),
+                enemy.Alive ? new Color(170,58,58,255) : Color.DarkGray);
         if (simulation.EnemySelected && enemy.Alive)
             Raylib.DrawCubeWiresV(enemy.Position+new Vector3(0,0.9f,0),new(1,1.9f,1),Color.Gold);
         if (simulation.MoveDestination is { } destination)
@@ -36,11 +54,20 @@ internal sealed class DungeonRenderer(DungeonSimulation simulation,ItemCatalogue
         var player = simulation.Player;
         bool armoured=player.Equipment.In(EquipmentSlot.Body) is { } body &&
             items.Get(body).VisualKind==ItemVisual.Armour;
-        Raylib.DrawCubeV(player.Position + new Vector3(0,0.65f,0),new(0.6f,1.1f,0.6f),
-            armoured ? new Color(116,103,76,255) : Color.SkyBlue);
-        Raylib.DrawCubeV(player.Position + new Vector3(0,1.4f,0),new(0.5f,0.4f,0.5f),Color.Beige);
-        // A bright front marker makes facing visible without a model or animation.
-        Raylib.DrawCubeV(player.TransformPoint(new(0,1.4f,-0.31f)),new(0.18f,0.15f,0.18f),Color.Orange);
+        if (assets is not null)
+        {
+            var model=assets.GetModel("player-character");
+            playerAnimation!.Update(model,player.Position,simulation.AnimationSeconds);
+            DrawCharacter(model,player.Position,player.Forward,Color.White);
+        }
+        else
+        {
+            Raylib.DrawCubeV(player.Position + new Vector3(0,0.65f,0),new(0.6f,1.1f,0.6f),
+                armoured ? new Color(116,103,76,255) : Color.SkyBlue);
+            Raylib.DrawCubeV(player.Position + new Vector3(0,1.4f,0),new(0.5f,0.4f,0.5f),Color.Beige);
+            Raylib.DrawCubeV(player.TransformPoint(new(0,1.4f,-0.31f)),
+                new(0.18f,0.15f,0.18f),Color.Orange);
+        }
         DrawEquipment(player);
         if (debug)
         {
@@ -52,6 +79,14 @@ internal sealed class DungeonRenderer(DungeonSimulation simulation,ItemCatalogue
         if (simulation.Target is { } highlighted)
             Raylib.DrawCubeWiresV(highlighted.Item.Bounds.Centre,highlighted.Item.Bounds.Size+new Vector3(0.05f),Color.Gold);
         Raylib.EndMode3D();
+    }
+
+    private static void DrawCharacter(Model model,Vector3 position,Vector3 facing,Color tint)
+    {
+        facing.Y=0;
+        if (facing.LengthSquared()<0.0001f) facing=-Vector3.UnitZ;
+        float angle=MathF.Atan2(facing.X,facing.Z)*180f/MathF.PI;
+        Raylib.DrawModelEx(model,position,Vector3.UnitY,angle,Vector3.One,tint);
     }
 
     private void DrawEquipment(PlayerEntity player)
