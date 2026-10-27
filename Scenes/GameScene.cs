@@ -2,6 +2,7 @@ using CCM.Application;
 using CCM.Game;
 using Raylib_cs;
 using RaylibGameFramework.Input;
+using RaylibGameFramework.Assets;
 namespace CCM.Scenes;
 
 public sealed class GameScene : Scene
@@ -31,7 +32,7 @@ public sealed class GameScene : Scene
         IEnumerable<ItemStack>? chestContents=null,
         PlayerDefinition? playerDefinition=null,EnemyCatalogue? enemies=null,
         SkillCatalogue? skills=null,AbilityCatalogue? abilities=null,
-        StatusCatalogue? statuses=null)
+        StatusCatalogue? statuses=null,AssetManager? assets=null)
     {
         this.input=input;
         this.settings=settings;
@@ -46,7 +47,7 @@ public sealed class GameScene : Scene
         targeting=new(simulation,settings);
         inventoryPanel=new(items,skills,abilities,statuses);
         pauseMenu=new(menuInput,bindings);
-        renderer=new(simulation,items,debug);
+        renderer=new(simulation,items,debug,assets);
         hud=new(input,simulation,targeting,debug);
         abilityUi=new(input,abilities);
         mouseFollow=new MouseFollowControls(input,simulation,targeting);
