@@ -8,17 +8,37 @@ namespace CCM.Scenes;
 internal sealed class DungeonRenderer(DungeonSimulation simulation,ItemCatalogue items,
     bool debug,AssetManager? assets=null,float fireplaceLightIntensity=1f)
 {
+    private static readonly (EquipmentSlot Slot,string Key,string Path)[] LeatherPieces=
+    [
+        (EquipmentSlot.Helmet,"leather-helmet",
+            "Assets/Characters/Library/Human/Male/Outfits/Armour/Leather/Pieces/Helmet/Generated/human_male_leather_helmet.glb"),
+        (EquipmentSlot.Body,"leather-torso",
+            "Assets/Characters/Library/Human/Male/Outfits/Armour/Leather/Pieces/Torso/Generated/human_male_leather_torso.glb"),
+        (EquipmentSlot.Shoulders,"leather-shoulders",
+            "Assets/Characters/Library/Human/Male/Outfits/Armour/Leather/Pieces/Shoulders/Generated/human_male_leather_shoulders.glb"),
+        (EquipmentSlot.Belt,"leather-belt",
+            "Assets/Characters/Library/Human/Male/Outfits/Armour/Leather/Pieces/Belt/Generated/human_male_leather_belt.glb"),
+        (EquipmentSlot.Gauntlets,"leather-gauntlets",
+            "Assets/Characters/Library/Human/Male/Outfits/Armour/Leather/Pieces/Gauntlets/Generated/human_male_leather_gauntlets.glb"),
+        (EquipmentSlot.Greaves,"leather-greaves",
+            "Assets/Characters/Library/Human/Male/Outfits/Armour/Leather/Pieces/Greaves/Generated/human_male_leather_greaves.glb"),
+        (EquipmentSlot.ShinBoots,"leather-shinboots",
+            "Assets/Characters/Library/Human/Male/Outfits/Armour/Leather/Pieces/ShinBoots/Generated/human_male_leather_shinboots.glb")
+    ];
+    private static readonly HashSet<string> CoveredBoots=
+        ["Underlayer_Boots_L","Underlayer_Boots_R"];
+    private readonly Dictionary<EquipmentSlot,GltfCharacter> armourAnimations=[];
     private readonly GltfCharacter? playerAnimation=assets is null ? null :
         new GltfCharacter(assets.GetModel("player-character"),
-            "Assets/Characters/human_male_locomotion.glb",1.78f);
+            "Assets/Characters/Library/Human/Male/Outfits/Underlayer/Animations/Generated/human_male_underlayer_locomotion.glb",1.78f);
     private readonly GltfCharacter? enemyAnimation=assets is null ? null :
         new GltfCharacter(assets.GetModel("enemy-character"),
-            "Assets/Characters/orc_male_idle.glb",2.08f,
-            "Assets/Characters/orc_male");
+            "Assets/Characters/Library/Orc/Male/Outfits/Underlayer/Animations/Generated/orc_male_underlayer_locomotion.glb",2.08f);
     private readonly DungeonLighting? lighting=assets is null ? null :
         new DungeonLighting(assets.GetModel("player-character"),
             assets.GetModel("enemy-character"),assets.GetModel("dungeon-fireplace"),
-            simulation.World,DungeonScenery.ModelKeys.Select(assets.GetModel).ToArray());
+            simulation.World,DungeonScenery.ModelKeys.Concat(LeatherPieces.Select(piece=>piece.Key))
+                 .Select(assets.GetModel).ToArray());
 
     public void Dispose() => lighting?.Dispose();
 
@@ -26,6 +46,8 @@ internal sealed class DungeonRenderer(DungeonSimulation simulation,ItemCatalogue
     {
         Raylib.ClearBackground(Color.Black);
         lighting?.Update(simulation.AnimationSeconds,fireplaceLightIntensity);
+        lighting?.SetCharacterCasters(simulation.Player.Position,
+            simulation.Enemy.Alive ? simulation.Enemy.Position : null);
         var camera = simulation.Camera.ToRaylibCamera();
         Raylib.BeginMode3D(camera);
         for (int x = -8; x < 8; x += 2)
@@ -54,7 +76,8 @@ internal sealed class DungeonRenderer(DungeonSimulation simulation,ItemCatalogue
         {
             var model=assets.GetModel("enemy-character");
             enemyAnimation!.Update(model,enemy.Position,simulation.AnimationSeconds);
-            lighting!.SetModelReceiver(enemy.Position+new Vector3(0,1f,0));
+            lighting!.SetModelReceiver(enemy.Position+new Vector3(0,1f,0),
+                receiveCharacterShadows:false);
             DrawCharacter(model,enemy.Position,simulation.Player.Position-enemy.Position,
                 enemy.Alive ? Color.White : Color.Gray);
         }
@@ -66,14 +89,30 @@ internal sealed class DungeonRenderer(DungeonSimulation simulation,ItemCatalogue
         if (simulation.MoveDestination is { } destination)
             DrawLitCube(destination+new Vector3(0,0.08f,0),new(0.4f,0.12f,0.4f),Color.Gold);
         var player = simulation.Player;
-        bool armoured=player.Equipment.In(EquipmentSlot.Body) is { } body &&
-            items.Get(body).VisualKind==ItemVisual.Armour;
+        bool armoured=LeatherPieces.Any(piece=>player.Equipment.In(piece.Slot) is not null);
         if (assets is not null)
         {
             var model=assets.GetModel("player-character");
-            playerAnimation!.Update(model,player.Position,simulation.AnimationSeconds);
-            lighting!.SetModelReceiver(player.Position+new Vector3(0,0.9f,0));
+            playerAnimation!.Update(model,player.Position,simulation.AnimationSeconds,
+                hiddenNodes:player.Equipment.In(EquipmentSlot.ShinBoots) is null ? null : CoveredBoots);
+            lighting!.SetModelReceiver(player.Position+new Vector3(0,0.9f,0),
+                receiveCharacterShadows:false);
             DrawCharacter(model,player.Position,player.Forward,Color.White);
+            foreach (var piece in LeatherPieces)
+            {
+                if (player.Equipment.In(piece.Slot) is not { } itemId ||
+                    items.Get(itemId).VisualKind!=ItemVisual.Armour) continue;
+                var armourModel=assets.GetModel(piece.Key);
+                if (!armourAnimations.TryGetValue(piece.Slot,out var animation))
+                {
+                    animation=new GltfCharacter(armourModel,piece.Path,1.78f,
+                        reference:playerAnimation);
+                    armourAnimations.Add(piece.Slot,animation);
+                }
+                animation.Update(armourModel,player.Position,simulation.AnimationSeconds,
+                    playerAnimation);
+                DrawCharacter(armourModel,player.Position,player.Forward,Color.White);
+            }
         }
         else
         {
@@ -83,7 +122,7 @@ internal sealed class DungeonRenderer(DungeonSimulation simulation,ItemCatalogue
             DrawLitCube(player.TransformPoint(new(0,1.4f,-0.31f)),
                 new(0.18f,0.15f,0.18f),Color.Orange);
         }
-        DrawEquipment(player);
+        DrawQuiver(player);
         if (debug)
         {
             foreach (var block in simulation.World.Solids)
@@ -104,7 +143,7 @@ internal sealed class DungeonRenderer(DungeonSimulation simulation,ItemCatalogue
         Raylib.DrawModelEx(model,position,Vector3.UnitY,angle,Vector3.One,tint);
     }
 
-    private void DrawEquipment(PlayerEntity player)
+    private void DrawQuiver(PlayerEntity player)
     {
         if (player.Equipment.In(EquipmentSlot.Quiver) is { } quiver &&
             items.Get(quiver).VisualKind==ItemVisual.Quiver)
@@ -114,23 +153,6 @@ internal sealed class DungeonRenderer(DungeonSimulation simulation,ItemCatalogue
             if (player.Equipment.AmmoCount>0)
                 DrawLitCube(player.TransformPoint(new(0.25f,1.25f,0.38f)),
                     new(0.18f,0.2f,0.16f),Color.Beige);
-        }
-        if (player.Equipment.In(EquipmentSlot.Weapon) is not { } weapon) return;
-        var hand=player.TransformPoint(new(0.48f,0.9f,-0.1f));
-        switch (items.Get(weapon).VisualKind)
-        {
-            case ItemVisual.Sword:
-                DrawLitCube(hand+new Vector3(0,0.45f,0),new(0.12f,0.9f,0.12f),Color.LightGray);
-                DrawLitCube(hand,new(0.38f,0.1f,0.16f),Color.Gold);
-                break;
-            case ItemVisual.Bow:
-                DrawLitCube(hand,new(0.12f,1.25f,0.14f),Color.Brown);
-                DrawLitCube(hand+new Vector3(0.2f,0,0),new(0.03f,1.2f,0.03f),Color.Beige);
-                break;
-            case ItemVisual.Staff:
-                DrawLitCube(hand+new Vector3(0,0.25f,0),new(0.14f,1.6f,0.14f),Color.Brown);
-                DrawLitCube(hand+new Vector3(0,1.1f,0),new(0.25f,0.25f,0.25f),Color.Purple);
-                break;
         }
     }
 

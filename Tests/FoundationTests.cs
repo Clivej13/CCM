@@ -159,7 +159,7 @@ public sealed class FoundationTests
             Assert.Contains(input.Bindings, b => b.Action == action && b.Device == "GamepadButton");
         }
         var config = AssetConfigLoader.Load(Settings.ConfigPath("assets.json"));
-        Assert.Equal(17,config.Assets.Count);
+        Assert.Equal(24,config.Assets.Count);
         foreach (var definition in config.Assets)
         {
             Assert.Equal("Model",definition.Type);

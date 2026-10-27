@@ -8,12 +8,12 @@
     {
       "Key": "player-character",
       "Type": "Model",
-      "Path": "Assets/Characters/human_male_locomotion.glb"
+      "Path": "Assets/Characters/Library/Human/Male/Outfits/Underlayer/Animations/Generated/human_male_underlayer_locomotion.glb"
     },
     {
       "Key": "enemy-character",
       "Type": "Model",
-      "Path": "Assets/Characters/orc_male_idle.glb"
+      "Path": "Assets/Characters/Library/Orc/Male/Outfits/Underlayer/Animations/Generated/orc_male_underlayer_locomotion.glb"
     },
     {
       "Key": "dungeon-fireplace",
@@ -84,6 +84,41 @@
       "Key": "dungeon-torch-sconce",
       "Type": "Model",
       "Path": "Assets/Dungeon/torch_sconce.glb"
+    },
+    {
+      "Key": "leather-helmet",
+      "Type": "Model",
+      "Path": "Assets/Characters/Library/Human/Male/Outfits/Armour/Leather/Pieces/Helmet/Generated/human_male_leather_helmet.glb"
+    },
+    {
+      "Key": "leather-torso",
+      "Type": "Model",
+      "Path": "Assets/Characters/Library/Human/Male/Outfits/Armour/Leather/Pieces/Torso/Generated/human_male_leather_torso.glb"
+    },
+    {
+      "Key": "leather-shoulders",
+      "Type": "Model",
+      "Path": "Assets/Characters/Library/Human/Male/Outfits/Armour/Leather/Pieces/Shoulders/Generated/human_male_leather_shoulders.glb"
+    },
+    {
+      "Key": "leather-belt",
+      "Type": "Model",
+      "Path": "Assets/Characters/Library/Human/Male/Outfits/Armour/Leather/Pieces/Belt/Generated/human_male_leather_belt.glb"
+    },
+    {
+      "Key": "leather-gauntlets",
+      "Type": "Model",
+      "Path": "Assets/Characters/Library/Human/Male/Outfits/Armour/Leather/Pieces/Gauntlets/Generated/human_male_leather_gauntlets.glb"
+    },
+    {
+      "Key": "leather-greaves",
+      "Type": "Model",
+      "Path": "Assets/Characters/Library/Human/Male/Outfits/Armour/Leather/Pieces/Greaves/Generated/human_male_leather_greaves.glb"
+    },
+    {
+      "Key": "leather-shinboots",
+      "Type": "Model",
+      "Path": "Assets/Characters/Library/Human/Male/Outfits/Armour/Leather/Pieces/ShinBoots/Generated/human_male_leather_shinboots.glb"
     }
   ]
 }

@@ -33,6 +33,11 @@
     <Copy SourceFiles="$(MSBuildProjectDirectory)/../CCM_assets/Assets/Characters/Orc/Male/Animations/Idle/Generated/orc_male_locomotion.glb" DestinationFiles="$(MSBuildProjectDirectory)/Assets/Characters/orc_male_idle.glb" />
     <Copy SourceFiles="$(MSBuildProjectDirectory)/../CCM_assets/Assets/Characters/Orc/Male/Animations/Walk/Generated/orc_male_locomotion.glb" DestinationFiles="$(MSBuildProjectDirectory)/Assets/Characters/orc_male_walk.glb" />
     <Copy SourceFiles="$(MSBuildProjectDirectory)/../CCM_assets/Assets/Characters/Orc/Male/Animations/Run/Generated/orc_male_locomotion.glb" DestinationFiles="$(MSBuildProjectDirectory)/Assets/Characters/orc_male_run.glb" />
+    <ItemGroup>
+      <CharacterLibraryModel Include="$(MSBuildProjectDirectory)/../CCM_assets/Assets/Characters/**/*.glb" />
+    </ItemGroup>
+    <Copy SourceFiles="@(CharacterLibraryModel)"
+      DestinationFiles="@(CharacterLibraryModel->'$(MSBuildProjectDirectory)/Assets/Characters/Library/%(RecursiveDir)%(Filename)%(Extension)')" />
   </Target>
   <Target Name="ImportCcmFireplace" BeforeTargets="Build" Condition="'$(ImportCcmFireplace)' == 'true'">
     <Copy

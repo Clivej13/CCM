@@ -82,7 +82,9 @@ public sealed class GameApplication(AppSettings settings, DebugSettings debug, D
             scenes[AppState.Loading] = new LoadingScene(assets, diagnostics, input,
                 () => Transition(Lifecycle.Destination(debug)), () => Transition(AppState.Shutdown),
                 initialKeys:["foundation-triangle","player-character","enemy-character",
-                    "dungeon-fireplace","dungeon-floor-flagstone","dungeon-floor-cracked","dungeon-wall-straight","dungeon-wall-barred-window","dungeon-pillar-corner","dungeon-doorway-arch","dungeon-door-oak","dungeon-chest-oak","dungeon-crate-closed","dungeon-crate-open","dungeon-barrel-oak","dungeon-rubble-small","dungeon-torch-sconce"]);
+                    "dungeon-fireplace","dungeon-floor-flagstone","dungeon-floor-cracked","dungeon-wall-straight","dungeon-wall-barred-window","dungeon-pillar-corner","dungeon-doorway-arch","dungeon-door-oak","dungeon-chest-oak","dungeon-crate-closed","dungeon-crate-open","dungeon-barrel-oak","dungeon-rubble-small","dungeon-torch-sconce",
+                    "leather-helmet","leather-torso","leather-shoulders","leather-belt",
+                    "leather-gauntlets","leather-greaves","leather-shinboots"]);
             bool levelUpFromGame=false;
             var levelUp=new LevelUpScene(sessionInput,playerDefinition,skillCatalogue,
                 abilityCatalogue,attributeDescriptions,

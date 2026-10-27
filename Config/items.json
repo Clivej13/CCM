@@ -26,6 +26,41 @@
       "Weight": 4.5, "AttackPower": 0, "Protection": 4, "Value": 35, "Stackable": false
     },
     {
+      "Id": "leather-helmet", "Name": "Leather helmet", "Type": "Apparel", "Slot": "Helmet",
+      "Visual": "Armour", "Description": "A reinforced leather helm.",
+      "Weight": 0.7, "AttackPower": 0, "Protection": 1, "Value": 12, "Stackable": false
+    },
+    {
+      "Id": "leather-torso", "Name": "Leather torso", "Type": "Apparel", "Slot": "Body",
+      "Visual": "Armour", "Description": "A fitted leather cuirass.",
+      "Weight": 2.0, "AttackPower": 0, "Protection": 2, "Value": 25, "Stackable": false
+    },
+    {
+      "Id": "leather-shoulders", "Name": "Leather shoulders", "Type": "Apparel", "Slot": "Shoulders",
+      "Visual": "Armour", "Description": "Paired leather shoulder guards.",
+      "Weight": 0.8, "AttackPower": 0, "Protection": 1, "Value": 12, "Stackable": false
+    },
+    {
+      "Id": "leather-belt", "Name": "Leather belt", "Type": "Apparel", "Slot": "Belt",
+      "Visual": "Armour", "Description": "A sturdy belt with brass fittings.",
+      "Weight": 0.4, "AttackPower": 0, "Protection": 0, "Value": 8, "Stackable": false
+    },
+    {
+      "Id": "leather-gauntlets", "Name": "Leather gauntlets", "Type": "Apparel", "Slot": "Gauntlets",
+      "Visual": "Armour", "Description": "Leather guards for both hands.",
+      "Weight": 0.6, "AttackPower": 0, "Protection": 1, "Value": 10, "Stackable": false
+    },
+    {
+      "Id": "leather-greaves", "Name": "Leather greaves", "Type": "Apparel", "Slot": "Greaves",
+      "Visual": "Armour", "Description": "Leather guards for the upper legs.",
+      "Weight": 1.0, "AttackPower": 0, "Protection": 1, "Value": 13, "Stackable": false
+    },
+    {
+      "Id": "leather-shinboots", "Name": "Leather shin boots", "Type": "Apparel", "Slot": "ShinBoots",
+      "Visual": "Armour", "Description": "Leather guards for the shins and feet.",
+      "Weight": 1.0, "AttackPower": 0, "Protection": 1, "Value": 13, "Stackable": false
+    },
+    {
       "Id": "oak-staff", "Name": "Oak staff", "Type": "Weapon", "Slot": "Weapon",
       "Visual": "Staff", "Description": "A sturdy staff for close-range strikes.",
       "Weight": 2.0, "AttackPower": 5, "AttackRange": 2.2, "AttackSpeed": 0.80, "Protection": 0, "Value": 18, "Stackable": false

@@ -9,7 +9,10 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
     AbilityCatalogue? abilities=null,StatusCatalogue? statuses=null)
 {
     private static readonly EquipmentSlot[] Slots=
-        [EquipmentSlot.Weapon,EquipmentSlot.Body,EquipmentSlot.Quiver,EquipmentSlot.Ammo];
+        [EquipmentSlot.Weapon,EquipmentSlot.Helmet,EquipmentSlot.Body,
+            EquipmentSlot.Shoulders,EquipmentSlot.Belt,EquipmentSlot.Gauntlets,
+            EquipmentSlot.Greaves,EquipmentSlot.ShinBoots,
+            EquipmentSlot.Quiver,EquipmentSlot.Ammo];
     private static readonly ItemFilter[] Filters=
         [ItemFilter.All,ItemFilter.Weapons,ItemFilter.Apparel,ItemFilter.Ammunition,ItemFilter.Tomes];
     private const int SectionTabWidth=150;
@@ -274,6 +277,13 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
                 bagScroll=Math.Clamp(bagScroll-Math.Sign(input.Zoom)*steps,
                     0,Math.Max(0,entries.Count-rows));
             }
+            if (pointer.X>=divider+8 && pointer.X<x+width-14 &&
+                pointer.Y>=RowTop()-3 && pointer.Y<RowTop()+EquipmentRows()*36 &&
+                float.IsFinite(input.Zoom) && input.Zoom!=0)
+            {
+                selectedSlot=Math.Clamp(selectedSlot-Math.Sign(input.Zoom),0,Slots.Length-1);
+                equipmentFocused=true;
+            }
             if (input.SelectPressed())
             {
                 if (pointer.Y>=y+62 && pointer.Y<y+94)
@@ -304,7 +314,7 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
                     return;
                 }
                 if (RowAt(pointer,divider+8,x+width-divider-22,RowTop(),
-                    Slots.Length,0,Slots.Length,36) is { } slotIndex)
+                    Slots.Length,EquipmentFirst(),EquipmentRows(),36) is { } slotIndex)
                 {
                     equipmentFocused=true;
                     selectedSlot=slotIndex;
@@ -487,9 +497,10 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
             Raylib.DrawRectangle(trackX,trackY,6,trackHeight,Color.DarkGray);
             Raylib.DrawRectangle(trackX,thumbY,6,thumbHeight,Color.Gold);
         }
-        for (int i=0;i<Slots.Length;i++)
+        int equipmentFirst=EquipmentFirst();
+        for (int i=equipmentFirst;i<Math.Min(Slots.Length,equipmentFirst+EquipmentRows());i++)
         {
-            int rowY=RowTop()+i*36;
+            int rowY=RowTop()+(i-equipmentFirst)*36;
             bool highlight=equipmentFocused && i==selectedSlot;
             if (highlight) Raylib.DrawRectangle(divider+8,rowY-3,width/2-22,31,new Color(90,75,40,255));
             string name=player.Equipment.In(Slots[i]) is { } id ? catalogue.Get(id).Name : "[empty]";
@@ -732,6 +743,8 @@ internal sealed class InventoryPanel(ItemCatalogue catalogue,SkillCatalogue? ski
     private static int RowTop() => PanelTop()+114;
     private static int InventoryRows() => Math.Max(1,(PanelHeight()-340)/32);
     private static int ChestRows() => Math.Max(1,(PanelHeight()-260)/32);
+    private static int EquipmentRows() => Math.Max(1,(PanelHeight()-180)/36);
+    private int EquipmentFirst() => FirstVisible(selectedSlot,Slots.Length,EquipmentRows());
     private static int FirstVisible(int selected,int count,int rows) =>
         Math.Clamp(selected-rows+1,0,Math.Max(0,count-rows));
 }

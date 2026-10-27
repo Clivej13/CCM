@@ -9,6 +9,7 @@ internal sealed unsafe class DungeonLighting : IDisposable
     private const int MaxFireplaces=3;
     private const int LightsPerFireplace=3;
     private const int LightCount=MaxFireplaces*LightsPerFireplace;
+    private const int MaxOccluders=32;
     private readonly Model playerModel;
     private readonly Model enemyModel;
     private readonly Model fireplaceModel;
@@ -22,6 +23,10 @@ internal sealed unsafe class DungeonLighting : IDisposable
     private readonly Shader shader;
     private readonly int doorMinLocation;
     private readonly int doorMaxLocation;
+    private readonly int characterCaster0Location;
+    private readonly int characterCaster1Location;
+    private readonly int characterHeightsLocation;
+    private readonly int receiveCharacterShadowsLocation;
     private readonly int[] positionLocations=new int[LightCount];
     private readonly int[] colorLocations=new int[LightCount];
     private readonly int[] visibilityLocations=new int[LightCount];
@@ -74,6 +79,35 @@ internal sealed unsafe class DungeonLighting : IDisposable
         doorMaxLocation=Raylib.GetShaderLocation(shader,"doorMax");
         if (doorMinLocation<0 || doorMaxLocation<0)
             throw new InvalidOperationException("Door shadow uniforms are missing.");
+        characterCaster0Location=Raylib.GetShaderLocation(shader,"characterCaster0");
+        characterCaster1Location=Raylib.GetShaderLocation(shader,"characterCaster1");
+        characterHeightsLocation=Raylib.GetShaderLocation(shader,"characterHeights");
+        receiveCharacterShadowsLocation=Raylib.GetShaderLocation(shader,"receiveCharacterShadows");
+        if (characterCaster0Location<0 || characterCaster1Location<0 ||
+            characterHeightsLocation<0 || receiveCharacterShadowsLocation<0)
+            throw new InvalidOperationException("Character shadow uniforms are missing.");
+        Raylib.SetShaderValue(shader,characterHeightsLocation,
+            new float[] { 1.78f,2.08f },ShaderUniformDataType.Vec2);
+        SetCharacterCasters(null,null);
+        if (world.StaticSolids.Count>MaxOccluders)
+            throw new InvalidOperationException("Too many dungeon light occluders.");
+        int countLocation=Raylib.GetShaderLocation(shader,"occluderCount");
+        if (countLocation<0)
+            throw new InvalidOperationException("Wall shadow count uniform is missing.");
+        Raylib.SetShaderValue(shader,countLocation,
+            new float[] { world.StaticSolids.Count },ShaderUniformDataType.Float);
+        for (int i=0;i<world.StaticSolids.Count;i++)
+        {
+            var block=world.StaticSolids[i];
+            int minLocation=Raylib.GetShaderLocation(shader,$"occluderMin[{i}]");
+            int maxLocation=Raylib.GetShaderLocation(shader,$"occluderMax[{i}]");
+            if (minLocation<0 || maxLocation<0)
+                throw new InvalidOperationException($"Wall shadow {i} uniform is missing.");
+            Raylib.SetShaderValue(shader,minLocation,
+                new float[] { block.Min.X,block.Min.Y,block.Min.Z },ShaderUniformDataType.Vec3);
+            Raylib.SetShaderValue(shader,maxLocation,
+                new float[] { block.Max.X,block.Max.Y,block.Max.Z },ShaderUniformDataType.Vec3);
+        }
         playerShaders=Bind(player);
         enemyShaders=Bind(enemy);
         fireplaceShaders=Bind(fireplace);
@@ -131,20 +165,37 @@ internal sealed unsafe class DungeonLighting : IDisposable
         }
     }
 
+    public void SetCharacterCasters(Vector3? playerFeet,Vector3? enemyFeet)
+    {
+        SetCaster(characterCaster0Location,playerFeet,0.42f);
+        SetCaster(characterCaster1Location,enemyFeet,0.52f);
+    }
+
+    private void SetCaster(int location,Vector3? feet,float radius)
+    {
+        Vector3 position=feet ?? Vector3.Zero;
+        Raylib.SetShaderValue(shader,location,
+            new float[] { position.X,position.Y,position.Z,feet.HasValue ? radius : 0f },
+            ShaderUniformDataType.Vec4);
+    }
+
     public void DrawCube(Vector3 centre,Vector3 size,Color colour)
     {
         SetModelReceiver(centre,size);
         Raylib.DrawModelEx(cubeModel,centre,Vector3.UnitY,0,size,colour);
     }
 
-    public void SetModelReceiver(Vector3 position,Vector3 size=default)
+    public void SetModelReceiver(Vector3 position,Vector3 size=default,
+        bool receiveCharacterShadows=true)
     {
+        Raylib.SetShaderValue(shader,receiveCharacterShadowsLocation,
+            new float[] { receiveCharacterShadows ? 1f : 0f },ShaderUniformDataType.Float);
         for (int i=0;i<LightCount;i++)
         {
             Vector3 half=size*0.5f;
             Vector3 sample=Vector3.Clamp(positions[i],position-half,position+half);
             float visible=colors[i].LengthSquared()>0 &&
-                !Occluded(positions[i],sample,includeDoor:false) ? 1f : 0f;
+                Vector3.DistanceSquared(positions[i],sample)<400f ? 1f : 0f;
             Raylib.SetShaderValue(shader,visibilityLocations[i],
                 new float[] { visible },ShaderUniformDataType.Float);
         }

@@ -1,6 +1,6 @@
 namespace CCM.Game;
 
-public enum EquipmentSlot { None, Weapon, Body, Quiver, Ammo }
+public enum EquipmentSlot { None, Weapon, Body, Quiver, Ammo, Helmet, Shoulders, Belt, Gauntlets, Greaves, ShinBoots }
 public enum ItemVisual { Sword, Bow, Staff, Armour, Quiver, Arrow, Tome }
 public enum ItemType { Weapon, Apparel, Ammunition, Tome }
 public enum ItemFilter { All, Weapons, Apparel, Ammunition, Tomes }
@@ -54,7 +54,9 @@ public sealed class ItemCatalogue
             if (item.Stackable && slot is not (EquipmentSlot.None or EquipmentSlot.Ammo))
                 throw new InvalidDataException($"Equippable item {item.Id} cannot be stackable.");
             if (type==ItemType.Weapon && slot!=EquipmentSlot.Weapon ||
-                type==ItemType.Apparel && slot is not (EquipmentSlot.Body or EquipmentSlot.Quiver) ||
+                type==ItemType.Apparel && slot is not (EquipmentSlot.Body or EquipmentSlot.Quiver or
+                    EquipmentSlot.Helmet or EquipmentSlot.Shoulders or EquipmentSlot.Belt or
+                    EquipmentSlot.Gauntlets or EquipmentSlot.Greaves or EquipmentSlot.ShinBoots) ||
                 type==ItemType.Ammunition && slot!=EquipmentSlot.Ammo ||
                 type==ItemType.Tome && slot!=EquipmentSlot.None)
                 throw new InvalidDataException($"Item {item.Id} has an incompatible type and slot.");

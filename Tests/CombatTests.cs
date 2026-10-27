@@ -215,8 +215,8 @@ public sealed class CombatTests
         var enemy=new EnemyEntity(new(0,0,-2),new EnemyDefinition(),items);
         var unarmed=player.Profile;
         Assert.False(player.InRange(enemy));
-        Assert.Equal(1100,unarmed.MaxHealth);
-        Assert.Equal(680,enemy.MaxHealth);
+        Assert.Equal(110,unarmed.MaxHealth);
+        Assert.Equal(68,enemy.MaxHealth);
         Assert.Equal(12,unarmed.Damage);
         Assert.Equal(CombatFormula.UnarmedRange,unarmed.Range);
         Assert.True(unarmed.AttacksPerSecond>0);
@@ -261,8 +261,8 @@ public sealed class CombatTests
         var simulation=new DungeonSimulation(dungeon,items:items,
             playerDefinition:player,enemies:enemies);
         Assert.Equal(dungeon.EnemyId,simulation.Enemy.Definition.Id);
-        Assert.Equal(740,simulation.Player.MaxHealth);
-        Assert.Equal(680,simulation.Enemy.MaxHealth);
+        Assert.Equal(74,simulation.Player.MaxHealth);
+        Assert.Equal(68,simulation.Enemy.MaxHealth);
         Assert.Equal(player.Attributes.Strength,simulation.Player.Attributes.Strength);
         Assert.Equal(enemies.Get(dungeon.EnemyId).Attributes.Endurance,
             simulation.Enemy.Attributes.Endurance);

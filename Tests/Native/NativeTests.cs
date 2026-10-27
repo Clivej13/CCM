@@ -29,8 +29,8 @@ public sealed class NativeTests
     public void ExtinguishedFireplacesLeaveDungeonGeometryDark()
     {
         Raylib.InitWindow(800,600,"CCM fireplace lighting");
-        var player=Raylib.LoadModel(Path.Combine("Assets","Characters","human_male_locomotion.glb"));
-        var enemy=Raylib.LoadModel(Path.Combine("Assets","Characters","orc_male_idle.glb"));
+        var player=Raylib.LoadModel(Path.Combine("Assets","Characters","Library","Human","Male","Outfits","Underlayer","Animations","Generated","human_male_underlayer_locomotion.glb"));
+        var enemy=Raylib.LoadModel(Path.Combine("Assets","Characters","Library","Orc","Male","Outfits","Underlayer","Animations","Generated","orc_male_underlayer_locomotion.glb"));
         var hearth=Raylib.LoadModel(Path.Combine("Assets","Props","dungeon_fireplace.glb"));
         try
         {
@@ -123,19 +123,142 @@ public sealed class NativeTests
         }
     }
 
+    [Fact]
+    public void FloorTilesMatchContinuousPerPixelLighting()
+    {
+        Raylib.InitWindow(800,600,"CCM floor lighting seams");
+        var player=Raylib.LoadModel(Path.Combine("Assets","Characters","Library","Human","Male","Outfits","Underlayer","Animations","Generated","human_male_underlayer_locomotion.glb"));
+        var enemy=Raylib.LoadModel(Path.Combine("Assets","Characters","Library","Orc","Male","Outfits","Underlayer","Animations","Generated","orc_male_underlayer_locomotion.glb"));
+        var hearth=Raylib.LoadModel(Path.Combine("Assets","Props","dungeon_fireplace.glb"));
+        try
+        {
+            var world=new DungeonWorld();
+            world.Fireplaces[1].Activate(Vector3.Zero);
+            world.Fireplaces[2].Activate(Vector3.Zero);
+            using var lighting=new CCM.Scenes.DungeonLighting(player,enemy,hearth,world);
+            lighting.Update(0.2f,1);
+            var camera=new Camera3D
+            {
+                Position=new(0,20,0),Target=Vector3.Zero,Up=-Vector3.UnitZ,
+                FovY=18,Projection=CameraProjection.Orthographic
+            };
+            var samples=new List<Vector3>();
+            for (int x=-7;x<=7;x+=2)
+                for (int z=-7;z<=7;z+=2) samples.Add(new(x,0,z));
+            Color[] Capture(bool tiled)
+            {
+                Raylib.BeginDrawing();
+                Raylib.ClearBackground(Color.Black);
+                Raylib.BeginMode3D(camera);
+                if (tiled)
+                {
+                    foreach (var point in samples)
+                        lighting.DrawCube(new(point.X,-0.15f,point.Z),
+                            new(2,0.3f,2),Color.White);
+                }
+                else lighting.DrawCube(new(0,-0.15f,0),new(16,0.3f,16),Color.White);
+                Raylib.EndMode3D();
+                var image=Raylib.LoadImageFromScreen();
+                Raylib.EndDrawing();
+                try
+                {
+                    return samples.Select(point=>
+                    {
+                        var screen=Raylib.GetWorldToScreen(point,camera);
+                        return Raylib.GetImageColor(image,(int)screen.X,(int)screen.Y);
+                    }).ToArray();
+                }
+                finally { Raylib.UnloadImage(image); }
+            }
+            var continuous=Capture(false);
+            var tiles=Capture(true);
+            Assert.Contains(continuous,color=>color.R>30);
+            for (int i=0;i<samples.Count;i++)
+            {
+                Assert.InRange(Math.Abs((int)tiles[i].R-continuous[i].R),0,4);
+                Assert.InRange(Math.Abs((int)tiles[i].G-continuous[i].G),0,4);
+                Assert.InRange(Math.Abs((int)tiles[i].B-continuous[i].B),0,4);
+            }
+        }
+        finally
+        {
+            Raylib.UnloadModel(hearth);
+            Raylib.UnloadModel(enemy);
+            Raylib.UnloadModel(player);
+            Raylib.CloseWindow();
+        }
+    }
+
+    [Fact]
+    public void CharacterShadowFollowsFireAndDisappearsWhenExtinguished()
+    {
+        Raylib.InitWindow(800,600,"CCM character fire shadow");
+        var player=Raylib.LoadModel(Path.Combine("Assets","Characters","Library","Human","Male","Outfits","Underlayer","Animations","Generated","human_male_underlayer_locomotion.glb"));
+        var enemy=Raylib.LoadModel(Path.Combine("Assets","Characters","Library","Orc","Male","Outfits","Underlayer","Animations","Generated","orc_male_underlayer_locomotion.glb"));
+        var hearth=Raylib.LoadModel(Path.Combine("Assets","Props","dungeon_fireplace.glb"));
+        try
+        {
+            var world=new DungeonWorld();
+            world.Fireplaces[1].Activate(Vector3.Zero);
+            world.Fireplaces[2].Activate(Vector3.Zero);
+            using var lighting=new CCM.Scenes.DungeonLighting(player,enemy,hearth,world);
+            var camera=new Camera3D
+            {
+                Position=new(0,15,3),Target=new(0,0,3),Up=-Vector3.UnitZ,
+                FovY=16,Projection=CameraProjection.Orthographic
+            };
+            Color FloorPixel()
+            {
+                Raylib.BeginDrawing();
+                Raylib.ClearBackground(Color.Black);
+                Raylib.BeginMode3D(camera);
+                lighting.DrawCube(new(0,-0.15f,3),new(16,0.3f,10),Color.White);
+                Raylib.EndMode3D();
+                var image=Raylib.LoadImageFromScreen();
+                Raylib.EndDrawing();
+                try
+                {
+                    var screen=Raylib.GetWorldToScreen(new(0,0,3),camera);
+                    return Raylib.GetImageColor(image,(int)screen.X,(int)screen.Y);
+                }
+                finally { Raylib.UnloadImage(image); }
+            }
+            lighting.Update(0.2f,1);
+            lighting.SetCharacterCasters(null,null);
+            var clear=FloorPixel();
+            lighting.SetCharacterCasters(new Vector3(-3,0,3),null);
+            var shadow=FloorPixel();
+            Assert.True(clear.R>shadow.R+10,
+                $"Character should shade firelit floor: clear={clear}, shadow={shadow}");
+            lighting.SetCharacterCasters(null,new Vector3(-3,0,3));
+            var guardShadow=FloorPixel();
+            Assert.True(clear.R>guardShadow.R+10,
+                $"Guard should shade firelit floor: clear={clear}, shadow={guardShadow}");
+            world.Fireplaces[0].Activate(Vector3.Zero);
+            lighting.Update(0.2f,1);
+            Assert.Equal(0,FloorPixel().R);
+        }
+        finally
+        {
+            Raylib.UnloadModel(hearth);
+            Raylib.UnloadModel(enemy);
+            Raylib.UnloadModel(player);
+            Raylib.CloseWindow();
+        }
+    }
+
     [Theory]
-    [InlineData("human_male_locomotion.glb",1.78f)]
-    [InlineData("orc_male_idle.glb",2.08f)]
+    [InlineData("Human/Male/Outfits/Underlayer/Animations/Generated/human_male_underlayer_locomotion.glb",1.78f)]
+    [InlineData("Orc/Male/Outfits/Underlayer/Animations/Generated/orc_male_underlayer_locomotion.glb",2.08f)]
     public void CharacterClipsStayAtWorldHeight(string file,float height)
     {
         Raylib.InitWindow(800,600,"CCM animation bounds");
-        var path=Path.Combine("Assets","Characters",file);
+        var path=Path.Combine("Assets","Characters","Library",file);
         var model=Raylib.LoadModel(path);
         try
         {
-            var character=new CCM.Scenes.GltfCharacter(model,path,height,
-                file.StartsWith("orc_",StringComparison.Ordinal)
-                    ? Path.Combine("Assets","Characters","orc_male") : null);
+            Assert.True(model.Transform==Matrix4x4.Identity,$"Model transform: {model.Transform}");
+            var character=new CCM.Scenes.GltfCharacter(model,path,height);
             var positions=new[]
             {
                 (new Vector3(0,0,0),0f),
@@ -151,12 +274,70 @@ public sealed class NativeTests
                 character.Update(model,position,time);
                 var min=character.BoundsMin;
                 var max=character.BoundsMax;
+                Assert.InRange(max.Y-min.Y,height*0.9f,height*1.1f);
+                if (time==0)
+                {
+                    Assert.InRange(min.Y,-0.02f,0.02f);
+                    Assert.InRange(max.Y,height-0.02f,height+0.02f);
+                }
                 Assert.True(min.Y>-0.1f && max.Y<height+0.1f &&
                     max.X-min.X<height*0.7f && max.Z-min.Z<height*0.7f,
                     $"{file} t={time}: min={min}, max={max}, height={height}");
             }
         }
         finally { Raylib.UnloadModel(model); Raylib.CloseWindow(); }
+    }
+
+    [Theory]
+    [InlineData("Helmet/human_male_leather_helmet")]
+    [InlineData("Torso/human_male_leather_torso")]
+    [InlineData("Shoulders/human_male_leather_shoulders")]
+    [InlineData("Belt/human_male_leather_belt")]
+    [InlineData("Gauntlets/human_male_leather_gauntlets")]
+    [InlineData("Greaves/human_male_leather_greaves")]
+    [InlineData("ShinBoots/human_male_leather_shinboots")]
+    public void LeatherPiecesFollowCharacterPoseAtWorldScale(string piece)
+    {
+        Raylib.InitWindow(800,600,"CCM leather armour alignment");
+        var root=Path.Combine("Assets","Characters","Library","Human","Male");
+        var bodyPath=Path.Combine(root,"Outfits","Underlayer","Animations","Generated",
+            "human_male_underlayer_locomotion.glb");
+        var parts=piece.Split('/');
+        var armourPath=Path.Combine(root,"Outfits","Armour","Leather","Pieces",parts[0],
+            "Generated",parts[1]+".glb");
+        var bodyModel=Raylib.LoadModel(bodyPath);
+        var armourModel=Raylib.LoadModel(armourPath);
+        try
+        {
+            var body=new CCM.Scenes.GltfCharacter(bodyModel,bodyPath,1.78f);
+            var armour=new CCM.Scenes.GltfCharacter(armourModel,armourPath,1.78f,
+                reference:body);
+            foreach (var (position,time) in new[]
+            {
+                (Vector3.Zero,0f),
+                (Vector3.Zero,0.5f),
+                (new Vector3(0,0,-0.5f),0.7f),
+                (new Vector3(0,0,-2.5f),1.0f)
+            })
+            {
+                body.Update(bodyModel,position,time);
+                armour.Update(armourModel,position,time,body);
+                Assert.True(armour.BoundsMin.Y>=body.BoundsMin.Y-0.12f &&
+                    armour.BoundsMax.Y<=body.BoundsMax.Y+0.12f &&
+                    armour.BoundsMin.X>=body.BoundsMin.X-0.15f &&
+                    armour.BoundsMax.X<=body.BoundsMax.X+0.15f &&
+                    armour.BoundsMin.Z>=body.BoundsMin.Z-0.15f &&
+                    armour.BoundsMax.Z<=body.BoundsMax.Z+0.15f,
+                    $"{piece} t={time}: body={body.BoundsMin}..{body.BoundsMax}, " +
+                    $"piece={armour.BoundsMin}..{armour.BoundsMax}");
+            }
+        }
+        finally
+        {
+            Raylib.UnloadModel(armourModel);
+            Raylib.UnloadModel(bodyModel);
+            Raylib.CloseWindow();
+        }
     }
 
     [Theory]
@@ -190,7 +371,7 @@ public sealed class NativeTests
                 previousIndex = index;
             }
             Assert.Contains("Loaded 1 assets.", log); // presentation catalogue
-            Assert.Contains("Loaded 17 assets.", log); // foundation, characters, fireplace and dungeon scenery
+            Assert.Contains("Loaded 24 assets.", log); // foundation, characters, fireplace and dungeon scenery
             Assert.Contains("State Loading -> "+destination, log);
             Assert.Contains("State MainMenu -> LevelUp", log);
             Assert.Contains("State LevelUp -> Game", log);
