@@ -6,9 +6,10 @@ namespace CCM.Scenes;
 
 internal sealed unsafe class DungeonLighting : IDisposable
 {
-    private const int MaxFireplaces=3;
+    private const int MaxFireplaces=2;
     private const int LightsPerFireplace=3;
-    private const int LightCount=MaxFireplaces*LightsPerFireplace;
+    private const int TorchCount=6;
+    private const int LightCount=MaxFireplaces*LightsPerFireplace+TorchCount;
     private const int MaxOccluders=32;
     private readonly Model playerModel;
     private readonly Model enemyModel;
@@ -38,8 +39,8 @@ internal sealed unsafe class DungeonLighting : IDisposable
         IEnumerable<Model>? sceneryModels=null)
     {
         this.world=world;
-        if (world.Fireplaces.Count!=MaxFireplaces)
-            throw new InvalidOperationException("Dungeon lighting expects three fireplaces.");
+        if (world.Fireplaces.Count!=MaxFireplaces || world.Torches.Count!=TorchCount)
+            throw new InvalidOperationException("Dungeon lighting requires two fireplaces and six torches.");
         rigs=
         [
             new(world.Fireplaces[0],
@@ -48,11 +49,6 @@ internal sealed unsafe class DungeonLighting : IDisposable
                 new(new(-4.4f,2.4f,3.2f),new(0.58f,0.56f,0.53f))
             ]),
             new(world.Fireplaces[1],
-            [
-                new(new(0.8f,2.4f,-10.7f),new(0.68f,0.65f,0.61f)),
-                new(new(-0.8f,2.2f,-14.3f),new(0.58f,0.56f,0.53f))
-            ]),
-            new(world.Fireplaces[2],
             [
                 new(new(6.5f,2.4f,-37.4f),new(0.70f,0.67f,0.63f)),
                 new(new(3.0f,2.4f,-35.5f),new(0.59f,0.57f,0.54f))
@@ -73,7 +69,7 @@ internal sealed unsafe class DungeonLighting : IDisposable
             colorLocations[i]=Raylib.GetShaderLocation(shader,$"lightColor{i}");
             visibilityLocations[i]=Raylib.GetShaderLocation(shader,$"lightVisibility{i}");
             if (positionLocations[i]<0 || colorLocations[i]<0 || visibilityLocations[i]<0)
-                throw new InvalidOperationException($"Fireplace light {i} uniform is missing.");
+                throw new InvalidOperationException($"Fire light {i} uniform is missing.");
         }
         doorMinLocation=Raylib.GetShaderLocation(shader,"doorMin");
         doorMaxLocation=Raylib.GetShaderLocation(shader,"doorMax");
@@ -162,6 +158,13 @@ internal sealed unsafe class DungeonLighting : IDisposable
                     ? bounce.Color*intensity : Vector3.Zero;
                 SetLight(first+j+1,bounce.Position,color);
             }
+        }
+        for (int i=0;i<TorchCount;i++)
+        {
+            var torch=world.Torches[i];
+            float intensity=TorchFlame.Intensity(torch,seconds)*fireplaceLightIntensity;
+            SetLight(MaxFireplaces*LightsPerFireplace+i,torch.FireOrigin,
+                new Vector3(2.85f,2.60f,2.30f)*intensity);
         }
     }
 

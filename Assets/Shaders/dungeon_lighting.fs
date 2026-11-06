@@ -15,6 +15,9 @@ uniform vec3 lightPosition5;
 uniform vec3 lightPosition6;
 uniform vec3 lightPosition7;
 uniform vec3 lightPosition8;
+uniform vec3 lightPosition9;
+uniform vec3 lightPosition10;
+uniform vec3 lightPosition11;
 uniform vec3 lightColor0;
 uniform vec3 lightColor1;
 uniform vec3 lightColor2;
@@ -24,6 +27,9 @@ uniform vec3 lightColor5;
 uniform vec3 lightColor6;
 uniform vec3 lightColor7;
 uniform vec3 lightColor8;
+uniform vec3 lightColor9;
+uniform vec3 lightColor10;
+uniform vec3 lightColor11;
 uniform float lightVisibility0;
 uniform float lightVisibility1;
 uniform float lightVisibility2;
@@ -33,6 +39,9 @@ uniform float lightVisibility5;
 uniform float lightVisibility6;
 uniform float lightVisibility7;
 uniform float lightVisibility8;
+uniform float lightVisibility9;
+uniform float lightVisibility10;
+uniform float lightVisibility11;
 uniform vec3 doorMin;
 uniform vec3 doorMax;
 uniform float occluderCount;
@@ -106,7 +115,7 @@ float characterShadow(vec3 from, vec3 to, vec4 caster, float height)
     return 1.0 - smoothstep(caster.w * 0.7, caster.w * 1.5, distance);
 }
 
-vec3 fireplaceLight(vec3 position, vec3 color, float visibility, vec3 normal)
+vec3 fireLight(vec3 position, vec3 color, float visibility, vec3 normal)
 {
     if (visibility <= 0.0 || lightBlocked(position, fragPosition))
         return vec3(0.0);
@@ -132,14 +141,17 @@ void main()
     vec4 albedo = texture(texture0, fragTexCoord) * colDiffuse * fragColor;
     vec3 normal = normalize(fragNormal);
     vec3 light = vec3(0.0);
-    light += fireplaceLight(lightPosition0, lightColor0, lightVisibility0, normal);
-    light += fireplaceLight(lightPosition1, lightColor1, lightVisibility1, normal);
-    light += fireplaceLight(lightPosition2, lightColor2, lightVisibility2, normal);
-    light += fireplaceLight(lightPosition3, lightColor3, lightVisibility3, normal);
-    light += fireplaceLight(lightPosition4, lightColor4, lightVisibility4, normal);
-    light += fireplaceLight(lightPosition5, lightColor5, lightVisibility5, normal);
-    light += fireplaceLight(lightPosition6, lightColor6, lightVisibility6, normal);
-    light += fireplaceLight(lightPosition7, lightColor7, lightVisibility7, normal);
-    light += fireplaceLight(lightPosition8, lightColor8, lightVisibility8, normal);
+    light += fireLight(lightPosition0, lightColor0, lightVisibility0, normal);
+    light += fireLight(lightPosition1, lightColor1, lightVisibility1, normal);
+    light += fireLight(lightPosition2, lightColor2, lightVisibility2, normal);
+    light += fireLight(lightPosition3, lightColor3, lightVisibility3, normal);
+    light += fireLight(lightPosition4, lightColor4, lightVisibility4, normal);
+    light += fireLight(lightPosition5, lightColor5, lightVisibility5, normal);
+    light += fireLight(lightPosition6, lightColor6, lightVisibility6, normal);
+    light += fireLight(lightPosition7, lightColor7, lightVisibility7, normal);
+    light += fireLight(lightPosition8, lightColor8, lightVisibility8, normal);
+    light += fireLight(lightPosition9, lightColor9, lightVisibility9, normal);
+    light += fireLight(lightPosition10, lightColor10, lightVisibility10, normal);
+    light += fireLight(lightPosition11, lightColor11, lightVisibility11, normal);
     finalColor = vec4(albedo.rgb * min(light, vec3(1.55)), albedo.a);
 }

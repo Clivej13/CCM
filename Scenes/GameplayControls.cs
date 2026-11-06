@@ -74,11 +74,8 @@ public sealed class MouseFollowControls(SessionInput input,DungeonSimulation sim
         if (!ignoreLook && !primary && input.InteractPressed()) simulation.TryInteractVisible();
         if (clickPending)
         {
-            if (!simulation.TryInteractVisible())
-            {
-                targeting.SelectEnemy();
-                simulation.RequestAttack();
-            }
+            if (targeting.SelectEnemy()) simulation.RequestAttack();
+            else simulation.TryInteractVisible();
         }
         clickPending = false;
     }
@@ -115,11 +112,8 @@ public sealed class MouseTopDownControls(SessionInput input,DungeonSimulation si
     {
         if (ignoreLook) return;
         bool primary = input.SelectPressed();
-        if (primary && !simulation.TryInteractVisible())
-        {
-            if (targeting.SelectEnemy()) simulation.RequestAttack();
-            else targeting.MoveToGround();
-        }
+        if (primary && !simulation.TrySelectEnemyOrInteract(targeting.Aim.Position,targeting.Aim.Direction))
+            targeting.MoveToGround();
         if (!primary && input.InteractPressed()) simulation.TryInteractVisible();
         if (input.AttackPressed()) targeting.ApproachOrAttack();
     }

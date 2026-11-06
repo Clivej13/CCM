@@ -17,9 +17,12 @@ internal sealed class GltfCharacter
     private readonly float worldScale;
     private readonly float floorY;
     private Vector3 lastPosition;
+    private Vector3 lastFacing=-Vector3.UnitZ;
     private float lastSeconds=-1;
     private string state="idle";
     private float clipSeconds;
+    internal string State => state;
+    internal float VisualYawCorrection { get; private set; }
     internal Vector3 BoundsMin { get; private set; }
     internal Vector3 BoundsMax { get; private set; }
 
@@ -30,7 +33,9 @@ internal sealed class GltfCharacter
         clips=prefix is null
             ? new Dictionary<string,GltfFile>
             {
-                ["idle"]=modelFile,["walk"]=modelFile,["run"]=modelFile
+                ["idle"]=modelFile,["walk"]=modelFile,["run"]=modelFile,
+                ["sidestepleft"]=modelFile,["sidestepright"]=modelFile,
+                ["turnleft"]=modelFile,["turnright"]=modelFile
             }
             : new Dictionary<string,GltfFile>
             {
@@ -73,6 +78,25 @@ internal sealed class GltfCharacter
         worldScale=reference?.worldScale ?? height/(top-bottom);
     }
 
+    internal static string SelectState(Vector3 velocity,Vector3 facing,float headingChange)
+    {
+        velocity.Y=0;
+        facing.Y=0;
+        float speed=velocity.Length();
+        if (speed>=0.1f)
+        {
+            var forward=Vector3.Normalize(facing);
+            float along=Vector3.Dot(velocity,forward);
+            float lateral=Vector3.Dot(velocity,Vector3.Cross(forward,Vector3.UnitY));
+            if (MathF.Abs(lateral)>MathF.Abs(along)*1.2f)
+                return lateral<0 ? "sidestepleft" : "sidestepright";
+            return speed<3.5f ? "walk" : "run";
+        }
+        if (headingChange>0.02f) return "turnleft";
+        if (headingChange< -0.02f) return "turnright";
+        return "idle";
+    }
+
     private static string Resolve(string path)
     {
         if (File.Exists(path)) return path;
@@ -81,9 +105,11 @@ internal sealed class GltfCharacter
         throw new FileNotFoundException("Character animation asset is missing",path);
     }
 
-    public unsafe void Update(Model model,Vector3 position,float seconds,
+    public unsafe void Update(Model model,Vector3 position,Vector3 facing,float seconds,
         GltfCharacter? reference=null,IReadOnlySet<string>? hiddenNodes=null)
     {
+        facing.Y=0;
+        facing=facing.LengthSquared()<0.0001f ? lastFacing : Vector3.Normalize(facing);
         if (reference is not null)
         {
             state=reference.state;
@@ -93,21 +119,31 @@ internal sealed class GltfCharacter
         {
             lastSeconds=seconds;
             lastPosition=position;
+            lastFacing=facing;
             state="idle";
             clipSeconds=0;
         }
-        else if (reference is null && seconds>lastSeconds)
+        else if (seconds>lastSeconds)
         {
             float elapsed=seconds-lastSeconds;
-            var delta=position-lastPosition;
-            delta.Y=0;
-            float speed=delta.Length()/elapsed;
-            string next=speed<0.1f ? "idle" : speed<3.5f ? "walk" : "run";
+            var velocity=(position-lastPosition)/elapsed;
+            velocity.Y=0;
+            float headingChange=MathF.Atan2(Vector3.Cross(lastFacing,facing).Y,
+                Vector3.Dot(lastFacing,facing));
+            string next=SelectState(velocity,facing,headingChange);
+            bool turning=state is "turnleft" or "turnright";
+            if (next=="idle" && turning && clipSeconds<1.199f)
+                next=state;
             clipSeconds=next==state ? clipSeconds+elapsed : 0;
+            if (next==state && turning && MathF.Abs(headingChange)>0.02f &&
+                clipSeconds>=1.2f) clipSeconds=0;
             state=next;
             lastPosition=position;
+            lastFacing=facing;
             lastSeconds=seconds;
         }
+        VisualYawCorrection=state is "turnleft" or "turnright"
+            ? -modelFile.RootYaw(clips[state],clipSeconds,state) : 0;
         var pose=modelFile.Pose(clips[state],clipSeconds,state);
         BoundsMin=new Vector3(float.PositiveInfinity);
         BoundsMax=new Vector3(float.NegativeInfinity);
@@ -276,6 +312,23 @@ internal sealed class GltfCharacter
             }
         }
 
+        public float RootYaw(GltfFile clip,float seconds,string clipName)
+        {
+            if (!clip.tracks.TryGetValue(clipName,out var selected)) return 0;
+            var root=selected.FirstOrDefault(track =>
+                track.Path=="rotation" && track.Node.Equals("hips",StringComparison.OrdinalIgnoreCase));
+            if (root is null) return 0;
+            static float Heading(Vector4 value)
+            {
+                var rotation=Quaternion.Normalize(new Quaternion(value.X,value.Y,value.Z,value.W));
+                var forward=Vector3.Transform(-Vector3.UnitZ,rotation);
+                return MathF.Atan2(forward.X,forward.Z);
+            }
+            float initial=Heading(Sample(root,0,false));
+            float current=Heading(Sample(root,seconds,false));
+            return MathF.Atan2(MathF.Sin(current-initial),MathF.Cos(current-initial));
+        }
+
         public Matrix4x4[] Pose(GltfFile? clip,float seconds,string clipName="")
         {
             var local=new Matrix4x4[nodes.Count];
@@ -293,7 +346,7 @@ internal sealed class GltfCharacter
                         nodes.FindIndex(n=>n.Name==track.Node);
                     if (target<0) throw new InvalidDataException(
                         $"Animation bone {track.Node} is missing from model");
-                    Vector4 value=Sample(track,seconds);
+                    Vector4 value=Sample(track,seconds,clipName is not ("turnleft" or "turnright"));
                     if (track.Path=="translation")
                         translations[target]=new Vector3(value.X,value.Y,value.Z);
                     else if (track.Path=="rotation")
@@ -363,12 +416,12 @@ internal sealed class GltfCharacter
             return result.LengthSquared()>0.000001f ? Vector3.Normalize(result) : Vector3.UnitY;
         }
 
-        private static Vector4 Sample(Track track,float seconds)
+        private static Vector4 Sample(Track track,float seconds,bool loop)
         {
             int count=track.Times.Length;
             if (count==0) return Vector4.Zero;
             float duration=track.Times[^1];
-            float time=duration>0 ? seconds%duration : 0;
+            float time=duration>0 ? loop ? seconds%duration : Math.Min(seconds,duration) : 0;
             int right=Array.BinarySearch(track.Times,time);
             if (right>=0) return track.Values[right];
             right=~right;

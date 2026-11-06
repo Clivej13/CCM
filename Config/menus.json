@@ -62,7 +62,7 @@
         },
         {
           "Type": "Toggle",
-          "Text": "Auto attack selected enemy",
+          "Text": "Left click engages enemy",
           "Function": "SetAutoAttack",
           "Value": false
         },

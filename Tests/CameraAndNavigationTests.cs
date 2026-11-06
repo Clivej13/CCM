@@ -141,6 +141,50 @@ public sealed class CameraAndNavigationTests
     }
 
     [Fact]
+    public void TopDownEnemyClickTakesPriorityOverInteractableBehindIt()
+    {
+        var simulation = new DungeonSimulation(
+            new DungeonSettings { Combat = new() { AutoPauseOnCombatStart=false } },
+            new GameplaySettings { AutoAttackSelectedEnemy=true });
+        simulation.AdjustZoom(-6);
+        simulation.Enemy.Position = new(3.1f,0,-7.2f);
+        var rayOrigin = simulation.Enemy.Position + new Vector3(0,14,0);
+        simulation.UpdateAim(rayOrigin,-Vector3.UnitY);
+        var chest = simulation.World.Interactables[1];
+        Assert.Same(chest,simulation.VisibleTarget?.Item);
+
+        Assert.True(simulation.TrySelectEnemyOrInteract(rayOrigin,-Vector3.UnitY));
+
+        Assert.True(simulation.EnemySelected);
+        Assert.True(simulation.AutoAttackEnabled);
+        Assert.False(chest.IsOpen);
+    }
+
+    [Fact]
+    public void TopDownEnemyClickPlansRouteOnTheClickFrame()
+    {
+        var simulation = new DungeonSimulation(
+            new DungeonSettings { Combat = new() { AutoPauseOnCombatStart=false } },
+            new GameplaySettings { AutoAttackSelectedEnemy=true });
+        simulation.AdjustZoom(-6);
+        Assert.True(simulation.World.Interactables[0].Activate(simulation.Player.Position));
+        var start = simulation.Player.Position;
+        var rayOrigin = simulation.Enemy.Position + new Vector3(0,14,0);
+        simulation.UpdateAim(rayOrigin,-Vector3.UnitY);
+
+        Assert.True(simulation.TrySelectEnemyOrInteract(rayOrigin,-Vector3.UnitY));
+        Assert.True(simulation.CombatStarted);
+        Assert.NotNull(simulation.MoveDestination);
+
+        for (int i=0;i<80;i++)
+        {
+            simulation.UpdateTopDown(Vector2.Zero,0.1f);
+            simulation.UpdateCombat(0.1f);
+        }
+        Assert.True(simulation.Player.Position.Z < start.Z-1);
+    }
+
+    [Fact]
     public void TopDownAttackRoutesIntoMeleeReachAndContinuesAttacking()
     {
         var simulation = ActiveCombat();

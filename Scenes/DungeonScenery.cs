@@ -97,8 +97,6 @@ internal static class DungeonScenery
                      new Vector3(7.8f,0,-30.5f) })
             Draw(assets,lighting,"dungeon-rubble-small",position,0,Vector3.One,
                 new(position+new Vector3(0,0.1f,0),new(1.4f,0.3f,1.4f)));
-        Draw(assets,lighting,"dungeon-torch-sconce",new(-3.2f,0,-8.02f),0,
-            Vector3.One,new(new(-3.2f,1.6f,-8.02f),new(0.2f,0.8f,0.4f)));
     }
 
     private static void Draw(AssetManager assets,DungeonLighting lighting,string key,

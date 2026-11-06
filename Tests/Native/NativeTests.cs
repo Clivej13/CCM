@@ -26,39 +26,46 @@ public sealed class NativeTests
     }
 
     [Fact]
-    public void ExtinguishedFireplacesLeaveDungeonGeometryDark()
+    public void FireplacesAndTorchesRespectExtinguishingAndDoorShadows()
     {
-        Raylib.InitWindow(800,600,"CCM fireplace lighting");
+        Raylib.InitWindow(800,600,"CCM fire source lighting");
         var player=Raylib.LoadModel(Path.Combine("Assets","Characters","Library","Human","Male","Outfits","Underlayer","Animations","Generated","human_male_underlayer_locomotion.glb"));
         var enemy=Raylib.LoadModel(Path.Combine("Assets","Characters","Library","Orc","Male","Outfits","Underlayer","Animations","Generated","orc_male_underlayer_locomotion.glb"));
         var hearth=Raylib.LoadModel(Path.Combine("Assets","Props","dungeon_fireplace.glb"));
+        var sconce=Raylib.LoadModel(Path.Combine("Assets","Dungeon","torch_sconce.glb"));
         try
         {
             var world=new DungeonWorld();
+            var bounds=Raylib.GetModelBoundingBox(sconce);
+            Assert.InRange(world.Torches[0].FireOrigin.Y-world.Torches[0].Position.Y,
+                bounds.Min.Y-0.1f,bounds.Max.Y+0.5f);
             using var lighting=new CCM.Scenes.DungeonLighting(player,enemy,hearth,world);
-            var fireplaces=world.Fireplaces;
             lighting.Update(0,1);
-            var surface=fireplaces[0].FireOrigin;
+            var surface=world.Fireplaces[0].FireOrigin;
             Assert.True(lighting.LitColor(Color.White,surface,Vector3.Zero).R>0);
-            var nearby=lighting.LitColor(Color.White,surface+Vector3.UnitZ*3,Vector3.Zero);
-            Assert.InRange((int)nearby.R-(int)nearby.B,0,80);
-            fireplaces[0].Activate(Vector3.Zero);
+
+            world.Fireplaces[0].Activate(Vector3.Zero);
+            world.Fireplaces[1].Activate(Vector3.Zero);
             lighting.Update(0.2f,1);
-            Assert.Equal(0,lighting.LitColor(Color.White,surface,Vector3.Zero).R);
-            foreach (var fireplace in fireplaces.Skip(1)) fireplace.Activate(Vector3.Zero);
+            foreach (var centre in new[] { new Vector3(0,1,2),new Vector3(0,1,-12),
+                         new Vector3(0,1,-28) })
+                Assert.True(lighting.LitColor(Color.White,centre,Vector3.Zero).R>20,
+                    $"Torches should light area at {centre}");
+            foreach (var torch in world.Torches) torch.Activate(Vector3.Zero);
             lighting.Update(0.2f,1);
             Assert.Equal(new Color(0,0,0,255),
                 lighting.LitColor(Color.White,surface,Vector3.Zero));
 
-            fireplaces[1].Activate(Vector3.Zero);
+            var corridorTorch=world.Torches[2];
+            corridorTorch.Activate(Vector3.Zero);
             lighting.Update(0.2f,1);
             var nearDoor=new Vector3(0,1,-6);
             Assert.Equal(0,lighting.LitColor(Color.White,nearDoor,Vector3.Zero).R);
             world.Interactables[0].Activate(world.Spawn);
             Assert.True(lighting.LitColor(Color.White,nearDoor,Vector3.Zero).R>0);
 
-            fireplaces[1].Activate(Vector3.Zero);
-            fireplaces[0].Activate(Vector3.Zero);
+            corridorTorch.Activate(Vector3.Zero);
+            world.Fireplaces[0].Activate(Vector3.Zero);
             lighting.Update(0.4f,1);
             var camera=new Camera3D
             {
@@ -83,9 +90,9 @@ public sealed class NativeTests
             }
             finally { Raylib.UnloadImage(image); }
 
-            fireplaces[0].Activate(Vector3.Zero);
-            fireplaces[1].Activate(Vector3.Zero);
-            world.Interactables[0].Activate(world.Spawn);
+            world.Fireplaces[0].Activate(Vector3.Zero);
+            corridorTorch.Activate(Vector3.Zero);
+            world.Interactables[0].Activate(world.Spawn); // Close the doorway.
             var doorCamera=new Camera3D
             {
                 Position=new(0,15,-8),Target=new(0,0,-8),Up=-Vector3.UnitZ,
@@ -112,10 +119,11 @@ public sealed class NativeTests
             world.Interactables[0].Activate(world.Spawn);
             var openPixel=DoorPixel();
             Assert.True(openPixel.R>closedPixel.R+10,
-                $"Door should block firelight: closed={closedPixel}, open={openPixel}");
+                $"Door should block torchlight: closed={closedPixel}, open={openPixel}");
         }
         finally
         {
+            Raylib.UnloadModel(sconce);
             Raylib.UnloadModel(hearth);
             Raylib.UnloadModel(enemy);
             Raylib.UnloadModel(player);
@@ -134,7 +142,7 @@ public sealed class NativeTests
         {
             var world=new DungeonWorld();
             world.Fireplaces[1].Activate(Vector3.Zero);
-            world.Fireplaces[2].Activate(Vector3.Zero);
+            foreach (var torch in world.Torches) torch.Activate(Vector3.Zero);
             using var lighting=new CCM.Scenes.DungeonLighting(player,enemy,hearth,world);
             lighting.Update(0.2f,1);
             var camera=new Camera3D
@@ -200,7 +208,7 @@ public sealed class NativeTests
         {
             var world=new DungeonWorld();
             world.Fireplaces[1].Activate(Vector3.Zero);
-            world.Fireplaces[2].Activate(Vector3.Zero);
+            foreach (var torch in world.Torches) torch.Activate(Vector3.Zero);
             using var lighting=new CCM.Scenes.DungeonLighting(player,enemy,hearth,world);
             var camera=new Camera3D
             {
@@ -271,7 +279,7 @@ public sealed class NativeTests
             };
             foreach (var (position,time) in positions)
             {
-                character.Update(model,position,time);
+                character.Update(model,position,-Vector3.UnitZ,time);
                 var min=character.BoundsMin;
                 var max=character.BoundsMax;
                 Assert.InRange(max.Y-min.Y,height*0.9f,height*1.1f);
@@ -284,6 +292,42 @@ public sealed class NativeTests
                     max.X-min.X<height*0.7f && max.Z-min.Z<height*0.7f,
                     $"{file} t={time}: min={min}, max={max}, height={height}");
             }
+        }
+        finally { Raylib.UnloadModel(model); Raylib.CloseWindow(); }
+    }
+
+    [Theory]
+    [InlineData("Human/Male/Outfits/Underlayer/Animations/Generated/human_male_underlayer_locomotion.glb",1.78f)]
+    [InlineData("Orc/Male/Outfits/Underlayer/Animations/Generated/orc_male_underlayer_locomotion.glb",2.08f)]
+    public void DirectionalClipsStayInPlaceAndConsumeBakedTurnYaw(string file,float height)
+    {
+        Raylib.InitWindow(800,600,"CCM directional animation");
+        var path=Path.Combine("Assets","Characters","Library",file);
+        var model=Raylib.LoadModel(path);
+        try
+        {
+            var character=new CCM.Scenes.GltfCharacter(model,path,height);
+            var forward=-Vector3.UnitZ;
+            character.Update(model,Vector3.Zero,forward,0);
+            character.Update(model,new(0.2f,0,0),forward,0.2f);
+            Assert.Equal("sidestepright",character.State);
+            character.Update(model,Vector3.Zero,forward,0.4f);
+            Assert.Equal("sidestepleft",character.State);
+            character.Update(model,Vector3.Zero,-Vector3.UnitX,0.6f);
+            Assert.Equal("turnleft",character.State);
+            character.Update(model,Vector3.Zero,-Vector3.UnitX,1.2f);
+            Assert.Equal("turnleft",character.State);
+            Assert.InRange(MathF.Abs(character.VisualYawCorrection),0.1f,1.6f);
+            Assert.InRange(character.BoundsMax.Y-character.BoundsMin.Y,
+                height*0.85f,height*1.15f);
+            character.Update(model,Vector3.Zero,-Vector3.UnitX,1.8f);
+            character.Update(model,Vector3.Zero,-Vector3.UnitX,2.0f);
+            Assert.Equal("idle",character.State);
+            Assert.Equal(0,character.VisualYawCorrection);
+            character.Update(model,Vector3.Zero,forward,2.2f);
+            Assert.Equal("turnright",character.State);
+            character.Update(model,Vector3.Zero,forward,2.8f);
+            Assert.InRange(MathF.Abs(character.VisualYawCorrection),0.1f,1.6f);
         }
         finally { Raylib.UnloadModel(model); Raylib.CloseWindow(); }
     }
@@ -312,16 +356,22 @@ public sealed class NativeTests
             var body=new CCM.Scenes.GltfCharacter(bodyModel,bodyPath,1.78f);
             var armour=new CCM.Scenes.GltfCharacter(armourModel,armourPath,1.78f,
                 reference:body);
-            foreach (var (position,time) in new[]
+            foreach (var (position,facing,time) in new[]
             {
-                (Vector3.Zero,0f),
-                (Vector3.Zero,0.5f),
-                (new Vector3(0,0,-0.5f),0.7f),
-                (new Vector3(0,0,-2.5f),1.0f)
+                (Vector3.Zero,-Vector3.UnitZ,0f),
+                (Vector3.Zero,-Vector3.UnitZ,0.5f),
+                (new Vector3(0.2f,0,0),-Vector3.UnitZ,0.7f),
+                (Vector3.Zero,-Vector3.UnitZ,0.9f),
+                (Vector3.Zero,-Vector3.UnitX,1.1f),
+                (Vector3.Zero,-Vector3.UnitX,1.5f),
+                (new Vector3(0,0,-0.5f),-Vector3.UnitX,1.7f),
+                (new Vector3(0,0,-2.5f),-Vector3.UnitX,2.0f)
             })
             {
-                body.Update(bodyModel,position,time);
-                armour.Update(armourModel,position,time,body);
+                body.Update(bodyModel,position,facing,time);
+                armour.Update(armourModel,position,facing,time,body);
+                Assert.Equal(body.State,armour.State);
+                Assert.InRange(MathF.Abs(body.VisualYawCorrection-armour.VisualYawCorrection),0,0.05f);
                 Assert.True(armour.BoundsMin.Y>=body.BoundsMin.Y-0.12f &&
                     armour.BoundsMax.Y<=body.BoundsMax.Y+0.12f &&
                     armour.BoundsMin.X>=body.BoundsMin.X-0.15f &&
