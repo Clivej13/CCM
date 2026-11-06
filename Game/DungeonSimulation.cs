@@ -146,13 +146,9 @@ public sealed class DungeonSimulation
         if (castingAbility is not null) abilityCastSeconds+=0.3f;
     }
 
-    private void InterruptPlayerAttackForMovement(bool stopAutoAttack)
+    private void InterruptPlayerAttackForMovement(bool manualMovement)
     {
-        if (stopAutoAttack)
-        {
-            attackRequested=false;
-            manualMovementSinceCombatUpdate=true;
-        }
+        if (manualMovement) manualMovementSinceCombatUpdate=true;
         Player.InterruptAttack();
         if (castingAbility is null) return;
         castingAbility=null;
@@ -309,6 +305,8 @@ public sealed class DungeonSimulation
         InteractionMessage = changed
             ? item is FireplaceInteractable fireplace
                 ? fireplace.IsLit ? "Fireplace lit" : "Fireplace extinguished"
+                : item is TorchInteractable torch
+                    ? torch.IsLit ? "Torch lit" : "Torch extinguished"
                 : item is ChestInteractable && wasOpen ? "Chest searched"
                     : $"{item.Name} {(item.IsOpen ? "opened" : "closed")}"
             : "Step away from the doorway";
@@ -327,7 +325,7 @@ public sealed class DungeonSimulation
         pendingInteraction = null;
         movementPath.Clear();
         waypoint = 0;
-        attackRequested = false;
+        EnemySelected = attackRequested = false;
         Player.CancelAttack();
         if (InteractionQuery.CanReach(World,CameraAnchor,item,settings.InteractionRange))
             return TryInteractItem(item);
@@ -343,10 +341,13 @@ public sealed class DungeonSimulation
         return true;
     }
 
+    public bool TrySelectEnemyOrInteract(Vector3 origin,Vector3 direction) =>
+        SelectEnemy(origin,direction) || TryInteractVisible();
+
     public bool SelectEnemy() => SelectEnemy(CameraPosition,CameraTarget-CameraPosition);
     public bool SelectEnemy(Vector3 origin,Vector3 direction)
     {
-        if (Paused || !CombatStarted || !Player.Alive || !Enemy.Alive ||
+        if (Paused || !Player.Alive || !Enemy.Alive ||
             !Finite(origin) || !Finite(direction) || direction.LengthSquared()<0.000001f) return false;
         var ray = Vector3.Normalize(direction) * 1000;
         var bounds = new Block(Enemy.Position+new Vector3(0,0.9f,0),new(1,1.8f,1));
@@ -368,11 +369,14 @@ public sealed class DungeonSimulation
     {
         if (!Paused && Player.Alive && EnemySelected && Enemy.Alive)
         {
-            attackRequested = true;
+            CombatStarted=true;
+            attackRequested=true;
+            manualMovementSinceCombatUpdate=false;
             pendingInteraction = null;
             movementPath.Clear();
             waypoint = 0;
             chaseRepathSeconds = 0;
+            if (TopDown && !Player.Statuses.BlocksActions) UpdateChase(0);
         }
     }
     public string RequestAbility(string id)
@@ -468,6 +472,7 @@ public sealed class DungeonSimulation
         if (!TopDown || Paused || !Player.Alive) return false;
         pendingInteraction = null;
         InterruptPlayerAttackForMovement(true);
+        EnemySelected=attackRequested=false;
         movementPath.Clear();
         waypoint = 0;
         var route = DungeonNavigation.FindPath(World,Player.Position,destination);
@@ -538,7 +543,7 @@ public sealed class DungeonSimulation
         {
             var nearbyPosition=World.Move(Player.Position,offset);
             if (Vector3.DistanceSquared(nearbyPosition,Player.Position)>0.000001f)
-                InterruptPlayerAttackForMovement(!attackRequested);
+                InterruptPlayerAttackForMovement(false);
             Player.Position=nearbyPosition;
             if (Vector3.DistanceSquared(Player.Position,target)<=0.0025f) waypoint++;
             else { movementPath.Clear(); waypoint=0; }
@@ -552,7 +557,7 @@ public sealed class DungeonSimulation
             waypoint=0;
             return;
         }
-        InterruptPlayerAttackForMovement(!attackRequested);
+        InterruptPlayerAttackForMovement(false);
         Player.Position=moved;
         Player.Rotation=Quaternion.CreateFromAxisAngle(Vector3.UnitY,MathF.Atan2(-delta.X,-delta.Z));
         if (Vector3.DistanceSquared(Player.Position,target)<=0.0025f) waypoint++;
@@ -563,12 +568,9 @@ public sealed class DungeonSimulation
         CombatMessage = pendingCombatMessage;
         pendingCombatMessage=null;
         if (Paused || !float.IsFinite(seconds) || seconds <= 0 || !Player.Alive) return;
-        if (manualMovementSinceCombatUpdate)
-        {
-            attackRequested=false;
-            manualMovementSinceCombatUpdate=false;
-            Player.InterruptAttack();
-        }
+        bool movedManually=manualMovementSinceCombatUpdate;
+        manualMovementSinceCombatUpdate=false;
+        if (movedManually) Player.InterruptAttack();
         seconds = Math.Min(seconds,0.1f);
         AnimationSeconds+=seconds;
         Player.Statuses.Tick(seconds);
@@ -603,7 +605,7 @@ public sealed class DungeonSimulation
         }
         bool clear = World.ClearLine(Player.Position+Vector3.UnitY,Enemy.Position+Vector3.UnitY);
         UpdateAbility(seconds,clear);
-        if (attackRequested && castingAbility is null)
+        if (attackRequested && !movedManually && castingAbility is null)
         {
             if (Player.UsesBow && !Player.HasAmmo)
             {

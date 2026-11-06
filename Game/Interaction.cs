@@ -1,7 +1,7 @@
 using System.Numerics;
 namespace CCM.Game;
 
-public enum InteractionKind { Door, Chest, Fireplace }
+public enum InteractionKind { Door, Chest, Fireplace, Torch }
 
 /// <summary>World objects expose only their common targeting and activation contract.</summary>
 public abstract class Interactable
@@ -74,6 +74,30 @@ public sealed class FireplaceInteractable(
         Math.Abs(rotationDegrees)%180<1
             ? new Vector3(2.36f,2.36f,0.9f)
             : new Vector3(0.9f,2.36f,2.36f));
+    public override Block Bounds => ClosedBounds;
+    public override void Reset() => IsLit=true;
+    public override bool Activate(Vector3 playerFeet)
+    {
+        IsLit=!IsLit;
+        return true;
+    }
+}
+
+public sealed class TorchInteractable(
+    Vector3 position,float rotationDegrees,float phaseOffset=0) : Interactable
+{
+    public Vector3 Position => position;
+    public float RotationDegrees => rotationDegrees;
+    public float PhaseOffset => phaseOffset;
+    public Vector3 FireOrigin => position+new Vector3(0,1.85f,0)+
+        Vector3.Transform(new Vector3(0,0,0.25f),
+            Quaternion.CreateFromAxisAngle(Vector3.UnitY,rotationDegrees*MathF.PI/180f));
+    public bool IsLit { get; private set; } = true;
+    public override InteractionKind Kind => InteractionKind.Torch;
+    public override string Name => "Torch";
+    public override string Action => IsLit ? "Extinguish torch" : "Light torch";
+    public override Block ClosedBounds => new(position+new Vector3(0,1.65f,0),
+        new Vector3(0.38f,0.75f,0.38f));
     public override Block Bounds => ClosedBounds;
     public override void Reset() => IsLit=true;
     public override bool Activate(Vector3 playerFeet)

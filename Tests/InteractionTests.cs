@@ -158,10 +158,34 @@ public sealed class InteractionTests
     }
 
     [Fact]
+    public void TorchesLightEachAreaAndCanBeExtinguished()
+    {
+        var world=new DungeonWorld();
+        Assert.Equal(2,world.Fireplaces.Count);
+        Assert.DoesNotContain(world.Fireplaces,
+            fireplace=>fireplace.Position.Z is < -8 and > -17);
+        Assert.Equal(6,world.Torches.Count);
+        Assert.Equal(2,world.Torches.Count(torch=>torch.Position.Z>-8));
+        Assert.Equal(2,world.Torches.Count(torch=>torch.Position.Z is < -8 and > -17));
+        Assert.Equal(2,world.Torches.Count(torch=>torch.Position.Z< -17));
+        Assert.True(InteractionQuery.CanReach(world,new(-4,1.2f,6),world.Torches[0],2.5f));
+        Assert.True(InteractionQuery.CanReach(world,new(-1,1.2f,-11),world.Torches[2],2.5f));
+        Assert.True(InteractionQuery.CanReach(world,new(-8,1.2f,-26),world.Torches[4],2.5f));
+        var torch=world.Torches[0];
+        Assert.Contains(torch,world.Interactables);
+        Assert.Equal("Extinguish torch",torch.Action);
+        Assert.True(torch.Activate(world.Spawn));
+        Assert.False(torch.IsLit);
+        Assert.Equal("Light torch",torch.Action);
+        world.Reset();
+        Assert.True(torch.IsLit);
+    }
+
+    [Fact]
     public void FireplaceCanBeReachedExtinguishedAndRelit()
     {
         var world=new DungeonWorld();
-        var fireplace=world.Fireplaces[2];
+        var fireplace=world.Fireplaces[1];
         var eye=new Vector3(5,1.2f,-37.5f);
         Assert.False(world.CanStand(fireplace.Position));
         Assert.Same(fireplace,InteractionQuery.FindNearby(world,eye,-Vector3.UnitZ,2.5f)?.Item);

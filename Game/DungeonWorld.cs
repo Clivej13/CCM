@@ -27,15 +27,25 @@ public sealed class DungeonWorld
     ];
     public IReadOnlyList<Interactable> Interactables { get; }
     public IReadOnlyList<FireplaceInteractable> Fireplaces { get; }
+    public IReadOnlyList<TorchInteractable> Torches { get; }
     public DungeonWorld(IEnumerable<ItemStack>? chestContents=null)
     {
         Fireplaces=
         [
             new(new(-7.55f,0,3),90,0),
-            new(new(1.55f,0,-12),-90,0.9f),
             new(new(5,0,-39.65f),0,1.8f)
         ];
-        Interactables=[new DoorInteractable(),new ChestInteractable(chestContents),..Fireplaces];
+        Torches=
+        [
+            new(new(-4,0,7.98f),180,0.2f),
+            new(new(4,0,7.98f),180,1.1f),
+            new(new(-1.98f,0,-11),90,0.5f),
+            new(new(1.98f,0,-14),-90,1.6f),
+            new(new(-9.98f,0,-26),90,0.8f),
+            new(new(9.98f,0,-29),-90,2.0f)
+        ];
+        Interactables=[new DoorInteractable(),new ChestInteractable(chestContents),
+            ..Fireplaces,..Torches];
     }
     public IEnumerable<Block> Solids => StaticSolids.Concat(Interactables.Select(item => item.Bounds));
     public void Reset() { foreach (var item in Interactables) item.Reset(); }

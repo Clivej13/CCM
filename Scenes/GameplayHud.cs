@@ -44,8 +44,13 @@ internal sealed class GameplayHud(SessionInput input,DungeonSimulation simulatio
             playerDetailsY+=25;
         }
         if (simulation.AutoAttackEnabled && enemy.Alive)
-            Raylib.DrawText($"Auto attack: {player.Phase} {player.AttackProgress:P0}",
-                playerX,playerDetailsY,16,Color.Gold);
+        {
+            string attackStatus=!player.InRange(enemy) ? "Target engaged: out of range"
+                : !simulation.World.ClearLine(player.Position+Vector3.UnitY,
+                    enemy.Position+Vector3.UnitY) ? "Target engaged: line of sight blocked"
+                : $"Auto attack: {player.Phase} {player.AttackProgress:P0}";
+            Raylib.DrawText(attackStatus,playerX,playerDetailsY,16,Color.Gold);
+        }
         if (simulation.CombatStarted)
             DrawEnemyPanel(enemy,enemyX,panelTop,simulation.EnemySelected);
         if (debug)

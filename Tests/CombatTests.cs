@@ -139,6 +139,30 @@ public sealed class CombatTests
     }
 
     [Fact]
+    public void SelectingAnEnemyAfterMovingInTheSameFrameKeepsAutoAttackActive()
+    {
+        var settings=Settings.Required<DungeonSettings>(Settings.ConfigPath("dungeon.json"));
+        settings.Combat.AutoPauseOnCombatStart=false;
+        var items=Settings.Required<ItemCatalogue>(Settings.ConfigPath("items.json"));
+        var fight=new DungeonSimulation(settings,
+            new GameplaySettings { AutoAttackSelectedEnemy=true },
+            items,playerDefinition:Settings.Required<PlayerDefinition>(Settings.ConfigPath("player.json")),
+            enemies:new EnemyCatalogue { Enemies=[new EnemyDefinition { MoveSpeed=0 }] },
+            combatRoll:()=>0.5f);
+        fight.Player.Position=new(0,0,-14);
+        fight.UpdateCombat(0.1f);
+        Assert.True(fight.CombatStarted);
+        fight.Update(Vector2.UnitY,Vector2.Zero,true,0.1f);
+        var aim=fight.Player.Position+Vector3.UnitY;
+        Assert.True(fight.SelectEnemy(aim,fight.Enemy.Position+Vector3.UnitY-aim));
+        fight.UpdateCombat(0.1f);
+        Assert.True(fight.AutoAttackEnabled);
+        Assert.Equal(AttackPhase.Casting,fight.Player.Phase);
+        for (int i=0;i<12;i++) fight.UpdateCombat(0.1f);
+        Assert.True(fight.Enemy.Health<fight.Enemy.MaxHealth);
+    }
+
+    [Fact]
     public void ManualOptionUsesAForSelectedEnemy()
     {
         var simulation = new DungeonSimulation(
@@ -428,8 +452,43 @@ public sealed class CombatTests
             CombatFormula.RollAttack(player.Attributes,enemy.Attributes,true,0.5f,0.5f));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void EnemyClickEstablishesCombatTargetAndWaitsForRange(bool autoOnSelection)
+    {
+        var fight=new DungeonSimulation(
+            new DungeonSettings { Combat=new() { AutoPauseOnCombatStart=false } },
+            new GameplaySettings { AutoAttackSelectedEnemy=autoOnSelection },
+            enemies:new EnemyCatalogue { Enemies=
+                [new EnemyDefinition { VisionRange=2,MoveSpeed=0 }] },
+            combatRoll:()=>0.5f);
+        fight.Player.Position=new(0,0,-14);
+        fight.UpdateCombat(0.1f);
+        Assert.False(fight.CombatStarted);
+        var aim=fight.Player.Position+Vector3.UnitY;
+        Assert.True(fight.SelectEnemy(aim,fight.Enemy.Position+Vector3.UnitY-aim));
+        if (!autoOnSelection)
+        {
+            Assert.False(fight.CombatStarted);
+            fight.RequestAttack(); // The right-click path requests engagement.
+        }
+        Assert.True(fight.CombatStarted);
+        Assert.True(fight.EnemySelected);
+        Assert.True(fight.AutoAttackEnabled);
+        Assert.False(fight.Paused);
+        fight.Update(Vector2.UnitY,Vector2.Zero,true,0.1f);
+        fight.UpdateCombat(0.1f);
+        Assert.True(fight.AutoAttackEnabled); // Moving does not discard the combat target.
+        for (int i=0;i<20;i++) fight.UpdateCombat(0.1f);
+        Assert.Equal(fight.Enemy.MaxHealth,fight.Enemy.Health);
+        fight.Player.Position=new(0,0,-28.5f);
+        for (int i=0;i<20;i++) fight.UpdateCombat(0.1f);
+        Assert.True(fight.Enemy.Health<fight.Enemy.MaxHealth);
+    }
+
     [Fact]
-    public void MovingInterruptsBowCastsAndStopsAutoAttacksWithoutSpendingArrows()
+    public void MovingInterruptsBowCastsButKeepsCombatTarget()
     {
         var settings=Settings.Required<DungeonSettings>(Settings.ConfigPath("dungeon.json"));
         settings.Combat.AutoPauseOnCombatStart=false;
@@ -459,15 +518,17 @@ public sealed class CombatTests
         fight.UpdateCombat(0.1f);
         Assert.Equal(AttackPhase.Casting,fight.Player.Phase);
         fight.Update(Vector2.UnitY,Vector2.Zero,true,0.1f);
-        Assert.False(fight.AutoAttackEnabled);
+        Assert.True(fight.AutoAttackEnabled);
         Assert.Equal(AttackPhase.Ready,fight.Player.Phase);
-        for (int i=0;i<10;i++) fight.UpdateCombat(0.1f);
-        Assert.Equal(40,fight.Player.Equipment.AmmoCount);
-        Assert.Equal(fight.Enemy.MaxHealth,fight.Enemy.Health);
+        fight.UpdateCombat(0.1f); // Movement interrupts this frame's cast.
+        Assert.Equal(AttackPhase.Ready,fight.Player.Phase);
+        for (int i=0;i<20;i++) fight.UpdateCombat(0.1f);
+        Assert.True(fight.Player.Equipment.AmmoCount<40);
+        Assert.True(fight.Enemy.Health<fight.Enemy.MaxHealth);
     }
 
     [Fact]
-    public void MovingBeforeMeleeAttackStopsItAndDoesNotClearRecovery()
+    public void ClickAfterMovementStartsCombatWithoutClearingRecovery()
     {
         var fight=new DungeonSimulation(new DungeonSettings
             { Combat=new() { AutoPauseOnCombatStart=false } },
@@ -478,13 +539,9 @@ public sealed class CombatTests
         Assert.True(fight.SelectEnemyContextual());
         fight.RequestAttack();
         fight.Update(Vector2.UnitY,Vector2.Zero,true,0.1f);
-        fight.RequestAttack(); // Input can issue an attack after movement in the same frame.
+        fight.RequestAttack(); // The click overrides movement earlier in this frame.
         fight.UpdateCombat(0.1f);
-        Assert.False(fight.AutoAttackEnabled);
-        Assert.Equal(fight.Enemy.MaxHealth,fight.Enemy.Health);
-
-        fight.RequestAttack();
-        fight.UpdateCombat(0.1f);
+        Assert.True(fight.AutoAttackEnabled);
         Assert.True(fight.Enemy.Health<fight.Enemy.MaxHealth);
         Assert.Equal(AttackPhase.Cooldown,fight.Player.Phase);
         int health=fight.Enemy.Health;
